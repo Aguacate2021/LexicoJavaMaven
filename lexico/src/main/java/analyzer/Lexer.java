@@ -7,13 +7,13 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Analizador léxico para código Python.
+ * Analizador léxico para código ManuelCode2026.
  *
  * Responsabilidades:
  *   - tokenizar(String) → Lista de Token
  *   - analizar(String)  → Lista de ErrorEntry
  *
- * No tiene dependencias de UI.
+ * 
  */
 public class Lexer {
     List<ErrorEntry> errores = new ArrayList<>();
@@ -34,17 +34,16 @@ public class Lexer {
     // TOKENIZACIÓN
     // ════════════════════════════════════════════════════════════════════════
 
-    /**
-     * Recorre el código fuente carácter a carácter y produce tokens.
-     */
+    
     public List<Token> tokenizar(String codigo) {
         List<Token> tokens = new ArrayList<>();
+        errores.clear(); // limpiar errores previos
         if (codigo == null || codigo.isBlank()) return tokens;
 
         LeerCSV.LeerCSV();
         String[] lineas = codigo.split("\n", -1);
 
-        int estado = 0; // 🔥 estado global
+        int estado = 0; //estado global
         boolean enComentarioMultilinea = false;
         StringBuilder comentario = new StringBuilder();
 
@@ -56,7 +55,7 @@ public class Lexer {
 
                 char ch = linea.charAt(col);
 
-                // 🔥 SI YA ESTÁS EN COMENTARIO MULTILÍNEA
+                //SI YA ESTÁS EN COMENTARIO MULTILÍNEA
                 if (enComentarioMultilinea) {
                     comentario.append(ch);
 
@@ -82,7 +81,7 @@ public class Lexer {
                     continue;
                 }
 
-                // 🔥 Detectar inicio de comentario multilínea
+                //Detectar inicio de comentario multilínea
                 if (ch == '/' && col + 1 < linea.length() && linea.charAt(col + 1) == '*') {
                     enComentarioMultilinea = true;
                     comentario.append("/*");
@@ -105,14 +104,14 @@ public class Lexer {
 
                     int nuevoEstado = LeerCSV.getValor(estado, clase);
 
-                    // 🔥 TRANSICIÓN
+                    //TRANSICIÓN
                     if (nuevoEstado >= 0 && nuevoEstado < 500) {
                         estado = nuevoEstado;
                         lexema.append(ch);
                         col++;
                     }
 
-                    // 🔥 ACEPTACIÓN
+                    //ACEPTACIÓN
                     else if (nuevoEstado < 0) {
                         if (nuevoEstado == -68) {
 
@@ -157,15 +156,16 @@ public class Lexer {
                                 nuevoEstado
                             ));
 
-                            estado = 0; // 🔥 reiniciar estado
+                            estado = 0; //reiniciar estado
                             break;
                         }
                     }
 
-                    // 🔥 ERROR
+                    //ERROR
                     else if (nuevoEstado >= 500) {
                         if (lexema.length() > 0) {
                             lexema.append(ch); // incluir el carácter problemático en el lexema del error
+                            if (nuevoEstado == -68) { nuevoEstado = 510; } // mantener el mismo código de error para errores léxicos
                             analizar(
                                 lexema.toString(),
                                 nuevoEstado,
@@ -173,7 +173,8 @@ public class Lexer {
                                 col - lexema.length() + 1
                             );
                         } else {
-                            // 🔥 si el error ocurre desde el inicio (ej: @)
+                            //si el error ocurre desde el inicio (ej: @)
+                            if (nuevoEstado == -68) { nuevoEstado = 510; } // mantener el mismo código de error para errores léxicos
                             analizar(
                                 String.valueOf(ch),
                                 nuevoEstado,
@@ -187,7 +188,7 @@ public class Lexer {
                     }
                 }
 
-                // 🔥 FORZAR EVALUACIÓN AL FINAL DE LÍNEA
+                //FORZAR EVALUACIÓN AL FINAL DE LÍNEA
                 if (lexema.length() > 0 && col >= linea.length()) {
 
                     int claseEOF = 56;
@@ -214,7 +215,7 @@ public class Lexer {
                                     col - lexema.length() + 1
                                 );
                                 } else {
-                                    // 🔥 si el error ocurre desde el inicio (ej: @)
+                                    //si el error ocurre desde el inicio (ej: @)
                                     analizar(
                                         String.valueOf(ch),
                                         nuevoEstado,
@@ -245,17 +246,17 @@ public class Lexer {
                             );
                     }
 
-                    estado = 0; // 🔥 reset
+                    estado = 0; //reset
                 }
 
-                // 🔴 evitar loop infinito
+                //evitar loop infinito
                 if (lexema.length() == 0) {
                     col++;
                 }
             }
         }
 
-        // 🔴 error si no se cerró comentario
+        //error si no se cerró comentario
         if (enComentarioMultilinea) {
             System.out.println("ERROR: comentario multilínea no cerrado");
         }
@@ -266,20 +267,16 @@ public class Lexer {
     // ANÁLISIS DE ERRORES
     // ════════════════════════════════════════════════════════════════════════
 
-    /**
-     * Analiza el código fuente e identifica errores léxicos/sintácticos básicos.
-     * Recibe los tokens ya generados para evitar tokenizar dos veces.
-     */
+    
     public void analizar(String Lexema, int numError,int linea, int columna) {
+        if (numError==-68) { numError = 511; } 
         String codigoError = String.format("ERR%03d", numError);
         String descripcion = "Error léxico desconocido";
 
-        // Ejemplo de clasificación de errores basada en el número de error
         descripcion = ErrorEntry.definirDescripcion(numError);
         errores.add(new ErrorEntry(codigoError, descripcion, linea, "ManuelCode",Lexema));
     }
 
-    /** Utilidad: ¿es esta palabra un keyword? */
     public static boolean esKeyword(String palabra) {
         return KEYWORDS.contains(palabra);
     }

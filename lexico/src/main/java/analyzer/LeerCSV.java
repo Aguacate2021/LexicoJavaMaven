@@ -45,12 +45,7 @@ public class LeerCSV {
         mapa.put('\'', 31);
         mapa.put('_', 32);
     }
-    public static void main(String[] args) {
-        LeerCSV();
-        char c = '+'; // Ejemplo de carácter a clasificar
-        int clase = clasificar(c);
-        System.out.println(Valores[0][clase]);
-    }
+    
     public static void LeerCSV() {
         String archivoCSV = ARCHIVO_CSV;
         String linea;
@@ -89,17 +84,17 @@ public class LeerCSV {
 
     public static int clasificar(char c) {
 
-        // 🔹 Directos
+        
         if (mapa.containsKey(c)) {
             return mapa.get(c);
         }
 
-        // 🔹 Números
+        
         if (c == '0' || c == '1') return 33;
         if (c >= '2' && c <= '7') return 34;
         if (c == '8' || c == '9') return 35;
 
-        // 🔹 Letras específicas
+        
         if (c == 'X') return 36;
         if (c == 'x') return 37;
         if (c == 'B') return 38;
@@ -111,7 +106,7 @@ public class LeerCSV {
         if (c == 'D') return 44;
         if (c == 'd') return 45;
 
-        // 🔹 Rangos de letras
+        
         if (c == 'A' || c == 'a') return 46;
         if (c == 'C' || c == 'c') return 47;
         if ((c >= 'E' && c <= 'F') || (c >= 'e' && c <= 'f')) return 48;
@@ -120,13 +115,13 @@ public class LeerCSV {
         if ((c >= 'P' && c <= 'W') || (c >= 'p' && c <= 'w')) return 51;
         if ((c >= 'Y' && c <= 'Z') || (c >= 'y' && c <= 'z')) return 52;
 
-        // 🔹 Espacios y control
+        
         if (c == '\n') return 53;
         if (c == ' ') return 54;
         if (c == '\t') return 55;
         
 
-        // 🔹 OC (Otro carácter)
+        
         return 0;
     }
     

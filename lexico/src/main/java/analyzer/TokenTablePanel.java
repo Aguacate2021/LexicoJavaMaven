@@ -216,7 +216,6 @@ public class TokenTablePanel extends JPanel {
         }
     }
 
-    /** Reemplaza el contenido del panel de errores. */
     public void setErrors(List<ErrorEntry> errores) {
         errorModel.setRowCount(0);
         int idx = 1;

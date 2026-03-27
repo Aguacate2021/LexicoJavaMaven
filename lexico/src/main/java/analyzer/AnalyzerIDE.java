@@ -1,22 +1,37 @@
 package analyzer;
 
-import java.awt.*;
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Cursor;
+import java.awt.Dimension;
+import java.awt.FlowLayout;
+import java.awt.Font;
+import java.awt.FontMetrics;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.Insets;
+import java.awt.RenderingHints;
 import java.util.List;
-import java.util.regex.*;
-import javax.swing.*;
-import javax.swing.border.*;
-import javax.swing.text.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
-/**
- * Ventana principal del Analyzer IDE.
- *
- * Orquesta:
- *   - EditorPanel  (JTextPane con números de línea + syntax highlight)
- *   - TokenTablePanel (tabla de tokens + panel de errores)
- *   - Lexer        (análisis léxico y detección de errores)
- *
- * La barra de título sólo contiene el nombre de la aplicación.
- */
+import javax.swing.BorderFactory;
+import javax.swing.JButton;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.JScrollBar;
+import javax.swing.JScrollPane;
+import javax.swing.JTextPane;
+import javax.swing.SwingConstants;
+import javax.swing.SwingUtilities;
+import javax.swing.UIManager;
+import javax.swing.border.EmptyBorder;
+import javax.swing.text.SimpleAttributeSet;
+import javax.swing.text.StyleConstants;
+import javax.swing.text.StyledDocument;
+
+
 public class AnalyzerIDE extends JFrame {
 
     // ── Paleta ───────────────────────────────────────────────────────────────
@@ -61,13 +76,14 @@ public class AnalyzerIDE extends JFrame {
         add(buildEditor(),    BorderLayout.CENTER);
         add(buildTablePanel(),BorderLayout.EAST);
         add(buildStatusBar(), BorderLayout.SOUTH);
-
-        loadSampleCode();
+        CounterPanel counterPanel = new CounterPanel();
+        add(counterPanel, BorderLayout.SOUTH);
+        //loadSampleCode();
         setVisible(true);
     }
 
     // ════════════════════════════════════════════════════════════════════════
-    // BARRA DE TÍTULO  (solo título centrado)
+    // BARRA DE TÍTULO  
     // ════════════════════════════════════════════════════════════════════════
     private JPanel buildTitleBar() {
         JPanel bar = new JPanel(new BorderLayout());
@@ -126,7 +142,7 @@ public class AnalyzerIDE extends JFrame {
         codeEditor.setFont(MONO_FONT);
         codeEditor.setMargin(new Insets(4, 8, 4, 8));
 
-        // Syntax highlight en tiempo real
+        // Syntax highlight 
         codeEditor.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
             public void insertUpdate(javax.swing.event.DocumentEvent e) {
                 SwingUtilities.invokeLater(() -> applySyntaxHighlight());
@@ -212,16 +228,17 @@ public class AnalyzerIDE extends JFrame {
 
         List<Token>      tokens  = lexer.tokenizar(codigo);
         List<ErrorEntry> errores = lexer.getErrores();
-
         tablePanel.setTokens(tokens);
         tablePanel.setErrors(errores);
-
         statusLabel.setText(String.format(
                 "Compilado  |  %d tokens  |  %d error(es)  |  ManuelCode 2026",
                 tokens.size(), errores.size()));
+        ContadorTokens ct = new ContadorTokens();
+        ct.contar(tokens);
+        CounterPanel.actualizar(ct);
     }
     // ════════════════════════════════════════════════════════════════════════
-    // Exportar a Excel (pendiente)
+    // Exportar a Excel 
     // ════════════════════════════════════════════════════════════════════════
     private void exportToExcel() {
         List<Token>      tokens  = lexer.tokenizar(codeEditor.getText());
@@ -229,7 +246,7 @@ public class AnalyzerIDE extends JFrame {
         ExcelExporter.exportar(this, tokens, errores);
     }
     // ════════════════════════════════════════════════════════════════════════
-    // Abrir archivo .txt (pendiente)
+    // Abrir archivo .txt 
     // ════════════════════════════════════════════════════════════════════════
     private void abrirArchivo() {
         javax.swing.JFileChooser fileChooser = new javax.swing.JFileChooser();

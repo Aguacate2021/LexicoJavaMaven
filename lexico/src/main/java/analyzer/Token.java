@@ -95,9 +95,13 @@ public class Token {
     }
 
     public static int clasificar(String c) {
-        if (!map.containsKey(c)) {
-            return 510; 
-        }
-        return map.get(c);
+    if (c == null) return 511;
+
+    c = c.trim();
+
+    if (!map.containsKey(c)) {
+        return 511; 
     }
+    return map.get(c);
+}
 }

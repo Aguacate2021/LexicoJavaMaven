@@ -26,60 +26,25 @@ import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 /**
- * ExcelExporter
+ * ExcelExporter — Exporta el análisis léxico a un archivo .xlsx.
  *
- * Exporta los resultados del análisis léxico a un archivo .xlsx
- * siguiendo la estructura de la Plantilla_de_lexico_2026.xlsx.
+ * Hojas generadas:
+ *   1. TOKENS      — Estado | Lexema | Línea
+ *   2. ERRORES     — Token  | Descripción | Lexema | Tipo | Línea
+ *   3. CONTADORES  — Tabla de doble encabezado (categoría + subcategoría)
+ *                    alimentada directamente por ContadorTokens.
  *
- * ── Mapa de estados de aceptación (Ayuda.xlsx) ─────────────────────────────
+ * Uso desde AnalyzerIDE:
+ *   ContadorTokens ct = new ContadorTokens();
+ *   ct.contar(tokens);
+ *   ExcelExporter.exportar(frame, tokens, errores, ct);
  *
- *  OPERADORES
- *    Postfix             : -1  (++)    -2  (--)
- *    Lógicos binarios    : -3  (~)     -4  (|)     -5  (&)     -6  (^)
- *    Control             : -7  (,)     -8  (.)     -9  (;)     -10 (:)
- *    Matemáticos         : -11 (+)     -12 (-)     -13 (*)     -14 (/)     -15 (%)
- *    Exponente           : -16 (**)
- *    Turno               : -17 (<<)    -18 (>>)    -19 (>>>)
- *    Relacionales        : -20 (<)     -21 (>)     -22 (<=)    -23 (>=)
- *                          -24 (==)    -25 (!=)    -26 (<>)
- *    Sin igualdad tipo   : -27 (===)   -28 (!==)
- *    Lógicos             : -29 (!)     -30 (&&)    -31 (||)
- *    Ternario            : -32 (?)
- *    Asignación          : -33 (=) .. -44 (=>)
- *    Agrupamiento        : -45 ({) .. -50 ())
- *
- *  COMENTARIOS
- *    Grupal (/* *\/)     : -51
- *    Lineal (//)         : -52
- *
- *  CONSTANTES
- *    Cadena              : -53
- *    Numérica Binario    : -52  (mismo estado que comentario lineal; diferenciado por Tipo)
- *    Numérica Decimal    : -53
- *    Numérica Octal      : -54
- *    Numérica Hexadecimal: -55
- *    Real                : -56
- *    Exponencial         : -57
- *
- *  IDENTIFICADORES
- *    Cadena              : -58
- *    Numérica Binario    : -59
- *    Numérica Decimal    : -60
- *    Numérica Octal      : -61
- *    Numérica Hexadecimal: -62
- *    Real                : -63
- *    Exponencial         : -64
- *    Booleanas           : -65
- *
- *  PALABRAS RESERVADAS / true / false / null : -66
  *
  * Dependencia: Apache POI (poi-ooxml).
- * Uso desde AnalyzerIDE:
- *   ExcelExporter.exportar(parentFrame, tokens, errores);
  */
 public class ExcelExporter {
 
-    // ── Paleta ────────────────────────────────────────────────────────────────
+    // ── Paleta ────────────────────────────────────────────────────────────
     private static final XSSFColor COLOR_HDR_BG   = rgb(0x2D, 0x2D, 0x2D);
     private static final XSSFColor COLOR_HDR_FG   = rgb(0xD4, 0xD4, 0xD4);
     private static final XSSFColor COLOR_ROW_EVEN = rgb(0x2A, 0x2A, 0x2A);
@@ -87,42 +52,41 @@ public class ExcelExporter {
     private static final XSSFColor COLOR_KEYWORD  = rgb(0x56, 0x9C, 0xD6);
     private static final XSSFColor COLOR_ERROR    = rgb(0xF4, 0x47, 0x47);
     private static final XSSFColor COLOR_WARN     = rgb(0xE5, 0xC0, 0x7B);
-    private static final XSSFColor COLOR_COUNT_H  = rgb(0x3A, 0x3A, 0x3A);
     private static final XSSFColor COLOR_COUNT_V  = rgb(0xB5, 0xCE, 0xA8);
+    private static final XSSFColor COLOR_COUNT_H  = rgb(0x3A, 0x3A, 0x3A);
 
-    // ════════════════════════════════════════════════════════════════════════
-    // PUNTO DE ENTRADA PÚBLICO
-    // ════════════════════════════════════════════════════════════════════════
+    // Colores de categoría (encabezado superior de CONTADORES)
+    private static final XSSFColor CAT_ID  = rgb(0x26, 0x40, 0x6E);
+    private static final XSSFColor CAT_COM = rgb(0x1D, 0x4D, 0x2E);
+    private static final XSSFColor CAT_KW  = rgb(0x4A, 0x2D, 0x6A);
+    private static final XSSFColor CAT_CST = rgb(0x5C, 0x3A, 0x1E);
+    private static final XSSFColor CAT_OP  = rgb(0x5C, 0x1E, 0x1E);
 
+    // ═══════════════════════════════════════════════════════════════════════
+    // PUNTOS DE ENTRADA PÚBLICOS
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /**
+     * Exporta usando un ContadorTokens ya calculado (recomendado).
+     */
     public static void exportar(java.awt.Component parent,
-                                List<Token>      tokens,
-                                List<ErrorEntry> errores) {
-
-        JFileChooser fc = new JFileChooser();
-        fc.setDialogTitle("Guardar análisis léxico como Excel");
-        fc.setFileFilter(new FileNameExtensionFilter("Archivo Excel (*.xlsx)", "xlsx"));
-        fc.setSelectedFile(new File("analisis_lexico.xlsx"));
-
-        if (fc.showSaveDialog(parent) != JFileChooser.APPROVE_OPTION) return;
-
-        File destino = fc.getSelectedFile();
-        if (!destino.getName().toLowerCase().endsWith(".xlsx"))
-            destino = new File(destino.getAbsolutePath() + ".xlsx");
+                                List<Token>       tokens,
+                                List<ErrorEntry>  errores,
+                                ContadorTokens    contador) {
+        File destino = elegirDestino(parent);
+        if (destino == null) return;
 
         try (XSSFWorkbook wb = new XSSFWorkbook()) {
-
             poblarTokens(wb, tokens);
             poblarErrores(wb, errores);
-            poblarContadores(wb, tokens, errores);
+            poblarContadores(wb, errores.size(), contador);
 
             try (FileOutputStream fos = new FileOutputStream(destino)) {
                 wb.write(fos);
             }
-
             JOptionPane.showMessageDialog(parent,
                     "Exportado correctamente:\n" + destino.getAbsolutePath(),
                     "Excel exportado", JOptionPane.INFORMATION_MESSAGE);
-
         } catch (IOException ex) {
             JOptionPane.showMessageDialog(parent,
                     "Error al exportar:\n" + ex.getMessage(),
@@ -131,16 +95,25 @@ public class ExcelExporter {
         }
     }
 
-    // ════════════════════════════════════════════════════════════════════════
+    
+    public static void exportar(java.awt.Component parent,
+                                List<Token>       tokens,
+                                List<ErrorEntry>  errores) {
+        ContadorTokens ct = new ContadorTokens();
+        ct.contar(tokens);
+        exportar(parent, tokens, errores, ct);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
     // HOJA 1 — TOKENS
-    // ════════════════════════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════════
     private static void poblarTokens(XSSFWorkbook wb, List<Token> tokens) {
         XSSFSheet ws = wb.createSheet("TOKENS");
         ws.setColumnWidth(0, 24 * 256);
         ws.setColumnWidth(1, 30 * 256);
         ws.setColumnWidth(2, 10 * 256);
 
-        String[] hdrs = {"Estado", "Lexema", "linea"};
+        String[] hdrs = {"Estado", "Lexema", "Línea"};
         XSSFRow hdrRow = ws.createRow(0);
         hdrRow.setHeightInPoints(18);
         for (int c = 0; c < hdrs.length; c++) {
@@ -155,24 +128,24 @@ public class ExcelExporter {
             row.setHeightInPoints(16);
             boolean par = (fila % 2 == 0);
             celda(row, 0, String.valueOf(t.getEstado()), estiloDato(wb, par, COLOR_KEYWORD));
-            celda(row, 1, t.getLexema(),                 estiloDato(wb, par, null));
-            celda(row, 2, t.getLinea(),                  estiloDatoNum(wb, par));
+            celda(row, 1, t.getLexema(),                  estiloDato(wb, par, null));
+            celda(row, 2, t.getLinea(),                   estiloDatoNum(wb, par));
             fila++;
         }
     }
 
-    // ════════════════════════════════════════════════════════════════════════
-    // HOJA 2 — Errores
-    // ════════════════════════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════════
+    // HOJA 2 — ERRORES
+    // ═══════════════════════════════════════════════════════════════════════
     private static void poblarErrores(XSSFWorkbook wb, List<ErrorEntry> errores) {
-        XSSFSheet ws = wb.createSheet("Errores");
+        XSSFSheet ws = wb.createSheet("ERRORES");
         ws.setColumnWidth(0, 20 * 256);
         ws.setColumnWidth(1, 40 * 256);
         ws.setColumnWidth(2, 25 * 256);
         ws.setColumnWidth(3, 18 * 256);
         ws.setColumnWidth(4, 10 * 256);
 
-        String[] hdrs = {"Token", "Descripcion", "lexema", "tipo de error", "linea"};
+        String[] hdrs = {"Token", "Descripción", "Lexema", "Tipo de error", "Línea"};
         XSSFRow hdrRow = ws.createRow(0);
         hdrRow.setHeightInPoints(18);
         for (int c = 0; c < hdrs.length; c++) {
@@ -199,177 +172,164 @@ public class ExcelExporter {
         }
     }
 
-    // ════════════════════════════════════════════════════════════════════════
-    // HOJA 3 — CONTADORES
-    // ════════════════════════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════════
+    // HOJA 3 — CONTADORES  (alimentada por ContadorTokens)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /**
+     * Estructura de columnas en la hoja CONTADORES.
+     *
+     *  Col  0        → Errores
+     *  Col  1–8      → Identificadores  (cadena, binario, decimal, octal, hex, real, exp, bool)
+     *  Col  9        → Comentarios línea
+     *  Col 10        → Comentarios multilínea
+     *  Col 11        → Palabras reservadas
+     *  Col 12–20     → Constantes       (cadena, bin, dec, oct, hex, real, exp, bool, null)
+     *  Col 21        → Op. Postfix
+     *  Col 22        → Op. Lógicos binarios
+     *  Col 23        → Op. Control
+     *  Col 24        → Op. Matemáticos
+     *  Col 25        → Op. Exponente
+     *  Col 26        → Op. Turno
+     *  Col 27        → Op. Relacionales
+     *  Col 28        → Op. Igualdad estricta
+     *  Col 29        → Op. Lógicos
+     *  Col 30        → Op. Ternario
+     *  Col 31        → Op. Asignación
+     *  Col 32        → Op. Agrupamiento
+     */
     private static void poblarContadores(XSSFWorkbook wb,
-                                         List<Token>      tokens,
-                                         List<ErrorEntry> errores) {
+                                          int            totalErrores,
+                                          ContadorTokens c) {
         XSSFSheet ws = wb.createSheet("CONTADORES");
 
-        ws.setColumnWidth(0, 12 * 256);
-        for (int c = 1;  c <= 9;  c++) ws.setColumnWidth(c, 18 * 256);
-        ws.setColumnWidth(10, 18 * 256);
-        for (int c = 11; c <= 19; c++) ws.setColumnWidth(c, 18 * 256);
-        for (int c = 20; c <= 31; c++) ws.setColumnWidth(c, 22 * 256);
+        // Anchos de columna
+        ws.setColumnWidth(0, 10 * 256);   // Errores
+        for (int i =  1; i <=  8; i++) ws.setColumnWidth(i, 16 * 256); // Identificadores
+        ws.setColumnWidth(9,  16 * 256);  // Com. línea
+        ws.setColumnWidth(10, 16 * 256);  // Com. multi
+        ws.setColumnWidth(11, 18 * 256);  // Pal. reservadas
+        for (int i = 12; i <= 20; i++) ws.setColumnWidth(i, 16 * 256); // Constantes
+        for (int i = 21; i <= 32; i++) ws.setColumnWidth(i, 22 * 256); // Operadores
 
-        // Fusiones (réplica exacta de la plantilla original)
-        ws.addMergedRegion(new CellRangeAddress(0, 1, 0,  0));   // A     Errores
-        ws.addMergedRegion(new CellRangeAddress(0, 0, 1,  8));   // B:I   Identificadores
-        ws.addMergedRegion(new CellRangeAddress(0, 1, 9,  9));   // J     Comentarios
-        ws.addMergedRegion(new CellRangeAddress(0, 1, 10, 10));  // K     Palabras reservadas
-        ws.addMergedRegion(new CellRangeAddress(0, 0, 11, 19));  // L:T   Constantes
-        for (int c = 20; c <= 31; c++)
-            ws.addMergedRegion(new CellRangeAddress(0, 1, c, c));
+        // ── Fusiones ──────────────────────────────────────────────────────
+        ws.addMergedRegion(new CellRangeAddress(0, 1,  0,  0));  // Errores
+        ws.addMergedRegion(new CellRangeAddress(0, 0,  1,  8));  // Identificadores
+        ws.addMergedRegion(new CellRangeAddress(0, 0,  9, 10));  // Comentarios
+        ws.addMergedRegion(new CellRangeAddress(0, 1, 11, 11));  // Pal. reservadas
+        ws.addMergedRegion(new CellRangeAddress(0, 0, 12, 20));  // Constantes
+        // Operadores: cada subcategoría ocupa 1 columna sin subrow extra
+        ws.addMergedRegion(new CellRangeAddress(0, 1, 21, 21));
+        ws.addMergedRegion(new CellRangeAddress(0, 1, 22, 22));
+        ws.addMergedRegion(new CellRangeAddress(0, 1, 23, 23));
+        ws.addMergedRegion(new CellRangeAddress(0, 1, 24, 24));
+        ws.addMergedRegion(new CellRangeAddress(0, 1, 25, 25));
+        ws.addMergedRegion(new CellRangeAddress(0, 1, 26, 26));
+        ws.addMergedRegion(new CellRangeAddress(0, 1, 27, 27));
+        ws.addMergedRegion(new CellRangeAddress(0, 1, 28, 28));
+        ws.addMergedRegion(new CellRangeAddress(0, 1, 29, 29));
+        ws.addMergedRegion(new CellRangeAddress(0, 1, 30, 30));
+        ws.addMergedRegion(new CellRangeAddress(0, 1, 31, 31));
+        ws.addMergedRegion(new CellRangeAddress(0, 1, 32, 32));
 
-        // ── Fila 0: categorías ────────────────────────────────────────────────
+        // ── Fila 0: categorías ────────────────────────────────────────────
         XSSFRow r0 = ws.createRow(0);
-        r0.setHeightInPoints(20);
-        celda(r0, 0,  "Errores",                                      estiloCategoria(wb));
-        celda(r0, 1,  "identificadores",                               estiloCategoria(wb));
-        celda(r0, 9,  "comentarios",                                   estiloCategoria(wb));
-        celda(r0, 10, "palabras reservada",                            estiloCategoria(wb));
-        celda(r0, 11, "Constantes",                                    estiloCategoria(wb));
-        celda(r0, 20, "operadores de postfix",                         estiloCategoria(wb));
-        celda(r0, 21, "Operadores lógicos binarios",                   estiloCategoria(wb));
-        celda(r0, 22, "Operadores de control",                         estiloCategoria(wb));
-        celda(r0, 23, "Operadores matemáticos",                        estiloCategoria(wb));
-        celda(r0, 24, "Operador exponente",                            estiloCategoria(wb));
-        celda(r0, 25, "Operadores de turno",                           estiloCategoria(wb));
-        celda(r0, 26, "Operadores relacionales",                       estiloCategoria(wb));
-        celda(r0, 27, "Operadores sin igualdad de conversión de tipo", estiloCategoria(wb));
-        celda(r0, 28, "Operadores lógicos",                            estiloCategoria(wb));
-        celda(r0, 29, "Operador ternario",                             estiloCategoria(wb));
-        celda(r0, 30, "Operadores de Asignación",                      estiloCategoria(wb));
-        celda(r0, 31, "Operadores de agrupamiento",                    estiloCategoria(wb));
+        r0.setHeightInPoints(22);
 
-        // ── Fila 1: subcategorías ─────────────────────────────────────────────
+        celda(r0,  0, "Errores",             estiloCategoria(wb, null));
+        celda(r0,  1, "IDENTIFICADORES",     estiloCategoria(wb, CAT_ID));
+        celda(r0,  9, "COMENTARIOS",         estiloCategoria(wb, CAT_COM));
+        celda(r0, 11, "PAL. RESERVADAS",     estiloCategoria(wb, CAT_KW));
+        celda(r0, 12, "CONSTANTES",          estiloCategoria(wb, CAT_CST));
+        celda(r0, 21, "Postfix",             estiloCategoria(wb, CAT_OP));
+        celda(r0, 22, "Log. binarios",       estiloCategoria(wb, CAT_OP));
+        celda(r0, 23, "Control",             estiloCategoria(wb, CAT_OP));
+        celda(r0, 24, "Matemáticos",         estiloCategoria(wb, CAT_OP));
+        celda(r0, 25, "Exponente",           estiloCategoria(wb, CAT_OP));
+        celda(r0, 26, "Turno",               estiloCategoria(wb, CAT_OP));
+        celda(r0, 27, "Relacionales",        estiloCategoria(wb, CAT_OP));
+        celda(r0, 28, "Igualdad estricta",   estiloCategoria(wb, CAT_OP));
+        celda(r0, 29, "Lógicos",             estiloCategoria(wb, CAT_OP));
+        celda(r0, 30, "Ternario",            estiloCategoria(wb, CAT_OP));
+        celda(r0, 31, "Asignación",          estiloCategoria(wb, CAT_OP));
+        celda(r0, 32, "Agrupamiento",        estiloCategoria(wb, CAT_OP));
+
+        // ── Fila 1: subcategorías ─────────────────────────────────────────
         XSSFRow r1 = ws.createRow(1);
         r1.setHeightInPoints(18);
 
-        String[] subId = {"cadena", "Numérica Binario", "Numérica Decimal",
-                          "Numérica Octal", "Numérica Hexadecimal",
-                          "Real", "Exponencial", "Booleanas"};
+        // Identificadores
+        String[] subId = {"Cadena", "Binario", "Decimal", "Octal",
+                          "Hexadecimal", "Real", "Exponencial", "Booleanas"};
         for (int i = 0; i < subId.length; i++)
-            celda(r1, 1 + i, subId[i], estiloSubcat(wb));
+            celda(r1, 1 + i, subId[i], estiloSubcat(wb, CAT_ID));
 
-        String[] subConst = {"cadena", "Numérica Binario", "Numérica Decimal",
-                             "Numérica Octal", "Numérica Hexadecimal",
-                             "Real", "Exponencial", "Booleanas", "nula"};
-        for (int i = 0; i < subConst.length; i++)
-            celda(r1, 11 + i, subConst[i], estiloSubcat(wb));
+        // Comentarios
+        celda(r1,  9, "Línea",      estiloSubcat(wb, CAT_COM));
+        celda(r1, 10, "Multilínea", estiloSubcat(wb, CAT_COM));
 
-        // ── Fila 2: conteos usando estados reales del autómata (Ayuda.xlsx) ───
-        int cntIdCad=0, cntIdBin=0, cntIdDec=0, cntIdOct=0;
-        int cntIdHex=0, cntIdReal=0, cntIdExp=0, cntIdBool=0;
+        // Constantes
+        String[] subCst = {"Cadena", "Binario", "Decimal", "Octal",
+                           "Hexadecimal", "Real", "Exponencial", "Booleanas", "Null"};
+        for (int i = 0; i < subCst.length; i++)
+            celda(r1, 12 + i, subCst[i], estiloSubcat(wb, CAT_CST));
 
-        int cntCstCad=0, cntCstBin=0, cntCstDec=0, cntCstOct=0;
-        int cntCstHex=0, cntCstReal=0, cntCstExp=0, cntCstBool=0, cntCstNull=0;
-
-        int cntComGrupal=0, cntComLineal=0;
-        int cntKw=0;
-
-        int cntPostfix=0, cntLogBin=0, cntCtrl=0, cntMath=0, cntPow=0;
-        int cntShift=0, cntRel=0, cntSinIg=0, cntLog=0, cntTern=0;
-        int cntAsign=0, cntAgrup=0;
-
-        for (Token t : tokens) {
-            int    st  = (int) t.getEstado();
-            String lex = t.getLexema();
-
-            // ── Identificadores ───────────────────────────────────────────────
-            switch (st) {
-                case -58 -> cntIdCad++;
-                case -59 -> cntIdBin++;
-                case -60 -> cntIdDec++;
-                case -61 -> cntIdOct++;
-                case -62 -> cntIdHex++;
-                case -63 -> cntIdReal++;
-                case -64 -> cntIdExp++;
-                case -65 -> cntIdBool++;
-            }
-
-            // ── Palabras reservadas / true / false / null ─────────────────────
-            if (st == -66) {
-                if      (lex.equals("true") || lex.equals("false")) cntCstBool++;
-                else if (lex.equals("null"))                         cntCstNull++;
-                else                                                  cntKw++;
-            }
-
-            // ── Comentarios ───────────────────────────────────────────────────
-            if (st == -51) cntComGrupal++;
-            if (st == -52 && t.getTipo() == Token.Tipo.COMMENT) cntComLineal++;
-
-            // ── Constantes numéricas / cadena ─────────────────────────────────
-            // Estado -52 puede ser tanto comentario lineal como binario numérico;
-            // se diferencia por el Tipo del token.
-            if (st == -52 && t.getTipo() != Token.Tipo.COMMENT) cntCstBin++;
-            if (st == -53 && t.getTipo() == Token.Tipo.STRING)  cntCstCad++;
-            if (st == -53 && t.getTipo() == Token.Tipo.NUMBER)  cntCstDec++;
-            if (st == -54) cntCstOct++;
-            if (st == -55) cntCstHex++;
-            if (st == -56) cntCstReal++;
-            if (st == -57) cntCstExp++;
-
-            // ── Operadores ────────────────────────────────────────────────────
-            if (st == -1  || st == -2)    cntPostfix++;
-            if (st >= -6  && st <= -3)    cntLogBin++;
-            if (st >= -10 && st <= -7)    cntCtrl++;
-            if (st >= -15 && st <= -11)   cntMath++;
-            if (st == -16)                cntPow++;
-            if (st >= -19 && st <= -17)   cntShift++;
-            if (st >= -26 && st <= -20)   cntRel++;
-            if (st == -27 || st == -28)   cntSinIg++;
-            if (st >= -31 && st <= -29)   cntLog++;
-            if (st == -32)                cntTern++;
-            if (st >= -44 && st <= -33)   cntAsign++;
-            if (st >= -50 && st <= -45)   cntAgrup++;
-        }
-
+        // ── Fila 2: valores (de ContadorTokens) ──────────────────────────
         XSSFRow r2 = ws.createRow(2);
-        r2.setHeightInPoints(16);
+        r2.setHeightInPoints(18);
         CellStyle sv = estiloValor(wb);
 
-        // A — Errores
-        r2.createCell(0).setCellValue(errores.size());
-        r2.getCell(0).setCellStyle(sv);
+        // Errores
+        celda(r2,  0, totalErrores,       sv);
 
-        // B-I — Identificadores
-        int[] vId = {cntIdCad, cntIdBin, cntIdDec, cntIdOct,
-                     cntIdHex, cntIdReal, cntIdExp, cntIdBool};
-        for (int i = 0; i < vId.length; i++) {
-            r2.createCell(1 + i).setCellValue(vId[i]);
-            r2.getCell(1 + i).setCellStyle(sv);
-        }
+        // Identificadores
+        celda(r2,  1, c.idCadena,         sv);
+        celda(r2,  2, c.idBinario,        sv);
+        celda(r2,  3, c.idDecimal,        sv);
+        celda(r2,  4, c.idOctal,          sv);
+        celda(r2,  5, c.idHex,            sv);
+        celda(r2,  6, c.idReal,           sv);
+        celda(r2,  7, c.idExp,            sv);
+        celda(r2,  8, c.idBool,           sv);
 
-        // J — Comentarios (grupal + lineal)
-        r2.createCell(9).setCellValue(cntComGrupal + cntComLineal);
-        r2.getCell(9).setCellStyle(sv);
+        // Comentarios
+        // ContadorTokens.comentarios = total; no distingue línea vs multilínea.
+        // Si en el futuro se añaden campos separados, cambiar aquí.
+        celda(r2,  9, c.comentarios,      sv);  // línea (total provisionalmente)
+        celda(r2, 10, 0,                  sv);  // multilínea (pendiente de desglose)
 
-        // K — Palabras reservadas
-        r2.createCell(10).setCellValue(cntKw);
-        r2.getCell(10).setCellStyle(sv);
+        // Palabras reservadas
+        celda(r2, 11, c.reservadas,       sv);
 
-        // L-T — Constantes
-        int[] vCst = {cntCstCad, cntCstBin, cntCstDec, cntCstOct,
-                      cntCstHex, cntCstReal, cntCstExp, cntCstBool, cntCstNull};
-        for (int i = 0; i < vCst.length; i++) {
-            r2.createCell(11 + i).setCellValue(vCst[i]);
-            r2.getCell(11 + i).setCellStyle(sv);
-        }
+        // Constantes
+        celda(r2, 12, c.cteCadena,        sv);
+        celda(r2, 13, c.cteBinario,       sv);
+        celda(r2, 14, c.cteDecimal,       sv);
+        celda(r2, 15, c.cteOctal,         sv);
+        celda(r2, 16, c.cteHex,           sv);
+        celda(r2, 17, c.cteReal,          sv);
+        celda(r2, 18, c.cteExp,           sv);
+        celda(r2, 19, c.cteBool,          sv);
+        celda(r2, 20, c.cteNull,          sv);
 
-        // U-AF — Operadores (12 categorías)
-        int[] vOp = {cntPostfix, cntLogBin, cntCtrl, cntMath, cntPow,
-                     cntShift, cntRel, cntSinIg, cntLog, cntTern, cntAsign, cntAgrup};
-        for (int i = 0; i < vOp.length; i++) {
-            r2.createCell(20 + i).setCellValue(vOp[i]);
-            r2.getCell(20 + i).setCellStyle(sv);
-        }
+        // Operadores
+        celda(r2, 21, c.opPostfix,        sv);
+        celda(r2, 22, c.opLogBin,         sv);
+        celda(r2, 23, c.opControl,        sv);
+        celda(r2, 24, c.opMat,            sv);
+        celda(r2, 25, c.opExp,            sv);
+        celda(r2, 26, c.opTurno,          sv);
+        celda(r2, 27, c.opRel,            sv);
+        celda(r2, 28, c.opIgualdad,       sv);
+        celda(r2, 29, c.opLogicos,        sv);
+        celda(r2, 30, c.opTernario,       sv);
+        celda(r2, 31, c.opAsignacion,     sv);
+        celda(r2, 32, c.opAgrup,          sv);
     }
 
-    // ════════════════════════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════════
     // ESTILOS
-    // ════════════════════════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════════
 
     private static XSSFCellStyle estiloEncabezado(XSSFWorkbook wb) {
         XSSFCellStyle s = wb.createCellStyle();
@@ -388,14 +348,14 @@ public class ExcelExporter {
         return s;
     }
 
-    private static XSSFCellStyle estiloDato(XSSFWorkbook wb, boolean par, XSSFColor fgColor) {
+    private static XSSFCellStyle estiloDato(XSSFWorkbook wb, boolean par, XSSFColor fg) {
         XSSFCellStyle s = wb.createCellStyle();
         s.setFillForegroundColor(par ? COLOR_ROW_EVEN : COLOR_ROW_ODD);
         s.setFillPattern(FillPatternType.SOLID_FOREGROUND);
         s.setAlignment(HorizontalAlignment.LEFT);
         s.setVerticalAlignment(VerticalAlignment.CENTER);
         XSSFFont f = wb.createFont();
-        f.setColor(fgColor != null ? fgColor : COLOR_HDR_FG);
+        f.setColor(fg != null ? fg : COLOR_HDR_FG);
         f.setFontHeightInPoints((short) 11);
         f.setFontName("Consolas");
         s.setFont(f);
@@ -408,15 +368,15 @@ public class ExcelExporter {
         return s;
     }
 
-    private static XSSFCellStyle estiloCategoria(XSSFWorkbook wb) {
+    private static XSSFCellStyle estiloCategoria(XSSFWorkbook wb, XSSFColor bgColor) {
         XSSFCellStyle s = wb.createCellStyle();
-        s.setFillForegroundColor(COLOR_COUNT_H);
+        s.setFillForegroundColor(bgColor != null ? bgColor : COLOR_COUNT_H);
         s.setFillPattern(FillPatternType.SOLID_FOREGROUND);
         s.setAlignment(HorizontalAlignment.CENTER);
         s.setVerticalAlignment(VerticalAlignment.CENTER);
         s.setWrapText(true);
         s.setBorderBottom(BorderStyle.THIN);
-        s.setBorderRight(BorderStyle.THIN);
+        s.setBorderRight(BorderStyle.MEDIUM);
         s.setBottomBorderColor(IndexedColors.GREY_50_PERCENT.getIndex());
         s.setRightBorderColor(IndexedColors.GREY_50_PERCENT.getIndex());
         XSSFFont f = wb.createFont();
@@ -428,15 +388,18 @@ public class ExcelExporter {
         return s;
     }
 
-    private static XSSFCellStyle estiloSubcat(XSSFWorkbook wb) {
+    private static XSSFCellStyle estiloSubcat(XSSFWorkbook wb, XSSFColor catColor) {
         XSSFCellStyle s = wb.createCellStyle();
-        s.setFillForegroundColor(COLOR_HDR_BG);
+        // Usar una variante más oscura del color de categoría
+        s.setFillForegroundColor(catColor != null ? catColor : COLOR_HDR_BG);
         s.setFillPattern(FillPatternType.SOLID_FOREGROUND);
         s.setAlignment(HorizontalAlignment.CENTER);
         s.setVerticalAlignment(VerticalAlignment.CENTER);
         s.setWrapText(true);
         s.setBorderBottom(BorderStyle.THIN);
+        s.setBorderRight(BorderStyle.THIN);
         s.setBottomBorderColor(IndexedColors.GREY_50_PERCENT.getIndex());
+        s.setRightBorderColor(IndexedColors.GREY_50_PERCENT.getIndex());
         XSSFFont f = wb.createFont();
         f.setColor(COLOR_HDR_FG);
         f.setItalic(true);
@@ -453,7 +416,9 @@ public class ExcelExporter {
         s.setAlignment(HorizontalAlignment.CENTER);
         s.setVerticalAlignment(VerticalAlignment.CENTER);
         s.setBorderTop(BorderStyle.THIN);
+        s.setBorderRight(BorderStyle.THIN);
         s.setTopBorderColor(IndexedColors.GREY_50_PERCENT.getIndex());
+        s.setRightBorderColor(IndexedColors.GREY_50_PERCENT.getIndex());
         XSSFFont f = wb.createFont();
         f.setColor(COLOR_COUNT_V);
         f.setBold(true);
@@ -463,9 +428,21 @@ public class ExcelExporter {
         return s;
     }
 
-    // ════════════════════════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════════
     // UTILIDADES
-    // ════════════════════════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════════
+
+    private static File elegirDestino(java.awt.Component parent) {
+        JFileChooser fc = new JFileChooser();
+        fc.setDialogTitle("Guardar análisis léxico como Excel");
+        fc.setFileFilter(new FileNameExtensionFilter("Archivo Excel (*.xlsx)", "xlsx"));
+        fc.setSelectedFile(new File("analisis_lexico.xlsx"));
+        if (fc.showSaveDialog(parent) != JFileChooser.APPROVE_OPTION) return null;
+        File f = fc.getSelectedFile();
+        if (!f.getName().toLowerCase().endsWith(".xlsx"))
+            f = new File(f.getAbsolutePath() + ".xlsx");
+        return f;
+    }
 
     private static void celda(XSSFRow row, int col, String val, CellStyle style) {
         XSSFCell c = row.createCell(col);
