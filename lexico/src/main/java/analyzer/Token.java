@@ -1,6 +1,7 @@
 package analyzer;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -83,6 +84,7 @@ public class Token {
     public Tipo   getTipo()    { return tipo;     }
     public int    getLinea()   { return linea;    }
     public int    getColumna() { return columna;  }
+    public int    getTokenClass() { return tokenClass; }
 
     @Override
     public String toString() {
@@ -104,4 +106,9 @@ public class Token {
     }
     return map.get(c);
 }
+
+    public static void eliminarComentarios(List<Token> tokens) {
+        tokens.removeIf(token -> token.getTokenClass() == -51);
+        tokens.removeIf(token -> token.getTokenClass() == -52);
+    }
 }

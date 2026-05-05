@@ -228,14 +228,19 @@ public class AnalyzerIDE extends JFrame {
 
         List<Token>      tokens  = lexer.tokenizar(codigo);
         List<ErrorEntry> errores = lexer.getErrores();
-        tablePanel.setTokens(tokens);
-        tablePanel.setErrors(errores);
-        statusLabel.setText(String.format(
-                "Compilado  |  %d tokens  |  %d error(es)  |  ManuelCode 2026",
-                tokens.size(), errores.size()));
         ContadorTokens ct = new ContadorTokens();
         ct.contar(tokens);
         CounterPanel.actualizar(ct);
+        Token.eliminarComentarios(tokens);
+        tablePanel.setTokens(tokens);
+        tablePanel.setErrors(errores);
+        for (ErrorEntry e : errores) {
+            System.out.println(e.getLexema()+" | "+e.getDescripcion()+" | "+e.getLinea());
+        }
+        statusLabel.setText(String.format(
+                "Compilado  |  %d tokens  |  %d error(es)  |  ManuelCode 2026",
+                tokens.size(), errores.size()));
+        
     }
     // ════════════════════════════════════════════════════════════════════════
     // Exportar a Excel 

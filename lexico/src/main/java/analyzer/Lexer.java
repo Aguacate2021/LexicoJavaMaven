@@ -35,15 +35,16 @@ public class Lexer {
     // ════════════════════════════════════════════════════════════════════════
 
     
-    public List<Token> tokenizar(String codigo) {
+        public List<Token> tokenizar(String codigo) {
         List<Token> tokens = new ArrayList<>();
-        errores.clear(); // limpiar errores previos
+        errores.clear();
+
         if (codigo == null || codigo.isBlank()) return tokens;
 
         LeerCSV.LeerCSV();
         String[] lineas = codigo.split("\n", -1);
 
-        int estado = 0; //estado global
+        int estado = 0;
         boolean enComentarioMultilinea = false;
         StringBuilder comentario = new StringBuilder();
 
@@ -52,37 +53,24 @@ public class Lexer {
             int col = 0;
 
             while (col < linea.length()) {
-
                 char ch = linea.charAt(col);
 
-                //SI YA ESTÁS EN COMENTARIO MULTILÍNEA
+                // ===== COMENTARIO MULTILÍNEA =====
                 if (enComentarioMultilinea) {
                     comentario.append(ch);
 
-                    // Detectar cierre */
-                    if (comentario.length() >= 2 &&
-                            comentario.charAt(comentario.length() - 2) == '*' &&
-                            comentario.charAt(comentario.length() - 1) == '/') {
-
-                        enComentarioMultilinea = false;
-
-                        tokens.add(new Token(
-                                comentario.toString(),
-                                Token.Tipo.COMMENT,
-                                numLinea + 1,
-                                col - comentario.length() + 2,
-                                -51
-                        ));
-
+                    if (terminaComentario(comentario)) {
+                        tokens.add(crearToken(comentario.toString(), numLinea, col, -51));
                         comentario.setLength(0);
+                        enComentarioMultilinea = false;
                     }
 
                     col++;
                     continue;
                 }
 
-                //Detectar inicio de comentario multilínea
-                if (ch == '/' && col + 1 < linea.length() && linea.charAt(col + 1) == '*') {
+                // ===== INICIO COMENTARIO =====
+                if (esInicioComentario(linea, col)) {
                     enComentarioMultilinea = true;
                     comentario.append("/*");
                     col += 2;
@@ -92,182 +80,189 @@ public class Lexer {
                 StringBuilder lexema = new StringBuilder();
 
                 while (col < linea.length()) {
-
                     ch = linea.charAt(col);
                     int clase = LeerCSV.clasificar(ch);
 
                     if (clase < 0) {
-                        System.out.println("Caracter inválido: " + ch);
                         col++;
                         break;
                     }
 
                     int nuevoEstado = LeerCSV.getValor(estado, clase);
 
-                    //TRANSICIÓN
-                    if (nuevoEstado >= 0 && nuevoEstado < 500) {
+                    if (esTransicion(nuevoEstado)) {
                         estado = nuevoEstado;
                         lexema.append(ch);
                         col++;
-                    }
-
-                    //ACEPTACIÓN
-                    else if (nuevoEstado < 0) {
-                        if (nuevoEstado == -68) {
-
-                            if ((Token.clasificar(lexema.toString()) != 510)){
-                                tokens.add(new Token(
-                                lexema.toString(),
-                                Token.Tipo.UNKNOWN,
-                                numLinea + 1,
-                                col - lexema.length() + 1,
-                                Token.clasificar(lexema.toString())
-                            ));
-
-                            estado = 0; //reiniciar estado
-                            break;
-                            }else{
-                                if (lexema.length() > 0) {
-                                lexema.append(ch); // incluir el carácter problemático en el lexema del error
-                                analizar(
-                                    lexema.toString(),
-                                    nuevoEstado,
-                                    numLinea + 1,
-                                    col - lexema.length() + 1
-                                );
-                                } else {
-                                    // 🔥 si el error ocurre desde el inicio (ej: @)
-                                    analizar(
-                                        String.valueOf(ch),
-                                        nuevoEstado,
-                                        numLinea + 1,
-                                        col + 1
-                                    );
-                                }
-                                estado = 0;
-                                break;
-                            }
-                        } else {
-                            tokens.add(new Token(
-                                lexema.toString(),
-                                Token.Tipo.UNKNOWN,
-                                numLinea + 1,
-                                col - lexema.length() + 1,
-                                nuevoEstado
-                            ));
-
-                            estado = 0; //reiniciar estado
-                            break;
-                        }
-                    }
-
-                    //ERROR
-                    else if (nuevoEstado >= 500) {
-                        if (lexema.length() > 0) {
-                            lexema.append(ch); // incluir el carácter problemático en el lexema del error
-                            if (nuevoEstado == -68) { nuevoEstado = 510; } // mantener el mismo código de error para errores léxicos
-                            analizar(
-                                lexema.toString(),
-                                nuevoEstado,
-                                numLinea + 1,
-                                col - lexema.length() + 1
-                            );
-                        } else {
-                            //si el error ocurre desde el inicio (ej: @)
-                            if (nuevoEstado == -68) { nuevoEstado = 510; } // mantener el mismo código de error para errores léxicos
-                            analizar(
-                                String.valueOf(ch),
-                                nuevoEstado,
-                                numLinea + 1,
-                                col + 1
-                            );
-                            
-                        }
+                    } 
+                    else {
+                        procesarEstado(nuevoEstado, lexema, ch, numLinea, col, tokens);
                         estado = 0;
                         break;
                     }
                 }
 
-                //FORZAR EVALUACIÓN AL FINAL DE LÍNEA
+                // ===== EOF =====
                 if (lexema.length() > 0 && col >= linea.length()) {
-
-                    int claseEOF = 56;
-                    int nuevoEstado = LeerCSV.getValor(estado, claseEOF);
-                    if (nuevoEstado == -68) {
-
-                            if ((Token.clasificar(lexema.toString()) != 510)){
-                                tokens.add(new Token(
-                                lexema.toString(),
-                                Token.Tipo.UNKNOWN,
-                                numLinea + 1,
-                                col - lexema.length() + 1,
-                                Token.clasificar(lexema.toString())
-                            ));
-
-                            estado = 0; //reiniciar estado
-                            break;
-                            }else{
-                                if (lexema.length() > 0) {
-                                analizar(
-                                    lexema.toString(),
-                                    nuevoEstado,
-                                    numLinea + 1,
-                                    col - lexema.length() + 1
-                                );
-                                } else {
-                                    //si el error ocurre desde el inicio (ej: @)
-                                    analizar(
-                                        String.valueOf(ch),
-                                        nuevoEstado,
-                                        numLinea + 1,
-                                        col + 1
-                                    );
-                                }
-                                estado = 0;
-                                break;
-                            }
-                        }
-                    if (nuevoEstado < 0) {
-                        System.out.println("TOKEN EOF -> " + lexema);
-
-                        tokens.add(new Token(
-                                lexema.toString(),
-                                Token.Tipo.UNKNOWN,
-                                numLinea + 1,
-                                col - lexema.length() + 1,
-                                nuevoEstado
-                        ));
-                    } else if (nuevoEstado >= 500) {
-                        analizar(
-                                lexema.toString(),
-                                nuevoEstado,
-                                numLinea + 1,
-                                col - lexema.length() + 1
-                            );
-                    }
-
-                    estado = 0; //reset
+                    procesarEOF(lexema, estado, numLinea, col, tokens);
+                    estado = 0;
                 }
 
-                //evitar loop infinito
-                if (lexema.length() == 0) {
-                    col++;
-                }
+                if (lexema.length() == 0) col++;
             }
         }
 
-        //error si no se cerró comentario
+        // ===== ERROR COMENTARIO SIN CERRAR =====
         if (enComentarioMultilinea) {
-            System.out.println("ERROR: comentario multilínea no cerrado");
+            analizar(comentario.toString(), 512, lineas.length, lineas[lineas.length - 1].length() + 1);
         }
 
         return tokens;
     }
-    // ════════════════════════════════════════════════════════════════════════
+    // ═══════════════════════════METODOS AUXILIARES═════════════════════════════════════════════
     // ANÁLISIS DE ERRORES
     // ════════════════════════════════════════════════════════════════════════
+    private boolean terminaComentario(StringBuilder comentario) {
+    int len = comentario.length();
+    return len >= 2 &&
+           comentario.charAt(len - 2) == '*' &&
+           comentario.charAt(len - 1) == '/';
+}
 
-    
+private boolean esInicioComentario(String linea, int col) {
+    return linea.charAt(col) == '/' &&
+           col + 1 < linea.length() &&
+           linea.charAt(col + 1) == '*';
+}
+
+private boolean esTransicion(int estado) {
+    return estado >= 0 && estado < 500;
+}
+
+private Token crearToken(String lexema, int linea, int col, int estado) {
+    return new Token(
+        lexema,
+        Token.Tipo.UNKNOWN,
+        linea + 1,
+        col - lexema.length() + 1,
+        estado
+    );
+}
+//MANEJO CENTRALIZADO DE ESTADOS
+private void procesarEstado(int estado, StringBuilder lexema, char ch,
+                            int numLinea, int col, List<Token> tokens) {
+
+    int linea = numLinea + 1;
+    int posicion = col - lexema.length() + 1;
+
+    if (estado < 0) {
+    if (estado >= 500 || estado == 511) {
+        manejarErrorGeneral(lexema, ch, estado, linea, posicion);
+        return;
+    }
+
+    if (estado == -68) {
+        manejarError68(lexema, ch, linea, posicion, tokens);
+    } else {
+        tokens.add(new Token(
+            lexema.toString(),
+            Token.Tipo.UNKNOWN,
+            linea,
+            posicion,
+            estado
+        ));
+    }
+}
+    else if (estado >= 500) {
+        manejarErrorGeneral(lexema, ch, estado, linea, posicion);
+    }
+}
+//Manejo limpio de errores
+private void manejarError68(StringBuilder lexema, char ch,
+                            int linea, int pos, List<Token> tokens) {
+
+    int clasificacion = Token.clasificar(lexema.toString());
+
+    // ✅ SI ES KEYWORD → TOKEN
+    if (clasificacion != 511) {
+        tokens.add(new Token(
+            lexema.toString(),
+            Token.Tipo.KEYWORD,
+            linea,
+            pos,
+            clasificacion
+        ));
+    } 
+    // ❌ SI NO ESTÁ → ERROR 511
+    else {
+        if (lexema.length() > 0) lexema.append(ch);
+
+        analizar(
+            lexema.length() > 0 ? lexema.toString() : String.valueOf(ch),
+            511,
+            linea,
+            pos
+        );
+    }
+}
+
+private void manejarErrorGeneral(StringBuilder lexema, char ch,
+                                 int estado, int linea, int pos) {
+
+    if (estado == -68) estado = 510;
+
+    if (lexema.length() > 0) {
+        lexema.append(ch);
+        analizar(lexema.toString(), estado, linea, pos);
+    } else {
+        analizar(String.valueOf(ch), estado, linea, pos);
+    }
+}
+private void procesarEOF(StringBuilder lexema, int estado,
+                         int numLinea, int col, List<Token> tokens) {
+
+    int linea = numLinea + 1;
+    int posicion = col - lexema.length() + 1;
+
+    int claseEOF = 56;
+    int nuevoEstado = LeerCSV.getValor(estado, claseEOF);
+
+    if (nuevoEstado == -68) {
+        int clasificacion = Token.clasificar(lexema.toString());
+
+    if (clasificacion < 0) {
+
+    if (nuevoEstado >= 500 || nuevoEstado == 511) {
+        analizar(lexema.toString(), clasificacion, linea, posicion);
+        return;
+    }
+
+    tokens.add(new Token(
+        lexema.toString(),
+        Token.Tipo.UNKNOWN,
+        linea,
+        posicion,
+        clasificacion
+    ));
+}
+        else {
+            analizar(lexema.toString(), nuevoEstado, linea, posicion);
+        }
+        return;
+    }
+
+    if (nuevoEstado < 0) {
+        tokens.add(new Token(
+            lexema.toString(),
+            Token.Tipo.UNKNOWN,
+            linea,
+            posicion,
+            nuevoEstado
+        ));
+    } else if (nuevoEstado >= 500) {
+        analizar(lexema.toString(), nuevoEstado, linea, posicion);
+    }
+}
     public void analizar(String Lexema, int numError,int linea, int columna) {
         if (numError==-68) { numError = 511; } 
         String codigoError = String.format("ERR%03d", numError);

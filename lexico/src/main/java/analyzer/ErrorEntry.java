@@ -55,6 +55,7 @@ public class ErrorEntry {
             case 509 -> "Identificador inválido";
             case 510 -> "Se esperaba una letra despues del punto";
             case 511 -> "Palabra reservada no reconocida";
+            case 512 -> "Comentario sin cerrar";
             default -> "Error léxico desconocido";
         };
         return desc;

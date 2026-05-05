@@ -117,6 +117,7 @@ public class LeerCSV {
 
         
         if (c == '\n') return 53;
+        if (c == '\r') return 53;
         if (c == ' ') return 54;
         if (c == '\t') return 55;
         
