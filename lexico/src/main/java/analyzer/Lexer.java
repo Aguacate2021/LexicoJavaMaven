@@ -17,17 +17,46 @@ import java.util.Set;
  */
 public class Lexer {
     List<ErrorEntry> errores = new ArrayList<>();
-    // ── Palabras clave de Python 3 ───────────────────────────────────────────
+    // ── Palabras clave ───────────────────────────────────────────
     private static final Set<String> KEYWORDS = new HashSet<>(Arrays.asList(
-        "null", "true", "false", "any", "break",
-        "charAt", "class", "concat", "console.log", "const", "continue",
-        "do", "else", "endsWith", "filter", "find", "findIndex",
-        "for", "forEach", "get", "if", "in", "Includes",
-        "indexOf", "interface", "length", "let", "map", "of", "push",
-        "replace", "reverse", "set", "shift", "slice", "sort",
-        "splice", "split", "startsWith", "switch",
-        "toLowerCase", "toUpperCase", "trim", "typeof",
-        "undefined", "while"
+       "reg", 
+        "main", 
+        "var", 
+        "def", 
+        "true", 
+        "false",
+        "null", 
+        "CLEAR", 
+        "SQRT", 
+        "POW", 
+        "SQRTV", 
+        "STRLEN", 
+        "concat", 
+        "copy", 
+        "val", 
+        "str", 
+        "sin", 
+        "cos", 
+        "tan", 
+        "chr", 
+        "pred", 
+        "succ", 
+        "inc", 
+        "dec", 
+        "sqr", 
+        "Console.read", 
+        "Console.log", 
+        "while", 
+        "do", 
+        "return", 
+        "for", 
+        "switch", 
+        "elseif", 
+        "else", 
+        "case", 
+        "default", 
+        "break", 
+        "if"
     ));
 
     // ════════════════════════════════════════════════════════════════════════
