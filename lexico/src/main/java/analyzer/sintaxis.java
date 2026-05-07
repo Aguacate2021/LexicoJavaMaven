@@ -5,11 +5,10 @@ import java.util.Stack;
 
 public class sintaxis {
 
-    private final static Lexer lexer = new Lexer();
-
     public void parsear(List<Token> tokens) {
 
         Stack<Integer> pilaProducciones = new Stack<>();
+        LeerCSV2.LeerCSV();
 
         // Símbolo inicial
         pilaProducciones.push(0);
@@ -94,12 +93,52 @@ public class sintaxis {
             }
 
             // =====================================================
-            // TERMINAL
+            // TERMINALES
             // =====================================================
             else {
 
-                // Coincide terminal
-                if (cima == tokenActual.getTokenClass()) {
+                // =================================================
+                // CASO ESPECIAL PARA IDs (-1000)
+                // =================================================
+                if (cima == -1000) {
+
+                    int token = tokenActual.getTokenClass();
+
+                    // IDs entre -67 y -60
+                    if (token >= -67 && token <= -60) {
+
+                        System.out.println(
+                                "Match ID: "
+                                + tokenActual.getLexema()
+                        );
+
+                        pilaProducciones.pop();
+
+                        tokens.remove(0);
+
+                    } else {
+
+                        System.out.println(
+                                "Error sintáctico: se esperaba un identificador"
+                        );
+
+                        System.out.println(
+                                "Token encontrado: "
+                                + tokenActual.getLexema()
+                                + " línea: "
+                                + tokenActual.getLinea()
+                                + " columna: "
+                                + tokenActual.getColumna()
+                        );
+
+                        break;
+                    }
+                }
+
+                // =================================================
+                // TERMINAL NORMAL
+                // =================================================
+                else if (cima == tokenActual.getTokenClass()) {
 
                     System.out.println(
                             "Match: "
@@ -111,11 +150,13 @@ public class sintaxis {
                     tokens.remove(0);
                 }
 
-                // Error terminal
+                // =================================================
+                // ERROR TERMINAL
+                // =================================================
                 else {
 
                     System.out.println(
-                            "Error sintáctico se esperaba: "
+                            "Error sintáctico, se esperaba: "
                             + cima
                             + " pero llegó: "
                             + tokenActual.getTokenClass()
@@ -156,22 +197,70 @@ public class sintaxis {
             );
         }
     }
-
+/* 
     // =============================================================
     // MAIN DE PRUEBA
     // =============================================================
     public static void main(String[] args) {
 
-        // IMPORTANTE:
-        // Debes cargar la tabla antes de parsear
-
+        // Cargar tabla LL(1)
         LeerCSV2.LeerCSV();
 
         sintaxis parser = new sintaxis();
+        String codigo = """
+main ( ) { 
+    while ( @sensor_activo == true ) { 
+        if ( @temperatura > 90 ) { 
+            @estado = 1 ; 
+        } else { 
+            @estado = 0 ; 
+        } ; 
 
+        Console.log ( @estado ) ; 
+        @residuo = 10 # 3 ; 
+
+        // 1. Igualdad (==) usando SIMPLE_EXP (Suma)
+        if ( @temperatura + 10 == 100 ) { 
+            Console.log ( 1 ) ; 
+        } ; 
+
+        // 3. Menor que (<) usando TERMINO_PASCAL (Multiplicación)
+        if ( @temperatura < @base * 2 ) { 
+            Console.log ( 3 ) ; 
+        } ; 
+
+        // 4. Mayor que (>) usando TERMINO_PASCAL (División)
+        if ( @temperatura > @maximo / 2 ) { 
+            Console.log ( 4 ) ; 
+        } ; 
+
+        // 5. Menor o igual (<=) usando TERMINO_PASCAL (Módulo #)
+        if ( @temperatura <= @valor # 3 ) { 
+            Console.log ( 5 ) ; 
+        } ; 
+
+        // 6. Mayor o igual (>=) usando ELEVACION (Potencia ^)
+        if ( @temperatura >= @umbral ^ 2 ) { 
+            Console.log ( 6 ) ; 
+        } ; 
+
+        // 7. Expresión compleja: Paréntesis (FACTOR) + Relacional
+        if ( ( @temperatura + @residuo ) * 2 < @limite ) { 
+            Console.log ( 7 ) ; 
+        } ; 
+
+        // FACTOR -> Funcion -> pow ( OR , OR )
+        @c_cuadrado = POW ( @a , 2 ) + POW ( @b , 2 ) ; 
+
+        // FACTOR -> Funcion -> sqrt ( OR )
+        @c = SQRT ( @c_cuadrado ) ;
+    } 
+}
+""";
+;
         List<Token> tokens =
-                lexer.tokenizar("main(){}");
+                lexer.tokenizar(codigo);
 
         parser.parsear(tokens);
-    }
+    }*/
 }

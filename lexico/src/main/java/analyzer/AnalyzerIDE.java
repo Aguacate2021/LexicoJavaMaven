@@ -232,6 +232,7 @@ public class AnalyzerIDE extends JFrame {
         ct.contar(tokens);
         CounterPanel.actualizar(ct);
         Token.eliminarComentarios(tokens);
+        
         tablePanel.setTokens(tokens);
         tablePanel.setErrors(errores);
         for (ErrorEntry e : errores) {
@@ -240,7 +241,8 @@ public class AnalyzerIDE extends JFrame {
         statusLabel.setText(String.format(
                 "Compilado  |  %d tokens  |  %d error(es)  |  ManuelCode 2026",
                 tokens.size(), errores.size()));
-        
+        sintaxis parser = new sintaxis();
+            parser.parsear(tokens);
     }
     // ════════════════════════════════════════════════════════════════════════
     // Exportar a Excel 
