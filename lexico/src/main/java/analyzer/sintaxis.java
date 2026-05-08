@@ -21,77 +21,70 @@ public class sintaxis {
 
             System.out.println("\n=================================");
             System.out.println("Cima pila: " + cima);
-            System.out.println("Token actual: " + tokenActual);
+            System.out.println("Token actual: " + tokenActual.getLexema() + " (Clase: " + tokenActual.getTokenClass() + ")");
 
             // =====================================================
             // NO TERMINAL
             // =====================================================
             if (cima >= 0) {
 
-                int fila = cima;
+    int fila = cima;
 
-                int columna = LeerCSV2.clasificarTransicion(
-                        tokenActual.getTokenClass()
+    int columna = LeerCSV2.clasificarTransicion(
+            tokenActual.getTokenClass()
+    );
+
+    int estadoTabla = LeerCSV2.getValor(
+            fila,
+            columna
+    );
+
+    // =================================================
+    // ERROR
+    // =================================================
+    if (estadoTabla >= 512) {
+
+        ContadorCiclos.ERRORES++;
+
+        System.out.println(
+                "Error sintáctico en token: "
+                + tokenActual.getLexema()
+        );
+
+        // LT.EliminarPrimero()
+        tokens.remove(0);
+    }
+
+    // =================================================
+    // EPSILON
+    // =================================================
+    else if (estadoTabla == 147) {
+
+        pilaProducciones.pop();
+
+        ContadorCiclos.aumentarContador(cima);
+
+        System.out.println(
+                "Producción epsilon aplicada"
+        );
+    }
+
+    // =================================================
+    // PRODUCCIÓN
+    // =================================================
+    else {
+
+        pilaProducciones.pop();
+
+        ContadorCiclos.aumentarContador(cima);
+
+        pilaProducciones =
+                Producciones.aplicarProduccion(
+                        pilaProducciones,
+                        estadoTabla
                 );
-
-                int estadoTabla = LeerCSV2.getValor(
-                        fila,
-                        columna
-                );
-
-                System.out.println(
-                        "Fila: " + fila +
-                        " Columna: " + columna +
-                        " -> Estado: " + estadoTabla
-                );
-
-                // =================================================
-                // ERROR SINTÁCTICO
-                // =================================================
-                if (estadoTabla >= 512) {
-
-                    System.out.println(
-                            "Error sintáctico en token: "
-                            + tokenActual.getLexema()
-                            + " línea: "
-                            + tokenActual.getLinea()
-                            + " columna: "
-                            + tokenActual.getColumna()
-                    );
-
-                    break;
-                }
-
-                // =================================================
-                // EPSILON
-                // =================================================
-                else if (estadoTabla == 147) {
-
-                    pilaProducciones.pop();
-
-                    System.out.println(
-                            "Producción epsilon aplicada"
-                    );
-                }
-
-                // =================================================
-                // PRODUCCIÓN NORMAL
-                // =================================================
-                else {
-
-                    System.out.println(
-                            "Aplicando producción: "
-                            + estadoTabla
-                    );
-
-                    pilaProducciones =
-                            Producciones.aplicarProduccion(
-                                    pilaProducciones,
-                                    estadoTabla
-                            );
-                }
-            }
-
+    }
+}
             // =====================================================
             // TERMINALES
             // =====================================================
@@ -125,7 +118,9 @@ public class sintaxis {
                         System.out.println(
                                 "Token encontrado: "
                                 + tokenActual.getLexema()
-                                + " línea: "
+                                + " (Clase: "
+                                + LeerCSV2.clasificarTransicion(tokenActual.getTokenClass())
+                                + ") línea: "
                                 + tokenActual.getLinea()
                                 + " columna: "
                                 + tokenActual.getColumna()
@@ -165,7 +160,9 @@ public class sintaxis {
                     System.out.println(
                             "Token: "
                             + tokenActual.getLexema()
-                            + " línea: "
+                            + " (Clase: "
+                            + tokenActual.getTokenClass()
+                            + ") línea: "
                             + tokenActual.getLinea()
                             + " columna: "
                             + tokenActual.getColumna()
@@ -179,6 +176,7 @@ public class sintaxis {
                     "Pila actual: "
                     + pilaProducciones
             );
+            
         }
 
         // =========================================================

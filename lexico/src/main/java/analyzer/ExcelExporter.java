@@ -80,6 +80,7 @@ public class ExcelExporter {
             poblarTokens(wb, tokens);
             poblarErrores(wb, errores);
             poblarContadores(wb, errores.size(), contador);
+            poblarContadoresSintaxis(wb); // NUEVA HOJA
 
             try (FileOutputStream fos = new FileOutputStream(destino)) {
                 wb.write(fos);
@@ -459,4 +460,80 @@ public class ExcelExporter {
     private static XSSFColor rgb(int r, int g, int b) {
         return new XSSFColor(new Color(r, g, b), null);
     }
+
+
+    // ═══════════════════════════════════════════════════════════════════════
+// HOJA 4 — CONTADORES SINTAXIS
+// ═══════════════════════════════════════════════════════════════════════
+private static void poblarContadoresSintaxis(XSSFWorkbook wb) {
+
+    XSSFSheet ws = wb.createSheet("CONT_SINTAXIS");
+
+    String[] nombres = {
+        "ERRORES",
+        "PROGRAMA",
+        "LISTA_DE_PARAMETROS",
+        "EXP_PAS",
+        "CONSTANTESSIGNO",
+        "CONSTNUMERICA",
+        "OR",
+        "AND",
+        "DECLARACIONCONSTANTES",
+        "FACTOR",
+        "ELEVACION",
+        "TERMINOPASCAL",
+        "SimpleExpPascal",
+        "STATU",
+        "FUNCION",
+        "ASIG",
+        "ARR"
+    };
+
+    int[] valores = {
+        ContadorCiclos.ERRORES,
+        ContadorCiclos.PROGRAMA,
+        ContadorCiclos.LISTA_DE_PARAMETROS,
+        ContadorCiclos.EXP_PAS,
+        ContadorCiclos.CONSTANTESSIGNO,
+        ContadorCiclos.CONSTNUMERICA,
+        ContadorCiclos.OR,
+        ContadorCiclos.AND,
+        ContadorCiclos.DECLARACIONCONSTANTES,
+        ContadorCiclos.FACTOR,
+        ContadorCiclos.ELEVACION,
+        ContadorCiclos.TERMINOPASCAL,
+        ContadorCiclos.SimpleExpPascal,
+        ContadorCiclos.STATU,
+        ContadorCiclos.FUNCION,
+        ContadorCiclos.ASIG,
+        ContadorCiclos.ARR
+    };
+
+    // Ajustar ancho de columnas
+    for (int i = 0; i < nombres.length; i++) {
+        ws.setColumnWidth(i, 24 * 256);
+    }
+
+    // ── FILA 1 → NOMBRES ───────────────────────────────
+    XSSFRow fila1 = ws.createRow(0);
+    fila1.setHeightInPoints(22);
+
+    for (int i = 0; i < nombres.length; i++) {
+        XSSFCell cell = fila1.createCell(i);
+        cell.setCellValue(nombres[i]);
+        cell.setCellStyle(estiloCategoria(wb, CAT_OP));
+    }
+
+    // ── FILA 2 → CONTADORES ───────────────────────────
+    XSSFRow fila2 = ws.createRow(1);
+    fila2.setHeightInPoints(20);
+
+    CellStyle estiloValores = estiloValor(wb);
+
+    for (int i = 0; i < valores.length; i++) {
+        XSSFCell cell = fila2.createCell(i);
+        cell.setCellValue(valores[i]);
+        cell.setCellStyle(estiloValores);
+    }
+}
 }

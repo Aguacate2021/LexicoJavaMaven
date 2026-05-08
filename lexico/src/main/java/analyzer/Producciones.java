@@ -109,7 +109,7 @@ public class Producciones {
         ));
 
         producciones.put(27, Arrays.asList(
-                9
+            9
         ));
 
         producciones.put(28, Arrays.asList(
@@ -515,9 +515,7 @@ public class Producciones {
     // MÉTODO PARA INSERTAR EN PILA DE DERECHA A IZQUIERDA
     // =========================================================
     public static Stack<Integer> aplicarProduccion(Stack<Integer> pila, int numProduccion) {
-
         List<Integer> produccion = producciones.get(numProduccion);
-        pila.pop(); // Eliminar el símbolo no terminal que se va a expandir
         if (produccion == null) {
             System.out.println("Producción no encontrada");
             return pila;

@@ -20,15 +20,15 @@ public class LeerCSV2 {
         map.put(-7, 6);
         map.put(-47, 7);
         map.put(-48, 8);
-        map.put(-52, 9);
-        map.put(-53, 10);
-        map.put(-54, 11);
-        map.put(-55, 12);
-        map.put(-56, 13);
+        map.put(-54, 9);
+        map.put(-55, 10);
+        map.put(-56, 11);
+        map.put(-57, 12);
+        map.put(-58, 13);
         map.put(-53, 14);
         map.put(-72, 15);
         map.put(-73, 16);
-        map.put(-57, 17);
+        map.put(-59, 17);
         map.put(-74, 18);
         map.put(-11, 19);
         map.put(-12, 20);
@@ -96,6 +96,7 @@ public class LeerCSV2 {
         map.put(-15, 82);
         map.put(-6, 83);
         map.put(-104, 84);
+        
     }
     
     public static void LeerCSV() {

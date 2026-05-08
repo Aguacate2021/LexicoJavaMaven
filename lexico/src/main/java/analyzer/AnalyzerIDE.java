@@ -235,6 +235,7 @@ public class AnalyzerIDE extends JFrame {
         
         tablePanel.setTokens(tokens);
         tablePanel.setErrors(errores);
+        ContadorCiclos.resetearContadores();
         for (ErrorEntry e : errores) {
             System.out.println(e.getLexema()+" | "+e.getDescripcion()+" | "+e.getLinea());
         }
