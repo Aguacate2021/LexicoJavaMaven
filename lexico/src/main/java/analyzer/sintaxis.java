@@ -1,264 +1,164 @@
 package analyzer;
 
+import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Stack;
 
 public class sintaxis {
 
+    private static final boolean TRACE = false;
+    private static final int MAX_ERRORES = 50;
+
+    private final List<ErrorEntry> erroresSintaxis = new ArrayList<>();
+
+    public List<ErrorEntry> getErroresSintaxis() {
+        return erroresSintaxis;
+    }
+
     public void parsear(List<Token> tokens) {
 
-        Stack<Integer> pilaProducciones = new Stack<>();
+        erroresSintaxis.clear();
+        ContadorCiclos.resetearContadores();
         LeerCSV2.LeerCSV();
 
-        // Símbolo inicial
-        pilaProducciones.push(0);
+        LinkedList<Token> lt = new LinkedList<>(tokens);
+        Stack<Integer> ps = new Stack<>();
+        ps.push(0);
 
-        while (!tokens.isEmpty() && !pilaProducciones.isEmpty()) {
+        while (!lt.isEmpty() && !ps.isEmpty()) {
 
-            Token tokenActual = tokens.get(0);
+            if (ContadorCiclos.ERRORES >= MAX_ERRORES) {
+                log("Límite de errores alcanzado, abortando análisis.");
+                break;
+            }
 
-            int cima = pilaProducciones.peek();
+            Token tokenActual = lt.getFirst();
+            int cima = ps.peek();
 
-            System.out.println("\n=================================");
-            System.out.println("Cima pila: " + cima);
-            System.out.println("Token actual: " + tokenActual.getLexema() + " (Clase: " + tokenActual.getTokenClass() + ")");
+            log("Cima: " + cima + " | Token: " + tokenActual.getLexema()
+                    + " (clase " + tokenActual.getTokenClass()
+                    + ") ln:" + tokenActual.getLinea());
 
-            // =====================================================
-            // NO TERMINAL
-            // =====================================================
             if (cima >= 0) {
+                // ── NO TERMINAL ──────────────────────────────────────────────
+                int columna = LeerCSV2.clasificarTransicion(tokenActual.getTokenClass());
 
-    int fila = cima;
+                if (columna < 0) {
+                    // token no clasificable → error, consumir token
+                    registrarError(tokenActual, "Token no reconocido por la tabla sintáctica");
+                    lt.removeFirst();
+                    continue;
+                }
 
-    int columna = LeerCSV2.clasificarTransicion(
-            tokenActual.getTokenClass()
-    );
+                int resultado = LeerCSV2.getValor(cima, columna);
 
-    int estadoTabla = LeerCSV2.getValor(
-            fila,
-            columna
-    );
+                if (resultado >= 512) {
+                    // ── ERROR DE NO TERMINAL ──────────────────────────────────
+                    registrarError(tokenActual,
+                            "Error sintáctico: no hay producción para NT=" + cima
+                            + " con token=" + tokenActual.getLexema());
+                    lt.removeFirst();
+                    // NO se hace pop: el NT permanece para intentar con el siguiente token
 
-    // =================================================
-    // ERROR
-    // =================================================
-    if (estadoTabla >= 512) {
+                } else if (resultado == 147) {
+                    // ── EPSILON ───────────────────────────────────────────────
+                    ps.pop();
+                    ContadorCiclos.aumentarContador(cima);
+                    log("Epsilon: NT=" + cima + " derivó en ε");
 
-        ContadorCiclos.ERRORES++;
+                } else {
+                    // ── PRODUCCIÓN ────────────────────────────────────────────
+                    ps.pop();
+                    ContadorCiclos.aumentarContador(cima);
+                    Producciones.aplicarProduccion(ps, resultado);
+                    log("NT=" + cima + " → producción " + resultado);
+                }
 
-        System.out.println(
-                "Error sintáctico en token: "
-                + tokenActual.getLexema()
-        );
+            } else {
+                // ── TERMINAL ─────────────────────────────────────────────────
 
-        // LT.EliminarPrimero()
-        tokens.remove(0);
-    }
-
-    // =================================================
-    // EPSILON
-    // =================================================
-    else if (estadoTabla == 147) {
-
-        pilaProducciones.pop();
-
-        ContadorCiclos.aumentarContador(cima);
-
-        System.out.println(
-                "Producción epsilon aplicada"
-        );
-    }
-
-    // =================================================
-    // PRODUCCIÓN
-    // =================================================
-    else {
-
-        pilaProducciones.pop();
-
-        ContadorCiclos.aumentarContador(cima);
-
-        pilaProducciones =
-                Producciones.aplicarProduccion(
-                        pilaProducciones,
-                        estadoTabla
-                );
-    }
-}
-            // =====================================================
-            // TERMINALES
-            // =====================================================
-            else {
-
-                // =================================================
-                // CASO ESPECIAL PARA IDs (-1000)
-                // =================================================
                 if (cima == -1000) {
-
-                    int token = tokenActual.getTokenClass();
-
-                    // IDs entre -67 y -60
-                    if (token >= -67 && token <= -60) {
-
-                        System.out.println(
-                                "Match ID: "
-                                + tokenActual.getLexema()
-                        );
-
-                        pilaProducciones.pop();
-
-                        tokens.remove(0);
-
+                    // caso especial: identificador genérico
+                    int tc = tokenActual.getTokenClass();
+                    if (tc >= -67 && tc <= -60) {
+                        ps.pop();
+                        lt.removeFirst();
+                        log("Match ID: " + tokenActual.getLexema());
                     } else {
-
-                        System.out.println(
-                                "Error sintáctico: se esperaba un identificador"
-                        );
-
-                        System.out.println(
-                                "Token encontrado: "
-                                + tokenActual.getLexema()
-                                + " (Clase: "
-                                + LeerCSV2.clasificarTransicion(tokenActual.getTokenClass())
-                                + ") línea: "
-                                + tokenActual.getLinea()
-                                + " columna: "
-                                + tokenActual.getColumna()
-                        );
-
-                        break;
+                        registrarError(tokenActual,
+                                "Se esperaba un identificador, se encontró: "
+                                + tokenActual.getLexema());
+                        lt.removeFirst();
                     }
-                }
 
-                // =================================================
-                // TERMINAL NORMAL
-                // =================================================
-                else if (cima == tokenActual.getTokenClass()) {
+                } else if (cima == tokenActual.getTokenClass()) {
+                    // match normal
+                    ps.pop();
+                    lt.removeFirst();
+                    log("Match: " + tokenActual.getLexema());
 
-                    System.out.println(
-                            "Match: "
-                            + tokenActual.getLexema()
-                    );
-
-                    pilaProducciones.pop();
-
-                    tokens.remove(0);
-                }
-
-                // =================================================
-                // ERROR TERMINAL
-                // =================================================
-                else {
-
-                    System.out.println(
-                            "Error sintáctico, se esperaba: "
-                            + cima
-                            + " pero llegó: "
-                            + tokenActual.getTokenClass()
-                    );
-
-                    System.out.println(
-                            "Token: "
-                            + tokenActual.getLexema()
-                            + " (Clase: "
-                            + tokenActual.getTokenClass()
-                            + ") línea: "
-                            + tokenActual.getLinea()
-                            + " columna: "
-                            + tokenActual.getColumna()
-                    );
-
-                    break;
+                } else {
+                    // error de terminal: consumir token y continuar (no break)
+                    registrarError(tokenActual,
+                            "Se esperaba terminal " + cima
+                            + " pero se encontró " + tokenActual.getTokenClass()
+                            + " ('" + tokenActual.getLexema() + "')");
+                    lt.removeFirst();
                 }
             }
 
-            System.out.println(
-                    "Pila actual: "
-                    + pilaProducciones
-            );
-            
+            log("Pila: " + ps);
         }
 
-        // =========================================================
-        // RESULTADO FINAL
-        // =========================================================
-        if (tokens.isEmpty() && pilaProducciones.isEmpty()) {
+        // Vaciar epsilones residuales en la pila si los tokens ya se agotaron
+        if (lt.isEmpty() && !ps.isEmpty()) {
+            vaciarEpsilones(ps);
+        }
 
-            System.out.println(
-                    "\nAnálisis sintáctico correcto"
-            );
+        boolean exitoso = lt.isEmpty() && ps.isEmpty()
+                && ContadorCiclos.ERRORES == 0;
 
+        if (exitoso) {
+            System.out.println("\nAnálisis sintáctico correcto.");
         } else {
-
-            System.out.println(
-                    "\nAnálisis sintáctico finalizado con errores"
-            );
+            System.out.println("\nAnálisis sintáctico finalizado con "
+                    + ContadorCiclos.ERRORES + " error(es) sintáctico(s).");
         }
     }
-/* 
-    // =============================================================
-    // MAIN DE PRUEBA
-    // =============================================================
-    public static void main(String[] args) {
 
-        // Cargar tabla LL(1)
-        LeerCSV2.LeerCSV();
+    private void vaciarEpsilones(Stack<Integer> ps) {
+        while (!ps.isEmpty()) {
+            int cima = ps.peek();
+            if (cima < 0) break; // queda un terminal no resuelto, dejar
+            // intentar epsilon con columna 0 (EOF ficticio)
+            int resultado = LeerCSV2.getValor(cima, 0);
+            if (resultado == 147) {
+                ps.pop();
+                ContadorCiclos.aumentarContador(cima);
+                log("Epsilon residual: NT=" + cima);
+            } else {
+                break;
+            }
+        }
+    }
 
-        sintaxis parser = new sintaxis();
-        String codigo = """
-main ( ) { 
-    while ( @sensor_activo == true ) { 
-        if ( @temperatura > 90 ) { 
-            @estado = 1 ; 
-        } else { 
-            @estado = 0 ; 
-        } ; 
+    private void registrarError(Token t, String descripcion) {
+        ContadorCiclos.ERRORES++;
+        String codigo = String.format("ERR-SYN-%03d", ContadorCiclos.ERRORES);
+        erroresSintaxis.add(new ErrorEntry(
+                codigo,
+                descripcion,
+                t.getLinea(),
+                "parser",
+                ErrorEntry.Tipo.SINTAXIS,
+                t.getLexema()
+        ));
+        System.out.println("[SYN-ERR] ln=" + t.getLinea()
+                + " col=" + t.getColumna() + " | " + descripcion);
+    }
 
-        Console.log ( @estado ) ; 
-        @residuo = 10 # 3 ; 
-
-        // 1. Igualdad (==) usando SIMPLE_EXP (Suma)
-        if ( @temperatura + 10 == 100 ) { 
-            Console.log ( 1 ) ; 
-        } ; 
-
-        // 3. Menor que (<) usando TERMINO_PASCAL (Multiplicación)
-        if ( @temperatura < @base * 2 ) { 
-            Console.log ( 3 ) ; 
-        } ; 
-
-        // 4. Mayor que (>) usando TERMINO_PASCAL (División)
-        if ( @temperatura > @maximo / 2 ) { 
-            Console.log ( 4 ) ; 
-        } ; 
-
-        // 5. Menor o igual (<=) usando TERMINO_PASCAL (Módulo #)
-        if ( @temperatura <= @valor # 3 ) { 
-            Console.log ( 5 ) ; 
-        } ; 
-
-        // 6. Mayor o igual (>=) usando ELEVACION (Potencia ^)
-        if ( @temperatura >= @umbral ^ 2 ) { 
-            Console.log ( 6 ) ; 
-        } ; 
-
-        // 7. Expresión compleja: Paréntesis (FACTOR) + Relacional
-        if ( ( @temperatura + @residuo ) * 2 < @limite ) { 
-            Console.log ( 7 ) ; 
-        } ; 
-
-        // FACTOR -> Funcion -> pow ( OR , OR )
-        @c_cuadrado = POW ( @a , 2 ) + POW ( @b , 2 ) ; 
-
-        // FACTOR -> Funcion -> sqrt ( OR )
-        @c = SQRT ( @c_cuadrado ) ;
-    } 
-}
-""";
-;
-        List<Token> tokens =
-                lexer.tokenizar(codigo);
-
-        parser.parsear(tokens);
-    }*/
+    private void log(String msg) {
+        if (TRACE) System.out.println("[TRACE] " + msg);
+    }
 }

@@ -11,6 +11,7 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Insets;
 import java.awt.RenderingHints;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -225,25 +226,33 @@ public class AnalyzerIDE extends JFrame {
     // ════════════════════════════════════════════════════════════════════════
     private void compilar() {
         String codigo = codeEditor.getText();
-
+ 
         List<Token>      tokens  = lexer.tokenizar(codigo);
-        List<ErrorEntry> errores = lexer.getErrores();
+        List<ErrorEntry> errores = new ArrayList<>(lexer.getErrores());
+ 
         ContadorTokens ct = new ContadorTokens();
         ct.contar(tokens);
         CounterPanel.actualizar(ct);
+ 
         Token.eliminarComentarios(tokens);
-        
+ 
         tablePanel.setTokens(tokens);
-        tablePanel.setErrors(errores);
+ 
         ContadorCiclos.resetearContadores();
-        for (ErrorEntry e : errores) {
-            System.out.println(e.getLexema()+" | "+e.getDescripcion()+" | "+e.getLinea());
-        }
-        statusLabel.setText(String.format(
-                "Compilado  |  %d tokens  |  %d error(es)  |  ManuelCode 2026",
-                tokens.size(), errores.size()));
+ 
         sintaxis parser = new sintaxis();
-            parser.parsear(tokens);
+        parser.parsear(tokens);
+ 
+        errores.addAll(parser.getErroresSintaxis());
+        tablePanel.setErrors(errores);
+ 
+        for (ErrorEntry e : lexer.getErrores()) {
+            System.out.println(e.getLexema() + " | " + e.getDescripcion() + " | " + e.getLinea());
+        }
+ 
+        statusLabel.setText(String.format(
+                "Compilado  |  %d tokens  |  %d léxico  |  %d sintáctico  |  ManuelCode 2026",
+                tokens.size(), lexer.getErrores().size(), parser.getErroresSintaxis().size()));
     }
     // ════════════════════════════════════════════════════════════════════════
     // Exportar a Excel 

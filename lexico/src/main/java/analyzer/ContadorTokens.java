@@ -62,6 +62,7 @@ public class ContadorTokens {
                 else if (token >= -6 && token <= -3) opLogBin++;
                 else if (token >= -10 && token <= -7) opControl++;
                 else if (token >= -15 && token <= -11) opMat++;
+                else if (token == -106) opMat++;
                 else if (token == -16) opExp++;
                 else if (token >= -19 && token <= -17) opTurno++;
                 else if (token >= -26 && token <= -20) opRel++;
@@ -105,21 +106,18 @@ public class ContadorTokens {
             }
 
             
-            else if (token == -68) {
+            else if (token == -74) {
                 nulos++;
                 cteNull++;
             }
-            else if (token == -69 || token == -70) {
+            else if (token == -72 || token == -73) {
                 booleanos++;
                 cteBool++;
             }
 
-            
-            else if (token >= -113 && token <= -71) {
+            else if (token >= -105 && token <= -68) {
                 reservadas++;
-            }
-
-            
+            } 
             else {
                 errores++;
             }

@@ -1,26 +1,29 @@
 package analyzer;
+
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+
 public class LeerCSV2 {
-    private static final String ARCHIVO_CSV = "lexico\\src\\main\\java\\analyzer\\ExcelPuro2.csv"; // Ruta al archivo CSV
-    private static int Valores[][]= new int[100][100]; // Matriz para almacenar los valores (ajustar tamaño según necesidad)
-    private static String separador = ";"; // o ";"
+
+    private static final String ARCHIVO_CSV = "lexico\\src\\main\\java\\analyzer\\ExcelPuro2.csv";
+    private static int Valores[][] = new int[100][100];
+    private static String separador = ";";
     private static final Map<Integer, Integer> map = new HashMap<>();
 
     static {
-        map.put(-68, 0);
-        map.put(-69, 1);
-        map.put(-70, 2);
-        map.put(-71, 3);
-        // id = 4 (sin valor único)
-        map.put(-9, 5);
-        map.put(-7, 6);
-        map.put(-47, 7);
-        map.put(-48, 8);
-        map.put(-54, 9);
+        map.put(-68,  0);
+        map.put(-69,  1);
+        map.put(-70,  2);
+        map.put(-71,  3);
+        // id = 4 (rango -67..-60, manejado en clasificarTransicion)
+        map.put(-9,   5);
+        map.put(-7,   6);
+        map.put(-47,  7);
+        map.put(-48,  8);
+        map.put(-54,  9);
         map.put(-55, 10);
         map.put(-56, 11);
         map.put(-57, 12);
@@ -39,10 +42,10 @@ public class LeerCSV2 {
         map.put(-35, 25);
         map.put(-37, 26);
         map.put(-36, 27);
-        map.put(-1, 28);
-        map.put(-2, 29);
+        map.put(-1,  28);
+        map.put(-2,  29);
         map.put(-29, 30);
-        map.put(-3, 31);
+        map.put(-3,  31);
         map.put(-75, 32);
         map.put(-76, 33);
         map.put(-77, 34);
@@ -77,9 +80,9 @@ public class LeerCSV2 {
         map.put(-10, 63);
         map.put(-102, 64);
         map.put(-103, 65);
-        map.put(-4, 66);
+        map.put(-4,  66);
         map.put(-31, 67);
-        map.put(-5, 68);
+        map.put(-5,  68);
         map.put(-30, 69);
         map.put(-20, 70);
         map.put(-23, 71);
@@ -94,47 +97,51 @@ public class LeerCSV2 {
         map.put(-14, 80);
         map.put(-106, 81);
         map.put(-15, 82);
-        map.put(-6, 83);
+        map.put(-6,  83);
         map.put(-104, 84);
-        
     }
-    
+
     public static void LeerCSV() {
-        String archivoCSV = ARCHIVO_CSV;
         String linea;
         int lineaNum = 0;
-        int columnaNum = 0;
-        boolean primeraLinea = true; // Para saltar la primera línea (encabezados)
-        boolean primeraColumna = true; // Para controlar el salto de línea después de cada fila
-        try (BufferedReader br = new BufferedReader(new FileReader(archivoCSV))) {
+        boolean primeraLinea = true;
+        boolean primeraColumna = true;
+        try (BufferedReader br = new BufferedReader(new FileReader(ARCHIVO_CSV))) {
             while ((linea = br.readLine()) != null) {
                 if (primeraLinea) {
                     primeraLinea = false;
                     continue;
                 }
-                columnaNum = 0; // Reiniciar el número de columna para cada línea
+                int columnaNum = 0;
                 String[] datos = linea.split(separador);
                 for (String dato : datos) {
                     if (primeraColumna) {
                         primeraColumna = false;
                     } else {
-                        agregarValor(Integer.parseInt(dato), lineaNum, columnaNum); // Almacenar el valor en la matriz
+                        try {
+                            Valores[lineaNum][columnaNum] = Integer.parseInt(dato.trim());
+                        } catch (NumberFormatException e) {
+                            Valores[lineaNum][columnaNum] = 512;
+                        }
                         columnaNum++;
                     }
                 }
-                primeraColumna = true; // Reiniciar para la siguiente línea
+                primeraColumna = true;
                 lineaNum++;
-                System.out.println();
             }
         } catch (IOException e) {
             e.printStackTrace();
         }
-        
     }
+
     public static void agregarValor(int valor, int fila, int columna) {
         Valores[fila][columna] = valor;
     }
 
+    /**
+     * Devuelve la columna de la tabla para un tokenClass dado.
+     * Retorna -1 si el token no está mapeado (centinela de error).
+     */
     public static int clasificarTransicion(int c) {
         if (map.containsKey(c)) {
             return map.get(c);
@@ -142,10 +149,13 @@ public class LeerCSV2 {
         if (c >= -67 && c <= -60) {
             return 4;
         }
-        return 0;
+        return -1;
     }
-    
+
     public static int getValor(int fila, int columna) {
+        if (fila < 0 || fila >= 100 || columna < 0 || columna >= 100) {
+            return 512;
+        }
         return Valores[fila][columna];
     }
 }
