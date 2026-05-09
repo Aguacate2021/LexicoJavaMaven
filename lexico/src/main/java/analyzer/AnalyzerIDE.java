@@ -49,7 +49,6 @@ public class AnalyzerIDE extends JFrame {
     private static final Color TEXT_COMMENT = new Color(0x6A, 0x99, 0x55);
     private static final Color TEXT_FUNC    = new Color(0xDC, 0xDC, 0xAA);
     private static final Color ACCENT_GREEN = new Color(0x21, 0x7A, 0x3C);
-
     private static final Font MONO_FONT = new Font("Consolas", Font.PLAIN, 14);
     private static final Font LABEL_FONT = new Font("Segoe UI", Font.BOLD, 11);
     private static final Font BTN_FONT   = new Font("Segoe UI", Font.BOLD, 12);
@@ -61,6 +60,7 @@ public class AnalyzerIDE extends JFrame {
 
     // ── Lógica ───────────────────────────────────────────────────────────────
     private final Lexer lexer = new Lexer();
+    private final sintaxis parserLexer = new sintaxis();
     private boolean highlightLock = false;
 
     // ════════════════════════════════════════════════════════════════════════
@@ -225,41 +225,106 @@ public class AnalyzerIDE extends JFrame {
     // COMPILAR / ANALIZAR
     // ════════════════════════════════════════════════════════════════════════
     private void compilar() {
-        String codigo = codeEditor.getText();
- 
-        List<Token>      tokens  = lexer.tokenizar(codigo);
-        List<ErrorEntry> errores = new ArrayList<>(lexer.getErrores());
- 
-        ContadorTokens ct = new ContadorTokens();
-        ct.contar(tokens);
-        CounterPanel.actualizar(ct);
- 
-        Token.eliminarComentarios(tokens);
- 
-        tablePanel.setTokens(tokens);
- 
-        ContadorCiclos.resetearContadores();
- 
-        sintaxis parser = new sintaxis();
-        parser.parsear(tokens);
- 
-        errores.addAll(parser.getErroresSintaxis());
-        tablePanel.setErrors(errores);
- 
-        for (ErrorEntry e : lexer.getErrores()) {
-            System.out.println(e.getLexema() + " | " + e.getDescripcion() + " | " + e.getLinea());
-        }
- 
-        statusLabel.setText(String.format(
-                "Compilado  |  %d tokens  |  %d léxico  |  %d sintáctico  |  ManuelCode 2026",
-                tokens.size(), lexer.getErrores().size(), parser.getErroresSintaxis().size()));
+
+    String codigo = codeEditor.getText();
+
+    // =====================================================
+    // LEXER
+    // =====================================================
+
+    List<Token> tokens = lexer.tokenizar(codigo);
+
+    List<ErrorEntry> errores =
+            new ArrayList<>(lexer.getErrores());
+
+    // =====================================================
+    // CONTADORES LÉXICOS
+    // =====================================================
+
+    ContadorTokens ct = new ContadorTokens();
+
+    ct.contar(tokens);
+
+    // =====================================================
+    // ELIMINAR COMENTARIOS
+    // =====================================================
+
+    Token.eliminarComentarios(tokens);
+
+    // =====================================================
+    // MOSTRAR TOKENS
+    // =====================================================
+
+    tablePanel.setTokens(tokens);
+
+    // =====================================================
+    // RESETEAR CONTADORES SINTÁCTICOS
+    // =====================================================
+
+    ContadorCiclos.resetearContadores();
+
+    // =====================================================
+    // PARSER
+    // =====================================================
+
+    
+
+    parserLexer.parsear(tokens);
+
+    // =====================================================
+    // ERRORES SINTÁCTICOS
+    // =====================================================
+
+    errores.addAll(parserLexer.getErroresSintaxis());
+
+    tablePanel.setErrors(errores);
+
+    // =====================================================
+    // ACTUALIZAR PANEL DE CONTADORES
+    // =====================================================
+
+    CounterPanel.actualizar(
+            ct,
+            ct.comentarios,
+            0,
+            lexer.getErrores().size(),
+            parserLexer.getErroresSintaxis().size()
+    );
+
+    // =====================================================
+    // DEBUG ERRORES
+    // =====================================================
+
+    for (ErrorEntry e : errores) {
+
+        System.out.println(
+                e.getLexema()
+                + " | "
+                + e.getDescripcion()
+                + " | "
+                + e.getLinea()
+        );
     }
+
+    // =====================================================
+    // STATUS BAR
+    // =====================================================
+
+    statusLabel.setText(String.format(
+            "Compilado  |  %d tokens  |  %d léxico  |  %d sintáctico  |  %d total  |  ManuelCode 2026",
+            tokens.size(),
+            lexer.getErrores().size(),
+            parserLexer.getErroresSintaxis().size(),
+            errores.size()
+    ));
+}
     // ════════════════════════════════════════════════════════════════════════
     // Exportar a Excel 
     // ════════════════════════════════════════════════════════════════════════
     private void exportToExcel() {
         List<Token>      tokens  = lexer.tokenizar(codeEditor.getText());
         List<ErrorEntry> errores = lexer.getErrores();
+        errores.addAll(parserLexer.getErroresSintaxis());
         ExcelExporter.exportar(this, tokens, errores);
     }
     // ════════════════════════════════════════════════════════════════════════

@@ -7,8 +7,8 @@ import java.util.Stack;
 
 public class sintaxis {
 
-    private static final boolean TRACE = false;
-    private static final int MAX_ERRORES = 50;
+    private static final boolean TRACE = true;
+    private static final int MAX_ERRORES = 200;
 
     private final List<ErrorEntry> erroresSintaxis = new ArrayList<>();
 
@@ -77,7 +77,6 @@ public class sintaxis {
 
             } else {
                 // ── TERMINAL ─────────────────────────────────────────────────
-
                 if (cima == -1000) {
                     // caso especial: identificador genérico
                     int tc = tokenActual.getTokenClass();
@@ -104,21 +103,18 @@ public class sintaxis {
                             "Se esperaba terminal " + cima
                             + " pero se encontró " + tokenActual.getTokenClass()
                             + " ('" + tokenActual.getLexema() + "')");
-                    lt.removeFirst();
+                    break;
                 }
             }
-
             log("Pila: " + ps);
         }
 
         // Vaciar epsilones residuales en la pila si los tokens ya se agotaron
-        if (lt.isEmpty() && !ps.isEmpty()) {
+        /*if (lt.isEmpty() && !ps.isEmpty()) {
             vaciarEpsilones(ps);
-        }
+        }*/
 
-        boolean exitoso = lt.isEmpty() && ps.isEmpty()
-                && ContadorCiclos.ERRORES == 0;
-
+        boolean exitoso = lt.isEmpty() && ps.isEmpty()&& ContadorCiclos.ERRORES == 0;
         if (exitoso) {
             System.out.println("\nAnálisis sintáctico correcto.");
         } else {
@@ -130,14 +126,15 @@ public class sintaxis {
     private void vaciarEpsilones(Stack<Integer> ps) {
         while (!ps.isEmpty()) {
             int cima = ps.peek();
-            if (cima < 0) break; // queda un terminal no resuelto, dejar
+            if (cima < 0&& cima>0) break; // queda un terminal no resuelto, dejar
             // intentar epsilon con columna 0 (EOF ficticio)
-            int resultado = LeerCSV2.getValor(cima, 0);
+            int resultado = LeerCSV2.getValor( cima, 0);
             if (resultado == 147) {
                 ps.pop();
                 ContadorCiclos.aumentarContador(cima);
                 log("Epsilon residual: NT=" + cima);
             } else {
+                log("No se puede vaciar epsilon residual: NT=" + cima);
                 break;
             }
         }
