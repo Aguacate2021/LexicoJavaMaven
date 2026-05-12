@@ -70,7 +70,8 @@ public class ErrorEntry {
         case 516 -> "Expresión incorrecta en Y4";
         case 517 -> "Se encontró token inesperado en Y5";
         case 518 -> "Error de sintaxis en la producción Y6";
-        case 519 -> "Estructura inválida en Y7";
+        case 559 -> "Estructura inválida en Y7";
+        case 519 -> "Estructura inválida en Y9";
         case 520 -> "Finalización incorrecta de la producción Y8";
 
         case 521 -> "Constante numérica inválida o mal formada";
