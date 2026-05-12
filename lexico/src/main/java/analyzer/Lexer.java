@@ -212,7 +212,7 @@ private void manejarError68(StringBuilder lexema, char ch,
 
     int clasificacion = Token.clasificar(lexema.toString());
 
-    // ✅ SI ES KEYWORD → TOKEN
+    
     if (clasificacion != 511) {
         tokens.add(new Token(
             lexema.toString(),
@@ -222,7 +222,7 @@ private void manejarError68(StringBuilder lexema, char ch,
             clasificacion
         ));
     } 
-    // ❌ SI NO ESTÁ → ERROR 511
+    
     else {
         if (lexema.length() > 0) lexema.append(ch);
 

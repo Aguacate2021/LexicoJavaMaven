@@ -140,7 +140,7 @@ public class LeerCSV2 {
 
     /**
      * Devuelve la columna de la tabla para un tokenClass dado.
-     * Retorna -1 si el token no está mapeado (centinela de error).
+     * Retorna -1 si el token no está mapeado.
      */
     public static int clasificarTransicion(int c) {
         if (map.containsKey(c)) {

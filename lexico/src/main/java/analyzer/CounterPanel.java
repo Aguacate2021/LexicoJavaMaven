@@ -177,25 +177,15 @@ public class CounterPanel extends JPanel {
         setMaximumSize(new Dimension(Integer.MAX_VALUE, fixedH));
     }
 
-    // ════════════════════════════════════════════════════════════════════════
-    // API PÚBLICA
-    // ════════════════════════════════════════════════════════════════════════
-
-    /** Sobrecarga compatible con código existente — sin errores. */
     public static void actualizar(ContadorTokens c) {
         actualizar(c, c.comentarios, 0, 0, 0);
     }
 
-    /** Sobrecarga compatible con código existente — con comentarios separados. */
     public static void actualizar(ContadorTokens c, int comentLinea, int comentMulti) {
         actualizar(c, comentLinea, comentMulti, 0, 0);
     }
 
-    /**
-     * Actualización completa: tokens + errores léxicos y sintácticos.
-     * Llamar desde AnalyzerIDE.compilar() pasando:
-     *   lexer.getErrores().size() y parser.getErroresSintaxis().size()
-     */
+  
     public static void actualizar(ContadorTokens c,
                                    int comentLinea,  int comentMulti,
                                    int errLexicos,   int errSintacticos) {

@@ -6,9 +6,10 @@ import java.util.List;
 import java.util.Stack;
 
 public class sintaxis {
-
+    //Variable trace para imprimir el seguimiento del análisis sintáctico
     private static final boolean TRACE = true;
-    private static final int MAX_ERRORES = 200;
+    // Contador de errores sintácticos para apagar todo e irme a dormir si salen mas de 50 errores
+    private static final int MAX_ERRORES = 50;
 
     private final List<ErrorEntry> erroresSintaxis = new ArrayList<>();
 
@@ -25,7 +26,7 @@ public class sintaxis {
         LinkedList<Token> lt = new LinkedList<>(tokens);
         Stack<Integer> ps = new Stack<>();
         ps.push(0);
-
+        Token tokenActual = null;
         while (!lt.isEmpty() && !ps.isEmpty()) {
 
             if (ContadorCiclos.ERRORES >= MAX_ERRORES) {
@@ -33,7 +34,7 @@ public class sintaxis {
                 break;
             }
 
-            Token tokenActual = lt.getFirst();
+            tokenActual = lt.getFirst();
             int cima = ps.peek();
 
             log("Cima: " + cima + " | Token: " + tokenActual.getLexema()
@@ -46,7 +47,7 @@ public class sintaxis {
 
                 if (columna < 0) {
                     // token no clasificable → error, consumir token
-                    registrarError(tokenActual, "Token no reconocido por la tabla sintáctica");
+                    registrarError(tokenActual, "Token no reconocido por la tabla sintáctica", -2000);
                     lt.removeFirst();
                     continue;
                 }
@@ -57,9 +58,10 @@ public class sintaxis {
                     // ── ERROR DE NO TERMINAL ──────────────────────────────────
                     registrarError(tokenActual,
                             "Error sintáctico: no hay producción para NT=" + cima
-                            + " con token=" + tokenActual.getLexema());
+                            + " con token=" + tokenActual.getLexema(),
+                            resultado);
                     lt.removeFirst();
-                    // NO se hace pop: el NT permanece para intentar con el siguiente token
+                    
 
                 } else if (resultado == 147) {
                     // ── EPSILON ───────────────────────────────────────────────
@@ -87,7 +89,7 @@ public class sintaxis {
                     } else {
                         registrarError(tokenActual,
                                 "Se esperaba un identificador, se encontró: "
-                                + tokenActual.getLexema());
+                                + tokenActual.getLexema(), -2000);
                         lt.removeFirst();
                     }
 
@@ -98,23 +100,26 @@ public class sintaxis {
                     log("Match: " + tokenActual.getLexema());
 
                 } else {
-                    // error de terminal: consumir token y continuar (no break)
+                    // Error de fuerza bruta: no coincide el terminal esperado con el token actual
                     registrarError(tokenActual,
                             "Se esperaba terminal " + cima
                             + " pero se encontró " + tokenActual.getTokenClass()
-                            + " ('" + tokenActual.getLexema() + "')");
+                            + " ('" + tokenActual.getLexema() + "')", -2000);
                     break;
                 }
             }
             log("Pila: " + ps);
         }
 
-        // Vaciar epsilones residuales en la pila si los tokens ya se agotaron
-        /*if (lt.isEmpty() && !ps.isEmpty()) {
-            vaciarEpsilones(ps);
-        }*/
-
-        boolean exitoso = lt.isEmpty() && ps.isEmpty()&& ContadorCiclos.ERRORES == 0;
+        if (lt.isEmpty() && !ps.isEmpty()) {
+             // Contar como error si quedan no terminales sin resolver
+             registrarError(tokenActual,
+                                "Bloque incompleto: quedan no terminales sin resolver en la pila al finalizar los tokens. Cima residual: "
+                                + tokenActual.getLexema(),-2000);
+                                // Vaciar epsilones residuales: metodo que me ayudo a verificar las producciones, pero no es necesario para el análisis sintáctico final
+                                //vaciarEpsilones(ps);
+        }
+        boolean exitoso = lt.isEmpty() && ps.isEmpty() && ContadorCiclos.ERRORES == 0;
         if (exitoso) {
             System.out.println("\nAnálisis sintáctico correcto.");
         } else {
@@ -123,11 +128,10 @@ public class sintaxis {
         }
     }
 
-    private void vaciarEpsilones(Stack<Integer> ps) {
+    /*private void vaciarEpsilones(Stack<Integer> ps) {
         while (!ps.isEmpty()) {
             int cima = ps.peek();
-            if (cima < 0&& cima>0) break; // queda un terminal no resuelto, dejar
-            // intentar epsilon con columna 0 (EOF ficticio)
+            if (cima < 0&& cima>0) break; 
             int resultado = LeerCSV2.getValor( cima, 0);
             if (resultado == 147) {
                 ps.pop();
@@ -138,21 +142,35 @@ public class sintaxis {
                 break;
             }
         }
-    }
+    }*/
 
-    private void registrarError(Token t, String descripcion) {
+    private void registrarError(Token t, String descripcion, int numError) {
         ContadorCiclos.ERRORES++;
         String codigo = String.format("ERR-SYN-%03d", ContadorCiclos.ERRORES);
-        erroresSintaxis.add(new ErrorEntry(
+        if (numError == -2000) {
+            erroresSintaxis.add(new ErrorEntry(
                 codigo,
                 descripcion,
                 t.getLinea(),
                 "parser",
                 ErrorEntry.Tipo.SINTAXIS,
                 t.getLexema()
-        ));
-        System.out.println("[SYN-ERR] ln=" + t.getLinea()
+            ));
+            System.out.println("[SYN-ERR] ln=" + t.getLinea()
                 + " col=" + t.getColumna() + " | " + descripcion);
+        }else {
+            codigo = String.format("ERR-SYN-"+numError, ContadorCiclos.ERRORES);
+            erroresSintaxis.add(new ErrorEntry(
+                codigo,
+                ErrorEntry.definirDescripcionSintaxis(numError),
+                t.getLinea(),
+                "parser",
+                ErrorEntry.Tipo.SINTAXIS,
+                t.getLexema()
+            ));
+            System.out.println("SYN-ERR " + numError + t.getLinea()
+                + " col=" + t.getColumna() + " | " + descripcion);
+        }
     }
 
     private void log(String msg) {
