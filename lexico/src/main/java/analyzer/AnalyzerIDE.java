@@ -65,7 +65,7 @@ public class AnalyzerIDE extends JFrame {
 
     // ════════════════════════════════════════════════════════════════════════
     public AnalyzerIDE() {
-        super("Analyzer IDE v3.1 - compiler_v1.2");
+        super("Analyzer IDE v6.0 - Lenguajes y automatas I");
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setSize(1200, 740);
         setMinimumSize(new Dimension(900, 560));
@@ -92,7 +92,7 @@ public class AnalyzerIDE extends JFrame {
         bar.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, BORDER_COLOR));
         bar.setPreferredSize(new Dimension(0, 36));
 
-        JLabel title = new JLabel("Anlatorre - Lexico_v1.0", SwingConstants.CENTER);
+        JLabel title = new JLabel("Anlatorre - Parser V6.0", SwingConstants.CENTER);
         title.setFont(new Font("Segoe UI", Font.PLAIN, 13));
         title.setForeground(TEXT_DIM);
         bar.add(title, BorderLayout.CENTER);
@@ -157,6 +157,16 @@ public class AnalyzerIDE extends JFrame {
         // ── Números de línea ─────────────────────────────────────────────────
         JPanel lineNumbers = new JPanel() {
             @Override
+            public Dimension getPreferredSize() {
+                // Altura dinámica: mismas líneas que el documento
+                int lines = codeEditor.getDocument()
+                        .getDefaultRootElement().getElementCount();
+                FontMetrics fm = getFontMetrics(MONO_FONT);
+                int height = fm.getHeight() * lines + 16; // +16 = margen superior
+                return new Dimension(42, height);
+            }
+
+            @Override
             protected void paintComponent(Graphics g) {
                 super.paintComponent(g);
                 Graphics2D g2 = (Graphics2D) g;
@@ -176,8 +186,19 @@ public class AnalyzerIDE extends JFrame {
                 }
             }
         };
-        lineNumbers.setPreferredSize(new Dimension(42, 0));
+        //lineNumbers.setPreferredSize(new Dimension(42, 0));
         lineNumbers.setBackground(new Color(0x1A, 0x1A, 0x1A));
+        codeEditor.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
+        private void refresh() {
+            SwingUtilities.invokeLater(() -> {
+                lineNumbers.revalidate();
+                lineNumbers.repaint();
+            });
+        }
+        public void insertUpdate(javax.swing.event.DocumentEvent e)  { refresh(); }
+        public void removeUpdate(javax.swing.event.DocumentEvent e)  { refresh(); }
+        public void changedUpdate(javax.swing.event.DocumentEvent e) {}
+        });
         codeEditor.addCaretListener(e -> lineNumbers.repaint());
 
         JScrollPane scroll = new JScrollPane(codeEditor);

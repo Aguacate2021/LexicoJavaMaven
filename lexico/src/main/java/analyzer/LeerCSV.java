@@ -7,7 +7,7 @@ import java.util.Map;
 
 public class LeerCSV {
     private static final String ARCHIVO_CSV = "lexico\\src\\main\\java\\analyzer\\ExcelPuro1.csv"; // Ruta al archivo CSV
-    private static int Valores[][]= new int[100][100]; // Matriz para almacenar los valores (ajustar tamaño según necesidad)
+    private static int Valores[][]= new int[100][100]; // Matriz para almacenar los valores 
     private static String separador = ";"; // o ";"
     private static final Map<Character, Integer> mapa = new HashMap<>();
 
@@ -52,7 +52,7 @@ public class LeerCSV {
         int lineaNum = 0;
         int columnaNum = 0;
         boolean primeraLinea = true; // Para saltar la primera línea (encabezados)
-        boolean primeraColumna = true; // Para controlar el salto de línea después de cada fila
+        boolean primeraColumna = true; // Para saltar la primera columna (nombres de filas)
         try (BufferedReader br = new BufferedReader(new FileReader(archivoCSV))) {
             while ((linea = br.readLine()) != null) {
                 if (primeraLinea) {

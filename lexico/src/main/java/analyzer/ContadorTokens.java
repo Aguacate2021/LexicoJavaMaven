@@ -4,7 +4,7 @@ import java.util.List;
 
 public class ContadorTokens {
 
-    // 🔷 GENERALES
+    
     public int operadores = 0;
     public int comentarios = 0;
     public int constantes = 0;
