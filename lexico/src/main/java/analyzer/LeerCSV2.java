@@ -146,7 +146,7 @@ public class LeerCSV2 {
         if (map.containsKey(c)) {
             return map.get(c);
         }
-        if (c >= -67 && c <= -60) {
+        if (c >= -67 && c <= -60 || c == -107) {
             return 4;
         }
         return -1;

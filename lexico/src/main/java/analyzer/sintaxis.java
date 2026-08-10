@@ -82,7 +82,7 @@ public class sintaxis {
                 if (cima == -1000) {
                     // caso especial: identificador genérico
                     int tc = tokenActual.getTokenClass();
-                    if (tc >= -67 && tc <= -60) {
+                    if (tc >= -67 && tc <= -60 || tc== -107) {
                         ps.pop();
                         lt.removeFirst();
                         log("Match ID: " + tokenActual.getLexema());

@@ -50,7 +50,7 @@ public class Token {
         map.put("default", -103);
         map.put("break", -104);
         map.put("if", -105);
-        //NO PONER EL -106 CONTINUA CON EL -107
+        //NO PONER EL -106 Y -107 CONTINUA CON EL -108
     }
     public enum Tipo {
         KEYWORD, ID, NUMBER, STRING, COMMENT,
@@ -95,7 +95,7 @@ public class Token {
     c = c.trim();
 
     if (!map.containsKey(c)) {
-        return 511; 
+        return -107; // Retorna -107 si no se encuentra en el mapa
     }
     return map.get(c);
 }
