@@ -23,7 +23,7 @@ public class ContadorTokens {
     public int idReal = 0;
     public int idExp = 0;
     public int idBool = 0;
-
+    public int idRegistro = 0;
     
     public int cteCadena = 0;
     public int cteBinario = 0;
@@ -103,8 +103,12 @@ public class ContadorTokens {
                 else if (token == -65) idReal++;
                 else if (token == -66) idExp++;
                 else if (token == -67) idBool++;
+                
             }
-
+            else if (token == -107) {
+                identificadores++;
+                idRegistro++;
+            } 
             
             else if (token == -74) {
                 nulos++;

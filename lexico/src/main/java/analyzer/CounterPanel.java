@@ -56,7 +56,7 @@ public class CounterPanel extends JPanel {
     // ── Definición de categorías ────────────────────────────────────────────
     private static final Object[][] CATS = {
         { "IDENTIFICADORES", CAT_ID,
-          new String[]{"Cadena","Binario","Decimal","Octal","Hex","Real","Exp","Bool"} },
+          new String[]{"Cadena","Binario","Decimal","Octal","Hex","Real","Exp","Bool","Registro"} },
         { "COMENTARIOS", CAT_COM,
           new String[]{"Línea","Multilínea"} },
         { "PAL. RESERVADAS", CAT_KW,
@@ -194,6 +194,7 @@ public class CounterPanel extends JPanel {
             // IDENTIFICADORES (8)
             c.idCadena, c.idBinario, c.idDecimal, c.idOctal,
             c.idHex,    c.idReal,    c.idExp,     c.idBool,
+            c.idRegistro,
             // COMENTARIOS (2)
             comentLinea, comentMulti,
             // PAL. RESERVADAS (1)

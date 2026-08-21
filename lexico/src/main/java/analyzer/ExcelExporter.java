@@ -181,23 +181,23 @@ public class ExcelExporter {
      * Estructura de columnas en la hoja CONTADORES.
      *
      *  Col  0        → Errores
-     *  Col  1–8      → Identificadores  (cadena, binario, decimal, octal, hex, real, exp, bool)
-     *  Col  9        → Comentarios línea
-     *  Col 10        → Comentarios multilínea
-     *  Col 11        → Palabras reservadas
-     *  Col 12–20     → Constantes       (cadena, bin, dec, oct, hex, real, exp, bool, null)
-     *  Col 21        → Op. Postfix
-     *  Col 22        → Op. Lógicos binarios
-     *  Col 23        → Op. Control
-     *  Col 24        → Op. Matemáticos
-     *  Col 25        → Op. Exponente
-     *  Col 26        → Op. Turno
-     *  Col 27        → Op. Relacionales
-     *  Col 28        → Op. Igualdad estricta
-     *  Col 29        → Op. Lógicos
-     *  Col 30        → Op. Ternario
-     *  Col 31        → Op. Asignación
-     *  Col 32        → Op. Agrupamiento
+     *  Col  1–9      → Identificadores  (cadena, binario, decimal, octal, hex, real, exp, bool,registro)
+     *  Col 10        → Comentarios línea
+     *  Col 11        → Comentarios multilínea
+     *  Col 12        → Palabras reservadas
+     *  Col 13–21     → Constantes       (cadena, bin, dec, oct, hex, real, exp, bool, null)
+     *  Col 22        → Op. Postfix
+     *  Col 23        → Op. Lógicos binarios
+     *  Col 24        → Op. Control
+     *  Col 25        → Op. Matemáticos
+     *  Col 26        → Op. Exponente
+     *  Col 27        → Op. Turno
+     *  Col 28        → Op. Relacionales
+     *  Col 29        → Op. Igualdad estricta
+     *  Col 30        → Op. Lógicos
+     *  Col 31        → Op. Ternario
+     *  Col 32        → Op. Asignación
+     *  Col 33        → Op. Agrupamiento
      */
     private static void poblarContadores(XSSFWorkbook wb,
                                           int            totalErrores,
@@ -206,21 +206,20 @@ public class ExcelExporter {
 
         // Anchos de columna
         ws.setColumnWidth(0, 10 * 256);   // Errores
-        for (int i =  1; i <=  8; i++) ws.setColumnWidth(i, 16 * 256); // Identificadores
-        ws.setColumnWidth(9,  16 * 256);  // Com. línea
-        ws.setColumnWidth(10, 16 * 256);  // Com. multi
-        ws.setColumnWidth(11, 18 * 256);  // Pal. reservadas
-        for (int i = 12; i <= 20; i++) ws.setColumnWidth(i, 16 * 256); // Constantes
-        for (int i = 21; i <= 32; i++) ws.setColumnWidth(i, 22 * 256); // Operadores
+        for (int i =  1; i <=  9; i++) ws.setColumnWidth(i, 16 * 256); // Identificadores
+        ws.setColumnWidth(10, 16 * 256);  // Com. línea
+        ws.setColumnWidth(11, 16 * 256);  // Com. multi
+        ws.setColumnWidth(12, 18 * 256);  // Pal. reservadas
+        for (int i = 13; i <= 21; i++) ws.setColumnWidth(i, 16 * 256); // Constantes
+        for (int i = 22; i <= 33; i++) ws.setColumnWidth(i, 22 * 256); // Operadores
 
         // ── Fusiones ──────────────────────────────────────────────────────
         ws.addMergedRegion(new CellRangeAddress(0, 1,  0,  0));  // Errores
-        ws.addMergedRegion(new CellRangeAddress(0, 0,  1,  8));  // Identificadores
-        ws.addMergedRegion(new CellRangeAddress(0, 0,  9, 10));  // Comentarios
-        ws.addMergedRegion(new CellRangeAddress(0, 1, 11, 11));  // Pal. reservadas
-        ws.addMergedRegion(new CellRangeAddress(0, 0, 12, 20));  // Constantes
+        ws.addMergedRegion(new CellRangeAddress(0, 0,  1,  9));  // Identificadores
+        ws.addMergedRegion(new CellRangeAddress(0, 0,  10, 11));  // Comentarios
+        ws.addMergedRegion(new CellRangeAddress(0, 1, 12, 12));  // Pal. reservadas
+        ws.addMergedRegion(new CellRangeAddress(0, 0, 13, 21));  // Constantes
         // Operadores: cada subcategoría ocupa 1 columna sin subrow extra
-        ws.addMergedRegion(new CellRangeAddress(0, 1, 21, 21));
         ws.addMergedRegion(new CellRangeAddress(0, 1, 22, 22));
         ws.addMergedRegion(new CellRangeAddress(0, 1, 23, 23));
         ws.addMergedRegion(new CellRangeAddress(0, 1, 24, 24));
@@ -232,6 +231,7 @@ public class ExcelExporter {
         ws.addMergedRegion(new CellRangeAddress(0, 1, 30, 30));
         ws.addMergedRegion(new CellRangeAddress(0, 1, 31, 31));
         ws.addMergedRegion(new CellRangeAddress(0, 1, 32, 32));
+        ws.addMergedRegion(new CellRangeAddress(0, 1, 33, 33));
 
         // ── Fila 0: categorías ────────────────────────────────────────────
         XSSFRow r0 = ws.createRow(0);
@@ -239,21 +239,21 @@ public class ExcelExporter {
 
         celda(r0,  0, "Errores",             estiloCategoria(wb, null));
         celda(r0,  1, "IDENTIFICADORES",     estiloCategoria(wb, CAT_ID));
-        celda(r0,  9, "COMENTARIOS",         estiloCategoria(wb, CAT_COM));
-        celda(r0, 11, "PAL. RESERVADAS",     estiloCategoria(wb, CAT_KW));
-        celda(r0, 12, "CONSTANTES",          estiloCategoria(wb, CAT_CST));
-        celda(r0, 21, "Postfix",             estiloCategoria(wb, CAT_OP));
-        celda(r0, 22, "Log. binarios",       estiloCategoria(wb, CAT_OP));
-        celda(r0, 23, "Control",             estiloCategoria(wb, CAT_OP));
-        celda(r0, 24, "Matemáticos",         estiloCategoria(wb, CAT_OP));
-        celda(r0, 25, "Exponente",           estiloCategoria(wb, CAT_OP));
-        celda(r0, 26, "Turno",               estiloCategoria(wb, CAT_OP));
-        celda(r0, 27, "Relacionales",        estiloCategoria(wb, CAT_OP));
-        celda(r0, 28, "Igualdad estricta",   estiloCategoria(wb, CAT_OP));
-        celda(r0, 29, "Lógicos",             estiloCategoria(wb, CAT_OP));
-        celda(r0, 30, "Ternario",            estiloCategoria(wb, CAT_OP));
-        celda(r0, 31, "Asignación",          estiloCategoria(wb, CAT_OP));
-        celda(r0, 32, "Agrupamiento",        estiloCategoria(wb, CAT_OP));
+        celda(r0,  10, "COMENTARIOS",         estiloCategoria(wb, CAT_COM));
+        celda(r0, 12, "PAL. RESERVADAS",     estiloCategoria(wb, CAT_KW));
+        celda(r0, 13, "CONSTANTES",          estiloCategoria(wb, CAT_CST));
+        celda(r0, 22, "Postfix",             estiloCategoria(wb, CAT_OP));
+        celda(r0, 23, "Log. binarios",       estiloCategoria(wb, CAT_OP));
+        celda(r0, 24, "Control",             estiloCategoria(wb, CAT_OP));
+        celda(r0, 25, "Matemáticos",         estiloCategoria(wb, CAT_OP));
+        celda(r0, 26, "Exponente",           estiloCategoria(wb, CAT_OP));
+        celda(r0, 27, "Turno",               estiloCategoria(wb, CAT_OP));
+        celda(r0, 28, "Relacionales",        estiloCategoria(wb, CAT_OP));
+        celda(r0, 29, "Igualdad estricta",   estiloCategoria(wb, CAT_OP));
+        celda(r0, 30, "Lógicos",             estiloCategoria(wb, CAT_OP));
+        celda(r0, 31, "Ternario",            estiloCategoria(wb, CAT_OP));
+        celda(r0, 32, "Asignación",          estiloCategoria(wb, CAT_OP));
+        celda(r0, 33, "Agrupamiento",        estiloCategoria(wb, CAT_OP));
 
         // ── Fila 1: subcategorías ─────────────────────────────────────────
         XSSFRow r1 = ws.createRow(1);
@@ -261,19 +261,19 @@ public class ExcelExporter {
 
         // Identificadores
         String[] subId = {"Cadena", "Binario", "Decimal", "Octal",
-                          "Hexadecimal", "Real", "Exponencial", "Booleanas"};
+                          "Hexadecimal", "Real", "Exponencial", "Booleanas","Registro"};
         for (int i = 0; i < subId.length; i++)
             celda(r1, 1 + i, subId[i], estiloSubcat(wb, CAT_ID));
 
         // Comentarios
-        celda(r1,  9, "Línea",      estiloSubcat(wb, CAT_COM));
-        celda(r1, 10, "Multilínea", estiloSubcat(wb, CAT_COM));
+        celda(r1,  10, "Línea",      estiloSubcat(wb, CAT_COM));
+        celda(r1, 11, "Multilínea", estiloSubcat(wb, CAT_COM));
 
         // Constantes
         String[] subCst = {"Cadena", "Binario", "Decimal", "Octal",
                            "Hexadecimal", "Real", "Exponencial", "Booleanas", "Null"};
         for (int i = 0; i < subCst.length; i++)
-            celda(r1, 12 + i, subCst[i], estiloSubcat(wb, CAT_CST));
+            celda(r1, 13 + i, subCst[i], estiloSubcat(wb, CAT_CST));
 
         // ── Fila 2: valores (de ContadorTokens) ──────────────────────────
         XSSFRow r2 = ws.createRow(2);
@@ -292,40 +292,41 @@ public class ExcelExporter {
         celda(r2,  6, c.idReal,           sv);
         celda(r2,  7, c.idExp,            sv);
         celda(r2,  8, c.idBool,           sv);
+        celda(r2,  9, c.idRegistro,       sv);
 
         // Comentarios
         // ContadorTokens.comentarios = total; no distingue línea vs multilínea.
         // Si en el futuro se añaden campos separados, cambiar aquí.
-        celda(r2,  9, c.comentarios,      sv);  // línea (total provisionalmente)
-        celda(r2, 10, 0,                  sv);  // multilínea (pendiente de desglose)
+        celda(r2, 10, c.comentarios,      sv);  // línea (total provisionalmente)
+        celda(r2, 11, 0,                  sv);  // multilínea (pendiente de desglose)
 
         // Palabras reservadas
-        celda(r2, 11, c.reservadas,       sv);
+        celda(r2, 12, c.reservadas,       sv);
 
         // Constantes
-        celda(r2, 12, c.cteCadena,        sv);
-        celda(r2, 13, c.cteBinario,       sv);
-        celda(r2, 14, c.cteDecimal,       sv);
-        celda(r2, 15, c.cteOctal,         sv);
-        celda(r2, 16, c.cteHex,           sv);
-        celda(r2, 17, c.cteReal,          sv);
-        celda(r2, 18, c.cteExp,           sv);
-        celda(r2, 19, c.cteBool,          sv);
-        celda(r2, 20, c.cteNull,          sv);
+        celda(r2, 13, c.cteCadena,        sv);
+        celda(r2, 14, c.cteBinario,       sv);
+        celda(r2, 15, c.cteDecimal,       sv);
+        celda(r2, 16, c.cteOctal,         sv);
+        celda(r2, 17, c.cteHex,           sv);
+        celda(r2, 18, c.cteReal,          sv);
+        celda(r2, 19, c.cteExp,           sv);
+        celda(r2, 20, c.cteBool,          sv);
+        celda(r2, 21, c.cteNull,          sv);
 
         // Operadores
-        celda(r2, 21, c.opPostfix,        sv);
-        celda(r2, 22, c.opLogBin,         sv);
-        celda(r2, 23, c.opControl,        sv);
-        celda(r2, 24, c.opMat,            sv);
-        celda(r2, 25, c.opExp,            sv);
-        celda(r2, 26, c.opTurno,          sv);
-        celda(r2, 27, c.opRel,            sv);
-        celda(r2, 28, c.opIgualdad,       sv);
-        celda(r2, 29, c.opLogicos,        sv);
-        celda(r2, 30, c.opTernario,       sv);
-        celda(r2, 31, c.opAsignacion,     sv);
-        celda(r2, 32, c.opAgrup,          sv);
+        celda(r2, 22, c.opPostfix,        sv);
+        celda(r2, 23, c.opLogBin,         sv);
+        celda(r2, 24, c.opControl,        sv);
+        celda(r2, 25, c.opMat,            sv);
+        celda(r2, 26, c.opExp,            sv);
+        celda(r2, 27, c.opTurno,          sv);
+        celda(r2, 28, c.opRel,            sv);
+        celda(r2, 29, c.opIgualdad,       sv);
+        celda(r2, 30, c.opLogicos,        sv);
+        celda(r2, 31, c.opTernario,       sv);
+        celda(r2, 32, c.opAsignacion,     sv);
+        celda(r2, 33, c.opAgrup,          sv);
     }
 
     // ═══════════════════════════════════════════════════════════════════════

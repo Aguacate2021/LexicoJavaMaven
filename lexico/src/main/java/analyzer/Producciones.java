@@ -30,8 +30,9 @@ public class Producciones {
         producciones.put(16,  Arrays.asList(-47, -55, 5, -48));
         //Producciones complicadas: 17 y 18, que comparten el mismo prefijo pero difieren en la parte final, lo que me hizo pensar en una producción común con epsilon, pero al final decidí mantenerlas separadas para mayor claridad
         producciones.put(15,  Arrays.asList(-7,47));
-        producciones.put(17,  Arrays.asList(-1000,	-47,-55,5,-48,6,7));
-        producciones.put(18,  Arrays.asList(-69, -1000, -1000, -47, -55, 5, -48, 6, 7));
+        //Cambios de revision de compi 2
+        producciones.put(17,  Arrays.asList(-1000,6,7));
+        producciones.put(18,  Arrays.asList(-69, -1000, -1000, 6, 7));
         
         producciones.put(20,  Arrays.asList(-7, -1000, -33, 11, 8));
         producciones.put(21,  Arrays.asList(-54));
