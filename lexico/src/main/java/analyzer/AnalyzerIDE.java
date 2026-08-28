@@ -125,9 +125,11 @@ public class AnalyzerIDE extends JFrame {
         JButton btnAbrir    = makeButton("+ ABRIR",    new Color(0x3C, 0x3C, 0x3C), TEXT_MAIN);
         JButton btnCompilar = makeButton("- COMPILAR", new Color(0x3C, 0x3C, 0x3C), TEXT_MAIN);
         JButton btnExcel = makeButton("+- EXCEL", new Color(0x3C, 0x3C, 0x3C), TEXT_MAIN);
+        JButton btnAvance1 = makeButton("* AVANCE 1", new Color(0x3C, 0x3C, 0x3C), TEXT_MAIN);
         btns.add(btnAbrir);
         btns.add(btnCompilar);
         btns.add(btnExcel);
+        btns.add(btnAvance1);
 
         header.add(btns, BorderLayout.EAST);
         panel.add(header, BorderLayout.NORTH);
@@ -135,6 +137,7 @@ public class AnalyzerIDE extends JFrame {
         btnCompilar.addActionListener(e -> compilar());
         btnExcel.addActionListener(e -> exportToExcel());
         btnAbrir.addActionListener(e -> abrirArchivo());
+        btnAvance1.addActionListener(e -> btnGuardarLogActionPerformed(null));
         // ── Editor de texto ──────────────────────────────────────────────────
         codeEditor = new JTextPane();
         codeEditor.setBackground(BG_DARK);
@@ -382,6 +385,71 @@ public class AnalyzerIDE extends JFrame {
         }
     }
     }
+    // ════════════════════════════════════════════════════════════════════════
+    // Abrir Guardar archivo .txt del avance 1 
+    // ════════════════════════════════════════════════════════════════════════
+    private void btnGuardarLogActionPerformed(java.awt.event.ActionEvent evt) {
+
+    String log = parserLexer.getLogAvance1();
+
+    if (log.isEmpty()) {
+        javax.swing.JOptionPane.showMessageDialog(
+            this,
+            "No hay información de análisis para guardar.",
+            "Sin información",
+            javax.swing.JOptionPane.WARNING_MESSAGE
+        );
+        return;
+    }
+
+    javax.swing.JFileChooser fileChooser =
+            new javax.swing.JFileChooser();
+
+    fileChooser.setDialogTitle("Guardar log del análisis");
+
+    fileChooser.setSelectedFile(
+            new java.io.File("Areas_Alatorre_23130243.txt")
+    );
+
+    int resultado = fileChooser.showSaveDialog(this);
+
+    if (resultado == javax.swing.JFileChooser.APPROVE_OPTION) {
+
+        java.io.File archivo = fileChooser.getSelectedFile();
+
+        // Agregar .txt automáticamente si el usuario no lo escribió
+        if (!archivo.getName().toLowerCase().endsWith(".txt")) {
+            archivo = new java.io.File(
+                    archivo.getAbsolutePath() + ".txt"
+            );
+        }
+
+        try (java.io.FileWriter escritor =
+                     new java.io.FileWriter(archivo)) {
+
+            escritor.write(log);
+
+            javax.swing.JOptionPane.showMessageDialog(
+                    this,
+                    "El log se guardó correctamente.\n\n"
+                    + "Archivo:\n"
+                    + archivo.getAbsolutePath(),
+                    "Log guardado",
+                    javax.swing.JOptionPane.INFORMATION_MESSAGE
+            );
+
+        } catch (java.io.IOException ex) {
+
+            javax.swing.JOptionPane.showMessageDialog(
+                    this,
+                    "Error al guardar el log:\n"
+                    + ex.getMessage(),
+                    "Error",
+                    javax.swing.JOptionPane.ERROR_MESSAGE
+            );
+        }
+    }
+}
     // ════════════════════════════════════════════════════════════════════════
     // SYNTAX HIGHLIGHT
     // ════════════════════════════════════════════════════════════════════════

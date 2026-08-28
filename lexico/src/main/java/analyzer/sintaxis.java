@@ -12,13 +12,17 @@ public class sintaxis {
     private static final int MAX_ERRORES = 50;
 
     private final List<ErrorEntry> erroresSintaxis = new ArrayList<>();
-
+    private boolean AreaDeDeclaraciones = true;
+    private boolean AreaDeEjecuciones = false;
+    private StringBuilder logBuilder = new StringBuilder();
     public List<ErrorEntry> getErroresSintaxis() {
         return erroresSintaxis;
     }
-
+    public String getLogAvance1() {
+        return logBuilder.toString();
+    }
     public void parsear(List<Token> tokens) {
-
+        logBuilder.setLength(0);
         erroresSintaxis.clear();
         ContadorCiclos.resetearContadores();
         LeerCSV2.LeerCSV();
@@ -27,6 +31,7 @@ public class sintaxis {
         Stack<Integer> ps = new Stack<>();
         ps.push(0);
         Token tokenActual = null;
+        logBuilder.append("Linea: "+1+"    Area de declaracion    :   Abierta\n");
         while (!lt.isEmpty() && !ps.isEmpty()) {
 
             if (ContadorCiclos.ERRORES >= MAX_ERRORES) {
@@ -44,7 +49,25 @@ public class sintaxis {
             if (cima >= 0) {
                 // ── NO TERMINAL ──────────────────────────────────────────────
                 int columna = LeerCSV2.clasificarTransicion(tokenActual.getTokenClass());
-
+                // Manejo de transiciones especiales para cambiar entre áreas de declaraciones y ejecuciones
+                if(cima==800){
+                    AreaDeDeclaraciones=false;
+                    logBuilder.append("Linea: " + tokenActual.getLinea() + "    Area de declaracion    :   Cerrada\n");
+                    AreaDeEjecuciones=true;
+                    logBuilder.append("Linea: " + tokenActual.getLinea() + "    Area de ejecucion    :   Abierta\n");
+                    ps.pop();
+                    continue;
+                }
+                if(cima==801){
+                    AreaDeEjecuciones=false;
+                    logBuilder.append("Linea: " + tokenActual.getLinea() + "    Area de ejecucion  :   Cerrada\n");
+                    AreaDeDeclaraciones=true;
+                    logBuilder.append("Linea: " + tokenActual.getLinea() + "    Area de declaracion  :   Abierta\n");
+                   
+                    ps.pop();
+                    continue;
+                }
+                /////////////////////////////////////////////////////////////////
                 if (columna < 0) {
                     // token no clasificable → error, consumir token
                     registrarError(tokenActual, "Token no reconocido por la tabla sintáctica", -2000);

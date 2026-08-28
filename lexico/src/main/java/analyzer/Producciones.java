@@ -12,7 +12,7 @@ public class Producciones {
 
     static {
         producciones.put(0,   Arrays.asList(0));
-        producciones.put(1,   Arrays.asList(1, -68, -49, -50, -45, 24, 2, -46));
+        producciones.put(1,   Arrays.asList(1, -68, -49, -50,800, -45, 24, 2,801, -46));
         producciones.put(2,   new ArrayList<>());
         producciones.put(3,   Arrays.asList(-9, 24, 2));
         producciones.put(4,   new ArrayList<>());
