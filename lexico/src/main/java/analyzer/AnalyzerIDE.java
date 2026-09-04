@@ -65,7 +65,7 @@ public class AnalyzerIDE extends JFrame {
 
     // ════════════════════════════════════════════════════════════════════════
     public AnalyzerIDE() {
-        super("Analyzer IDE v6.0 - Lenguajes y automatas I");
+        super("Analyzer IDE v6.5 - Lenguajes y automatas II");
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setSize(1200, 740);
         setMinimumSize(new Dimension(900, 560));
@@ -125,7 +125,7 @@ public class AnalyzerIDE extends JFrame {
         JButton btnAbrir    = makeButton("+ ABRIR",    new Color(0x3C, 0x3C, 0x3C), TEXT_MAIN);
         JButton btnCompilar = makeButton("- COMPILAR", new Color(0x3C, 0x3C, 0x3C), TEXT_MAIN);
         JButton btnExcel = makeButton("+- EXCEL", new Color(0x3C, 0x3C, 0x3C), TEXT_MAIN);
-        JButton btnAvance1 = makeButton("* AVANCE 1", new Color(0x3C, 0x3C, 0x3C), TEXT_MAIN);
+        JButton btnAvance1 = makeButton("* AVANCE 2", new Color(0x3C, 0x3C, 0x3C), TEXT_MAIN);
         btns.add(btnAbrir);
         btns.add(btnCompilar);
         btns.add(btnExcel);

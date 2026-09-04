@@ -18,7 +18,7 @@ public class Producciones {
         producciones.put(4,   new ArrayList<>());
         producciones.put(5,   Arrays.asList(-69, -1000, -45, -1000, 3, -46, 1));
         producciones.put(6,   Arrays.asList(-70, 4));
-        producciones.put(7,   Arrays.asList(-71, -1000, 12, 0, -9, 1));
+        producciones.put(7,   Arrays.asList(-71, -1000, 802, 12, 0, 803, -9, 1));
         producciones.put(8,   Arrays.asList(-1000, -33, 11, 8, -9, 1));
         producciones.put(9,   new ArrayList<>());
         producciones.put(10,  Arrays.asList(-7, -1000, 3));

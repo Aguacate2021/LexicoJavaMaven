@@ -12,9 +12,15 @@ public class sintaxis {
     private static final int MAX_ERRORES = 50;
 
     private final List<ErrorEntry> erroresSintaxis = new ArrayList<>();
+    
+    private StringBuilder logBuilder = new StringBuilder();
+    
+    //Variables de ambito para el análisis sintáctico
     private boolean AreaDeDeclaraciones = true;
     private boolean AreaDeEjecuciones = false;
-    private StringBuilder logBuilder = new StringBuilder();
+    Stack<Integer> AmbitoActual = new Stack<>();
+    int ContadorAmbito = 1;
+    
     public List<ErrorEntry> getErroresSintaxis() {
         return erroresSintaxis;
     }
@@ -26,12 +32,14 @@ public class sintaxis {
         erroresSintaxis.clear();
         ContadorCiclos.resetearContadores();
         LeerCSV2.LeerCSV();
-
         LinkedList<Token> lt = new LinkedList<>(tokens);
         Stack<Integer> ps = new Stack<>();
+        ContadorAmbito = 1;
+        AmbitoActual.clear();
+        AmbitoActual.push(0);
         ps.push(0);
         Token tokenActual = null;
-        logBuilder.append("Linea: "+1+"    Area de declaracion    :   Abierta\n");
+        logBuilder.append("Línea: 1 ---> ÁMBITO 0 ---> ABIERTO\n");
         while (!lt.isEmpty() && !ps.isEmpty()) {
 
             if (ContadorCiclos.ERRORES >= MAX_ERRORES) {
@@ -47,27 +55,37 @@ public class sintaxis {
                     + ") ln:" + tokenActual.getLinea());
 
             if (cima >= 0) {
-                // ── NO TERMINAL ──────────────────────────────────────────────
-                int columna = LeerCSV2.clasificarTransicion(tokenActual.getTokenClass());
                 // Manejo de transiciones especiales para cambiar entre áreas de declaraciones y ejecuciones
                 if(cima==800){
                     AreaDeDeclaraciones=false;
-                    logBuilder.append("Linea: " + tokenActual.getLinea() + "    Area de declaracion    :   Cerrada\n");
+                    //logBuilder.append("Linea: " + tokenActual.getLinea() + "    Area de declaracion    :   Cerrada\n");
                     AreaDeEjecuciones=true;
-                    logBuilder.append("Linea: " + tokenActual.getLinea() + "    Area de ejecucion    :   Abierta\n");
+                    //logBuilder.append("Linea: " + tokenActual.getLinea() + "    Area de ejecucion    :   Abierta\n");
                     ps.pop();
                     continue;
                 }
                 if(cima==801){
                     AreaDeEjecuciones=false;
-                    logBuilder.append("Linea: " + tokenActual.getLinea() + "    Area de ejecucion  :   Cerrada\n");
+                    //logBuilder.append("Linea: " + tokenActual.getLinea() + "    Area de ejecucion  :   Cerrada\n");
                     AreaDeDeclaraciones=true;
-                    logBuilder.append("Linea: " + tokenActual.getLinea() + "    Area de declaracion  :   Abierta\n");
+                    //logBuilder.append("Linea: " + tokenActual.getLinea() + "    Area de declaracion  :   Abierta\n");
                    
                     ps.pop();
                     continue;
                 }
+                if(cima==802){
+                    AbrirAmbito(tokenActual);
+                    ps.pop();
+                    continue;
+                }
+                if(cima==803){
+                    CerrarAmbito(tokenActual);
+                    ps.pop();
+                    continue;
+                }
                 /////////////////////////////////////////////////////////////////
+                // ── NO TERMINAL ──────────────────────────────────────────────
+                int columna = LeerCSV2.clasificarTransicion(tokenActual.getTokenClass());
                 if (columna < 0) {
                     // token no clasificable → error, consumir token
                     registrarError(tokenActual, "Token no reconocido por la tabla sintáctica", -2000);
@@ -149,6 +167,7 @@ public class sintaxis {
             System.out.println("\nAnálisis sintáctico finalizado con "
                     + ContadorCiclos.ERRORES + " error(es) sintáctico(s).");
         }
+        logBuilder.append("Línea: " + tokenActual.getLinea() + " ---> ÁMBITO " + AmbitoActual.peek() + " ---> CERRADO\n");
     }
 
     /*private void vaciarEpsilones(Stack<Integer> ps) {
@@ -198,5 +217,14 @@ public class sintaxis {
 
     private void log(String msg) {
         if (TRACE) System.out.println("[TRACE] " + msg);
+    }
+
+    private void AbrirAmbito(Token tokenActual) {
+        AmbitoActual.push(ContadorAmbito++);
+        logBuilder.append("Línea: " + tokenActual.getLinea() + " ---> ÁMBITO " + AmbitoActual.peek() + " ---> ABIERTO\n");
+    }
+    private void CerrarAmbito(Token tokenActual) {
+        logBuilder.append("Línea: " + tokenActual.getLinea() + " ---> ÁMBITO " + AmbitoActual.peek() + " ---> CERRADO\n");
+        AmbitoActual.pop();
     }
 }
