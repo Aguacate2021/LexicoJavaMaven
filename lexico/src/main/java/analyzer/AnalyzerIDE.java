@@ -291,8 +291,9 @@ public class AnalyzerIDE extends JFrame {
     // PARSER
     // =====================================================
 
+    TablaSimbolosDAO tabla = new TablaSimbolosDAO();
+    tabla.limpiarTablaSimbolos();
     
-
     parserLexer.parsear(tokens);
 
     // =====================================================
@@ -408,7 +409,7 @@ public class AnalyzerIDE extends JFrame {
     fileChooser.setDialogTitle("Guardar log del análisis");
 
     fileChooser.setSelectedFile(
-            new java.io.File("Areas_Alatorre_23130243.txt")
+            new java.io.File("DeteccionDeAmbito_Alatorre_23130243.txt")
     );
 
     int resultado = fileChooser.showSaveDialog(this);
@@ -559,6 +560,7 @@ public class AnalyzerIDE extends JFrame {
     // MAIN
     // ════════════════════════════════════════════════════════════════════════
     public static void main(String[] args) {
+        ConexionBD.inicializar();
         try {
             for (UIManager.LookAndFeelInfo info : UIManager.getInstalledLookAndFeels()) {
                 if ("Nimbus".equals(info.getName())) {

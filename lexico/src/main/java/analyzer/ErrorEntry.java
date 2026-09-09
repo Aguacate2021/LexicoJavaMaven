@@ -5,7 +5,7 @@ package analyzer;
  */
 public class ErrorEntry {
 
-    public enum Tipo { LEXICO, SINTAXIS }
+    public enum Tipo { LEXICO, SINTAXIS, AMBITO }
 
     private final String    codigo;
     private final String    descripcion;

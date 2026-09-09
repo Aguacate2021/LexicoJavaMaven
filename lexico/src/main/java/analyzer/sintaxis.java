@@ -12,6 +12,8 @@ public class sintaxis {
     private static final int MAX_ERRORES = 50;
 
     private final List<ErrorEntry> erroresSintaxis = new ArrayList<>();
+    private final List<ErrorEntry> erroresAmbito = new ArrayList<>();
+    TablaSimbolosDAO tabla = new TablaSimbolosDAO();
     
     private StringBuilder logBuilder = new StringBuilder();
     
@@ -20,9 +22,22 @@ public class sintaxis {
     private boolean AreaDeEjecuciones = false;
     Stack<Integer> AmbitoActual = new Stack<>();
     int ContadorAmbito = 1;
-    
+    int produccionActual = 0;
+    boolean encontrado = false;
+        //Arreglo
+        String TamañoArreglo="";
+        String idArreglo="";
+        int DimensionesArreglo=0;
+        int ambitoArreglo;
+        //Funciones
+        String idFuncion="";
+        int NumParametros=0;
+        int ambitoFuncion;
     public List<ErrorEntry> getErroresSintaxis() {
         return erroresSintaxis;
+    }
+    public List<ErrorEntry> getErroresAmbito() {
+        return erroresAmbito;
     }
     public String getLogAvance1() {
         return logBuilder.toString();
@@ -114,6 +129,7 @@ public class sintaxis {
                     // ── PRODUCCIÓN ────────────────────────────────────────────
                     ps.pop();
                     ContadorCiclos.aumentarContador(cima);
+                    produccionActual = resultado;
                     Producciones.aplicarProduccion(ps, resultado);
                     log("NT=" + cima + " → producción " + resultado);
                 }
@@ -124,6 +140,80 @@ public class sintaxis {
                     // caso especial: identificador genérico
                     int tc = tokenActual.getTokenClass();
                     if (tc >= -67 && tc <= -60 || tc== -107) {
+                        if (produccionActual==12||produccionActual==17) {
+                            idArreglo=tokenActual.getLexema();
+                            TamañoArreglo="";
+                            DimensionesArreglo=0;
+                        }
+                        if (produccionActual==7) {
+                            idFuncion=tokenActual.getLexema();
+                            NumParametros=0;
+                        }
+                        if(AreaDeDeclaraciones){
+                            /* case 7: return "Funcion";
+                                case 35:
+                                return "Parametro";
+                                case 8: return "Constante";
+                                case 20: return "Constante"; */
+                            encontrado = false;
+                         for (Integer ambito : AmbitoActual) {
+                                if (tabla.idExiste(tokenActual.getLexema(), ambito)) {
+                                    encontrado = true;
+                                    break;
+                                    }
+                                }
+                            // Si se encontró en algún ámbito
+                            if (encontrado) {
+                                registrarError(
+                                    tokenActual,
+                                    "Identificador ya declarado en los ámbitos accesibles: "
+                                    + tokenActual.getLexema(),
+                                    -3000
+                                );
+                            if(produccionActual==7){
+                            tabla.insertar(tokenActual.getLexema(),obtenerTipoDeToken(tc),obtenerClaseDeProduccion(produccionActual,ps),AmbitoActual.peek(),null,null,0,String.valueOf(AmbitoActual.peek()+1));
+                            ambitoFuncion=AmbitoActual.peek();
+                            }
+                            if(produccionActual==12||produccionActual==17){
+                            tabla.insertar(tokenActual.getLexema(),obtenerTipoDeToken(tc),obtenerClaseDeProduccion(produccionActual,ps),AmbitoActual.peek(),null,null,null,null);
+                            ambitoArreglo=AmbitoActual.peek();
+                            }
+                            if(produccionActual==35){
+                            tabla.insertar(tokenActual.getLexema(),obtenerTipoDeToken(tc),obtenerClaseDeProduccion(produccionActual,ps),AmbitoActual.peek(),null,null,null,idFuncion);
+                            }
+                            if(produccionActual==8||produccionActual==20){
+                            tabla.insertar(tokenActual.getLexema(),obtenerTipoDeToken(tc),obtenerClaseDeProduccion(produccionActual,ps),AmbitoActual.peek(),null,null,null,null);
+                            }
+                        }
+                        } // <-- FIX: cierra "if(AreaDeDeclaraciones)" aquí (antes faltaba esta llave,
+                          //     lo que dejaba "if(AreaDeEjecuciones)" anidado dentro de este bloque).
+                        if(AreaDeEjecuciones){
+                        encontrado = false;
+                         for (Integer ambito : AmbitoActual) {
+                                if (tabla.idExiste(tokenActual.getLexema(), ambito)) {
+                                    encontrado = true;
+                                    break;
+                                    }
+                                }
+                            // Si no se encontró en ningún ámbito
+                            if (!encontrado) {
+                                registrarError(
+                                    tokenActual,
+                                    "Identificador no declarado en los ámbitos accesibles: "
+                                    + tokenActual.getLexema(),
+                                    -3000
+                                );
+                        }
+                        } // <-- FIX: cierra "if(AreaDeEjecuciones)" aquí (antes el match de abajo
+                          //     quedaba atrapado dentro de esta condición y nunca se ejecutaba
+                          //     mientras AreaDeDeclaraciones estuviera activa).
+
+                        // FIX: este match ahora se ejecuta SIEMPRE que el token sea un
+                        // identificador válido, sin importar el área (declaraciones o
+                        // ejecuciones). Antes, mientras AreaDeDeclaraciones era true (el caso
+                        // del primer "var" del programa), este bloque nunca corría porque
+                        // estaba anidado dentro de "if(AreaDeEjecuciones)", así que el -1000
+                        // jamás se sacaba de la pila y el parser quedaba atorado.
                         ps.pop();
                         lt.removeFirst();
                         log("Match ID: " + tokenActual.getLexema());
@@ -132,14 +222,26 @@ public class sintaxis {
                                 "Se esperaba un identificador, se encontró: "
                                 + tokenActual.getLexema(), -2000);
                         lt.removeFirst();
+                        // FIX: también se saca el -1000 de la pila en el camino de error,
+                        // para no dejarlo atorado repitiendo el mismo error en cascada con
+                        // cada token restante del archivo.
+                        ps.pop();
                     }
 
                 } else if (cima == tokenActual.getTokenClass()) {
+                    // Ambito de arreglos: si la producción actual es 14 o 16 y el token actual es -55 (Numero Decimal), entonces se está aumentando el tamaño y el número de dimensiones y se debe contar la dimensión y el tamaño
+                    if((produccionActual==14 && tokenActual.getTokenClass()==-55)||(produccionActual==16 && tokenActual.getTokenClass()==-55)){
+                        DimensionesArreglo++;
+                        if(TamañoArreglo.equals("")){
+                            TamañoArreglo=tokenActual.getLexema();
+                        }else{
+                            TamañoArreglo=TamañoArreglo+","+tokenActual.getLexema();
+                        }
+                    }
                     // match normal
                     ps.pop();
                     lt.removeFirst();
                     log("Match: " + tokenActual.getLexema());
-
                 } else {
                     // Error de fuerza bruta: no coincide el terminal esperado con el token actual
                     registrarError(tokenActual,
@@ -169,7 +271,6 @@ public class sintaxis {
         }
         logBuilder.append("Línea: " + tokenActual.getLinea() + " ---> ÁMBITO " + AmbitoActual.peek() + " ---> CERRADO\n");
     }
-
     /*private void vaciarEpsilones(Stack<Integer> ps) {
         while (!ps.isEmpty()) {
             int cima = ps.peek();
@@ -189,6 +290,18 @@ public class sintaxis {
     private void registrarError(Token t, String descripcion, int numError) {
         ContadorCiclos.ERRORES++;
         String codigo = String.format("ERR-SYN-%03d", ContadorCiclos.ERRORES);
+        if (numError == -3000) {
+            erroresSintaxis.add(new ErrorEntry(
+                codigo,
+                descripcion,
+                t.getLinea(),
+                "parser",
+                ErrorEntry.Tipo.AMBITO,
+                t.getLexema()
+            ));
+            System.out.println("[SYN-ERR] ln=" + t.getLinea()
+                + " col=" + t.getColumna() + " | " + descripcion);
+        }
         if (numError == -2000) {
             erroresSintaxis.add(new ErrorEntry(
                 codigo,
@@ -226,5 +339,38 @@ public class sintaxis {
     private void CerrarAmbito(Token tokenActual) {
         logBuilder.append("Línea: " + tokenActual.getLinea() + " ---> ÁMBITO " + AmbitoActual.peek() + " ---> CERRADO\n");
         AmbitoActual.pop();
+    }
+
+    private String obtenerClaseDeProduccion(int numProduccion,Stack<Integer> stack) {
+        if (numProduccion==12 && stack.peek()==-9) {
+            return "Variable";
+        }
+        if (numProduccion==12 && stack.peek()!=-9) {
+            return "Arreglo";
+        }
+        switch (numProduccion) {
+            case 7: return "Funcion";
+            case 35: 
+            NumParametros++;
+            return "Parametro";
+            case 8: return "Constante";
+            case 20: return "Constante";
+            default:
+                return "";
+        }
+    }
+    private String obtenerTipoDeToken(int tokenID) {
+        switch (tokenID) {
+            case -60: return "Cadena";
+            case -61: return "Binario";
+            case -62: return "Decimal";
+            case -63: return "Octal";
+            case -64: return "Hexadecimal";
+            case -65: return "Real";
+            case -66: return "Exponencial";
+            case -67: return "Booleanas";
+            default:
+                return "";
+        }
     }
 }
