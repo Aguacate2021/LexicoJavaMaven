@@ -13,20 +13,32 @@ public class ErrorEntry {
     private final String    archivo;
     private final Tipo      tipo;
     private final String    lexema;
+    private final int       ambito;
 
+    /** Valor usado cuando no se conoce/asigna un ámbito explícito. */
+    public static final int AMBITO_DESCONOCIDO = -1;
+
+    /** Constructor completo, incluyendo el ámbito en que se produjo el error. */
     public ErrorEntry(String codigo, String descripcion, int linea,
-                      String archivo, Tipo tipo, String lexema) {
+                      String archivo, Tipo tipo, String lexema, int ambito) {
         this.codigo      = codigo;
         this.descripcion = descripcion;
         this.linea       = linea;
         this.archivo     = archivo;
         this.tipo          = tipo;
         this.lexema         = lexema;
+        this.ambito         = ambito;
+    }
+
+    /** Constructor original (sin ámbito); queda como AMBITO_DESCONOCIDO. */
+    public ErrorEntry(String codigo, String descripcion, int linea,
+                      String archivo, Tipo tipo, String lexema) {
+        this(codigo, descripcion, linea, archivo, tipo, lexema, AMBITO_DESCONOCIDO);
     }
 
     /** Constructor con severidad ERROR por defecto. */
     public ErrorEntry(String codigo, String descripcion, int linea, String archivo,String lexema) {
-        this(codigo, descripcion, linea, archivo, Tipo.LEXICO, lexema);
+        this(codigo, descripcion, linea, archivo, Tipo.LEXICO, lexema, AMBITO_DESCONOCIDO);
     }
 
     public String    getCodigo()      { return codigo;      }
@@ -35,6 +47,7 @@ public class ErrorEntry {
     public String    getArchivo()     { return archivo;     }
     public Tipo      getTipo()        { return tipo;        }
     public String    getLexema()      { return lexema;      }
+    public int       getAmbito()      { return ambito;      }
 
     @Override
     public String toString() {

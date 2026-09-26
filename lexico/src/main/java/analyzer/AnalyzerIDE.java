@@ -125,11 +125,13 @@ public class AnalyzerIDE extends JFrame {
         JButton btnAbrir    = makeButton("+ ABRIR",    new Color(0x3C, 0x3C, 0x3C), TEXT_MAIN);
         JButton btnCompilar = makeButton("- COMPILAR", new Color(0x3C, 0x3C, 0x3C), TEXT_MAIN);
         JButton btnExcel = makeButton("+- EXCEL", new Color(0x3C, 0x3C, 0x3C), TEXT_MAIN);
-        JButton btnAvance1 = makeButton("* AVANCE 2", new Color(0x3C, 0x3C, 0x3C), TEXT_MAIN);
+        //JButton btnAvance1 = makeButton("* AVANCE 2", new Color(0x3C, 0x3C, 0x3C), TEXT_MAIN);
+        JButton btnExpresiones = makeButton("» Avance 1", new Color(0x3C, 0x3C, 0x3C), TEXT_MAIN);
         btns.add(btnAbrir);
         btns.add(btnCompilar);
         btns.add(btnExcel);
-        btns.add(btnAvance1);
+        //btns.add(btnAvance1);
+        btns.add(btnExpresiones);
 
         header.add(btns, BorderLayout.EAST);
         panel.add(header, BorderLayout.NORTH);
@@ -137,7 +139,8 @@ public class AnalyzerIDE extends JFrame {
         btnCompilar.addActionListener(e -> compilar());
         btnExcel.addActionListener(e -> exportToExcel());
         btnAbrir.addActionListener(e -> abrirArchivo());
-        btnAvance1.addActionListener(e -> btnGuardarLogActionPerformed(null));
+        //btnAvance1.addActionListener(e -> btnGuardarLogActionPerformed(null));
+        btnExpresiones.addActionListener(e -> btnGuardarExpresionesActionPerformed(null));
         // ── Editor de texto ──────────────────────────────────────────────────
         codeEditor = new JTextPane();
         codeEditor.setBackground(BG_DARK);
@@ -451,6 +454,72 @@ public class AnalyzerIDE extends JFrame {
         }
     }
 }
+    // ════════════════════════════════════════════════════════════════════════
+    // Guardar archivo .txt de las expresiones (infijo -> prefijo)
+    // ════════════════════════════════════════════════════════════════════════
+    private void btnGuardarExpresionesActionPerformed(java.awt.event.ActionEvent evt) {
+
+        // Se reconstruye con el StringBuilder que sintaxis.java va llenando
+        // operación por operación (una línea "Linea N: <prefijo>" por cada
+        // asignación cerrada), en vez de leer el .txt físico de vuelta.
+        StringBuilder contenido = new StringBuilder(parserLexer.getLogExpresiones());
+
+        if (contenido.length() == 0) {
+            javax.swing.JOptionPane.showMessageDialog(
+                this,
+                "No hay expresiones procesadas para guardar.",
+                "Sin información",
+                javax.swing.JOptionPane.WARNING_MESSAGE
+            );
+            return;
+        }
+
+        javax.swing.JFileChooser fileChooser = new javax.swing.JFileChooser();
+
+        fileChooser.setDialogTitle("Guardar expresiones (infijo -> prefijo)");
+
+        fileChooser.setSelectedFile(
+                new java.io.File("Avance1-DavidAlatorre.txt")
+        );
+
+        int resultado = fileChooser.showSaveDialog(this);
+
+        if (resultado == javax.swing.JFileChooser.APPROVE_OPTION) {
+
+            java.io.File archivo = fileChooser.getSelectedFile();
+
+            if (!archivo.getName().toLowerCase().endsWith(".txt")) {
+                archivo = new java.io.File(
+                        archivo.getAbsolutePath() + ".txt"
+                );
+            }
+
+            try (java.io.FileWriter escritor =
+                         new java.io.FileWriter(archivo)) {
+
+                escritor.write(contenido.toString());
+
+                javax.swing.JOptionPane.showMessageDialog(
+                        this,
+                        "Las expresiones se guardaron correctamente.\n\n"
+                        + "Archivo:\n"
+                        + archivo.getAbsolutePath(),
+                        "Archivo guardado",
+                        javax.swing.JOptionPane.INFORMATION_MESSAGE
+                );
+
+            } catch (java.io.IOException ex) {
+
+                javax.swing.JOptionPane.showMessageDialog(
+                        this,
+                        "Error al guardar las expresiones:\n"
+                        + ex.getMessage(),
+                        "Error",
+                        javax.swing.JOptionPane.ERROR_MESSAGE
+                );
+            }
+        }
+    }
     // ════════════════════════════════════════════════════════════════════════
     // SYNTAX HIGHLIGHT
     // ════════════════════════════════════════════════════════════════════════

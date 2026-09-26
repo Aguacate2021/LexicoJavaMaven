@@ -10,10 +10,6 @@ public class TablaSimbolosDAO {
     /**
      * Verifica si un identificador ya existe
      * dentro de un ámbito específico.
-     *
-     * @param id identificador
-     * @param ambito ámbito donde se busca
-     * @return true si existe, false si no existe
      */
     public boolean idExiste(String id, int ambito) {
 
@@ -86,14 +82,88 @@ public class TablaSimbolosDAO {
 
             ps.setString(8, tpar);
 
-            ps.executeUpdate();
+            int filas = ps.executeUpdate();
 
-            return true;
+            if (filas > 0) {
+                System.out.println(
+                    "[BD] INSERTADO -> " +
+                    "id=" + id +
+                    " | tipo=" + tipo +
+                    " | clase=" + clase +
+                    " | amb=" + ambito
+                );
+
+                return true;
+            }
 
         } catch (SQLException e) {
 
             System.err.println(
-                    "No se pudo insertar el identificador: " + id
+                    "[BD] No se pudo insertar el identificador: "
+                    + id
+            );
+
+            e.printStackTrace();
+
+            return false;
+        }
+
+        return false;
+    }
+
+    /**
+     * Actualiza la información de un arreglo.
+     */
+    public boolean actualizarArreglo(
+            String idArreglo,
+            int ambito,
+            String tamañoArreglo,
+            int dimensionesArreglo) {
+
+        String sql = """
+            UPDATE tabla_simbolos
+            SET tarr = ?,
+                dimarr = ?,
+                clase = 'Arreglo'
+            WHERE id = ?
+              AND amb = ?
+            """;
+
+        try (Connection conexion = ConexionBD.conectar();
+             PreparedStatement ps = conexion.prepareStatement(sql)) {
+
+            ps.setString(1, tamañoArreglo);
+            ps.setInt(2, dimensionesArreglo);
+            ps.setString(3, idArreglo);
+            ps.setInt(4, ambito);
+
+            int filas = ps.executeUpdate();
+
+            if (filas > 0) {
+
+                System.out.println(
+                    "[BD] ARREGLO ACTUALIZADO -> " +
+                    "id=" + idArreglo +
+                    " | tamaño=" + tamañoArreglo +
+                    " | dimensiones=" + dimensionesArreglo +
+                    " | amb=" + ambito
+                );
+
+                return true;
+            }
+
+            System.err.println(
+                "[BD] No se encontró el arreglo para actualizar: "
+                + idArreglo
+            );
+
+            return false;
+
+        } catch (SQLException e) {
+
+            System.err.println(
+                    "Error al actualizar arreglo: "
+                    + idArreglo
             );
 
             e.printStackTrace();
@@ -101,110 +171,192 @@ public class TablaSimbolosDAO {
             return false;
         }
     }
-    public boolean actualizarArreglo(
-        String idArreglo,
-        int ambito,
-        String tamañoArreglo,
-        int dimensionesArreglo) {
 
-    String sql = """
-        UPDATE tabla_simbolos
-        SET tarr = ?,
-            dimarr = ?
-        WHERE id = ?
-          AND amb = ?
-        """;
+    /**
+     * Actualiza el TParr de una función con el ámbito real
+     * que el parser asignó a su cuerpo/lista de parámetros
+     * (el que abre AbrirAmbito() justo después de declararla).
+     * No se calcula con una fórmula: se guarda el valor real
+     * que reportó el parser.
+     */
+    public boolean actualizarTParFuncion(
+            String idFuncion,
+            int ambito,
+            int ambitoHijo) {
 
-    try (Connection conexion = ConexionBD.conectar();
-         PreparedStatement ps = conexion.prepareStatement(sql)) {
+        String sql = """
+            UPDATE tabla_simbolos
+            SET tpar = ?
+            WHERE id = ?
+              AND amb = ?
+            """;
 
-        ps.setString(1, tamañoArreglo);
-        ps.setInt(2, dimensionesArreglo);
-        ps.setString(3, idArreglo);
-        ps.setInt(4, ambito);
+        try (Connection conexion = ConexionBD.conectar();
+             PreparedStatement ps = conexion.prepareStatement(sql)) {
 
-        return ps.executeUpdate() > 0;
+            ps.setString(1, String.valueOf(ambitoHijo));
+            ps.setString(2, idFuncion);
+            ps.setInt(3, ambito);
 
-    } catch (SQLException e) {
-        System.err.println("Error al actualizar arreglo: " + idArreglo);
-        e.printStackTrace();
-        return false;
+            int filas = ps.executeUpdate();
+
+            if (filas > 0) {
+
+                System.out.println(
+                    "[BD] TPAR ACTUALIZADO -> " +
+                    "id=" + idFuncion +
+                    " | amb=" + ambito +
+                    " | tpar(ambito hijo)=" + ambitoHijo
+                );
+
+                return true;
+            }
+
+            System.err.println(
+                "[BD] No se encontró la función para actualizar tpar: "
+                + idFuncion
+            );
+
+            return false;
+
+        } catch (SQLException e) {
+
+            System.err.println(
+                    "Error al actualizar tpar de función: "
+                    + idFuncion
+            );
+
+            e.printStackTrace();
+
+            return false;
+        }
     }
-}
+
+    /**
+     * Actualiza el número de parámetros de una función.
+     */
     public boolean actualizarFuncion(
-        String idFuncion,
-        int ambito,
-        int numParametros) {
+            String idFuncion,
+            int ambito,
+            int numParametros) {
 
-    String sql = """
-        UPDATE tabla_simbolos
-        SET nopar = ?
-        WHERE id = ?
-          AND amb = ?
-        """;
+        String sql = """
+            UPDATE tabla_simbolos
+            SET nopar = ?
+            WHERE id = ?
+              AND amb = ?
+            """;
 
-    try (Connection conexion = ConexionBD.conectar();
-         PreparedStatement ps = conexion.prepareStatement(sql)) {
+        try (Connection conexion = ConexionBD.conectar();
+             PreparedStatement ps = conexion.prepareStatement(sql)) {
 
-        ps.setInt(1, numParametros);
-        ps.setString(2, idFuncion);
-        ps.setInt(3, ambito);
+            ps.setInt(1, numParametros);
+            ps.setString(2, idFuncion);
+            ps.setInt(3, ambito);
 
-        return ps.executeUpdate() > 0;
+            int filas = ps.executeUpdate();
 
-    } catch (SQLException e) {
-        System.err.println("Error al actualizar función: " + idFuncion);
-        e.printStackTrace();
-        return false;
+            if (filas > 0) {
+
+                System.out.println(
+                    "[BD] FUNCION ACTUALIZADA -> " +
+                    "id=" + idFuncion +
+                    " | parámetros=" + numParametros +
+                    " | amb=" + ambito
+                );
+
+                return true;
+            }
+
+            System.err.println(
+                "[BD] No se encontró la función para actualizar: "
+                + idFuncion
+            );
+
+            return false;
+
+        } catch (SQLException e) {
+
+            System.err.println(
+                    "Error al actualizar función: "
+                    + idFuncion
+            );
+
+            e.printStackTrace();
+
+            return false;
+        }
     }
-}
+
+    /**
+     * Limpia toda la tabla de símbolos.
+     */
     public boolean limpiarTablaSimbolos() {
 
-    String sql = "DELETE FROM tabla_simbolos";
+        String sql = "DELETE FROM tabla_simbolos";
 
-    try (Connection conexion = ConexionBD.conectar();
-         PreparedStatement ps = conexion.prepareStatement(sql)) {
+        try (Connection conexion = ConexionBD.conectar();
+             PreparedStatement ps =
+                     conexion.prepareStatement(sql)) {
 
-        ps.executeUpdate();
+            int filas = ps.executeUpdate();
 
-        System.out.println("Tabla de símbolos limpiada correctamente.");
+            System.out.println(
+                "[BD] Tabla de símbolos limpiada. " +
+                "Registros eliminados: " + filas
+            );
 
-        return true;
+            return true;
 
-    } catch (SQLException e) {
+        } catch (SQLException e) {
 
-        System.err.println("Error al limpiar la tabla de símbolos.");
-        e.printStackTrace();
+            System.err.println(
+                "[BD] Error al limpiar la tabla de símbolos."
+            );
 
-        return false;
+            e.printStackTrace();
+
+            return false;
+        }
     }
-}
+
+    /**
+     * Método de prueba.
+     */
     public static void probarInsercion() {
 
-    String sql = """ 
-        INSERT INTO tabla_simbolos
-        (id, tipo, clase, amb, tarr, dimarr, nopar, tpar)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        """;
+        String sql = """
+            INSERT INTO tabla_simbolos
+            (id, tipo, clase, amb, tarr, dimarr, nopar, tpar)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """;
 
-    try (Connection conexion = ConexionBD.conectar();
-         PreparedStatement ps = conexion.prepareStatement(sql)) {
+        try (Connection conexion = ConexionBD.conectar();
+             PreparedStatement ps =
+                     conexion.prepareStatement(sql)) {
 
-        ps.setString(1, "$x");
-        ps.setString(2, "variable");
-        ps.setString(3, "entero");
-        ps.setInt(4, 0);
-        ps.setString(5, null);
-        ps.setString(6, null);
-        ps.setInt(7, 0);
-        ps.setString(8, null);
+            ps.setString(1, "$x");
+            ps.setString(2, "variable");
+            ps.setString(3, "entero");
+            ps.setInt(4, 0);
+            ps.setString(5, null);
+            ps.setString(6, null);
+            ps.setInt(7, 0);
+            ps.setString(8, null);
 
-        ps.executeUpdate();
+            ps.executeUpdate();
 
-        System.out.println("INSERT realizado correctamente.");
+            System.out.println(
+                "[BD] INSERT de prueba realizado correctamente."
+            );
 
-    } catch (SQLException e) {
-        e.printStackTrace();
+        } catch (SQLException e) {
+
+            System.err.println(
+                "[BD] Error en INSERT de prueba."
+            );
+
+            e.printStackTrace();
+        }
     }
-}
 }

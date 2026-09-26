@@ -4,7 +4,13 @@ import java.awt.Color;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import javax.swing.JFileChooser;
 import javax.swing.JOptionPane;
@@ -80,7 +86,9 @@ public class ExcelExporter {
             poblarTokens(wb, tokens);
             poblarErrores(wb, errores);
             poblarContadores(wb, errores.size(), contador);
-            poblarContadoresSintaxis(wb); // NUEVA HOJA
+            poblarContadoresSintaxis(wb);
+            poblarAmbitos(wb, errores);
+            poblarTablaSimbolos(wb);
 
             try (FileOutputStream fos = new FileOutputStream(destino)) {
                 wb.write(fos);
@@ -330,6 +338,291 @@ public class ExcelExporter {
     }
 
     // ═══════════════════════════════════════════════════════════════════════
+    // HOJA 5 — AMBITO
+    // ═══════════════════════════════════════════════════════════════════════
+    private static void poblarAmbitos(XSSFWorkbook wb, List<ErrorEntry> errores) {
+
+        XSSFSheet ws = wb.createSheet("Ambito");
+
+        String[] encabezados = {
+            "Ambito", "Bin", "Dec", "Oct", "Hex",
+            "Real", "exp", "Cadena", "Boolean", "Errores", "total"
+        };
+
+        for (int i = 0; i < encabezados.length; i++) {
+            ws.setColumnWidth(i, (i == 0 ? 12 : 14) * 256);
+        }
+
+        // Encabezado
+        XSSFRow encabezado = ws.createRow(0);
+        CellStyle estiloEnc = estiloEncabezado(wb);
+
+        for (int i = 0; i < encabezados.length; i++) {
+            celda(encabezado, i, encabezados[i], estiloEnc);
+        }
+
+        // Mapa: ambito -> [Bin, Dec, Oct, Hex, Real, exp, Cadena, Boolean, Errores]
+        Map<Integer, int[]> porAmbito = new LinkedHashMap<>();
+
+        String sql = """
+            SELECT amb, tipo
+            FROM tabla_simbolos
+            ORDER BY amb, id
+            """;
+
+        try (Connection conexion = ConexionBD.conectar();
+             PreparedStatement ps = conexion.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+
+            while (rs.next()) {
+                int ambito = rs.getInt("amb");
+                String tipo = rs.getString("tipo");
+
+                int[] contadores = porAmbito.computeIfAbsent(
+                    ambito, k -> new int[9]
+                );
+
+                int posicion = posicionTipoAmbito(tipo);
+
+                if (posicion >= 0) {
+                    contadores[posicion]++;
+                }
+            }
+
+        } catch (SQLException e) {
+            System.err.println("Error al obtener datos por ámbito.");
+            e.printStackTrace();
+
+            JOptionPane.showMessageDialog(
+                null,
+                "No se pudo generar la hoja Ambito:\n" + e.getMessage(),
+                "Error de base de datos",
+                JOptionPane.ERROR_MESSAGE
+            );
+            return;
+        }
+
+        // Contabilizar errores reales por ámbito (índice 8 del arreglo)
+        if (errores != null) {
+            for (ErrorEntry error : errores) {
+                int ambitoError = error.getAmbito();
+
+                int[] contadores = porAmbito.computeIfAbsent(
+                    ambitoError, k -> new int[9]
+                );
+
+                contadores[8]++;
+            }
+        }
+
+        // Total de ámbitos
+        XSSFRow filaInfo = ws.createRow(1);
+        celda(filaInfo, 0, "Total de ámbitos", estiloSubcat(wb, CAT_ID));
+        celda(filaInfo, 1, porAmbito.size(), estiloValor(wb));
+
+        // Encabezado de la tabla de datos
+        XSSFRow filaCabeceraDatos = ws.createRow(3);
+
+        for (int i = 0; i < encabezados.length; i++) {
+            celda(
+                filaCabeceraDatos,
+                i,
+                encabezados[i],
+                estiloCategoria(wb, CAT_ID)
+            );
+        }
+
+        int fila = 4;
+        int[] totales = new int[9];
+
+        // Orden ascendente por número de ámbito (no necesariamente consecutivo),
+        // aun si algún ámbito solo tiene errores y no identificadores.
+        java.util.List<Map.Entry<Integer, int[]>> entradasOrdenadas =
+            new java.util.ArrayList<>(porAmbito.entrySet());
+        entradasOrdenadas.sort(Map.Entry.comparingByKey());
+
+        for (Map.Entry<Integer, int[]> entrada : entradasOrdenadas) {
+
+            int ambito = entrada.getKey();
+            int[] c = entrada.getValue();
+
+            XSSFRow row = ws.createRow(fila);
+            CellStyle estilo = estiloDatoNum(wb, fila % 2 == 0);
+
+            // Ámbito
+            celda(row, 0, ambito, estilo);
+
+            // Bin, Dec, Oct, Hex, Real, exp, Cadena, Boolean
+            for (int i = 0; i < 8; i++) {
+                celda(row, i + 1, c[i], estilo);
+                totales[i] += c[i];
+            }
+
+            // Errores
+            // Actualmente no se pueden distribuir por ámbito porque
+            // ErrorEntry no contiene el ámbito.
+            celda(row, 9, c[8], estilo);
+            totales[8] += c[8];
+
+            // Total del ámbito
+            int total = 0;
+            for (int i = 0; i < 9; i++) {
+                total += c[i];
+            }
+
+            celda(row, 10, total, estilo);
+
+            fila++;
+        }
+
+        // Fila Total
+        XSSFRow rowTotal = ws.createRow(fila);
+        CellStyle estiloTotal = estiloValor(wb);
+
+        celda(rowTotal, 0, "Total", estiloTotal);
+
+        for (int i = 0; i < 9; i++) {
+            celda(rowTotal, i + 1, totales[i], estiloTotal);
+        }
+
+        int totalGeneral = 0;
+        for (int i = 0; i < 9; i++) {
+            totalGeneral += totales[i];
+        }
+
+        celda(rowTotal, 10, totalGeneral, estiloTotal);
+
+        ws.createFreezePane(0, 4);
+    }
+
+    private static int posicionTipoAmbito(String tipo) {
+
+        if (tipo == null) {
+            return -1;
+        }
+
+        return switch (tipo.trim().toLowerCase()) {
+            case "binario", "bin" -> 0;
+            case "decimal", "dec" -> 1;
+            case "octal", "oct" -> 2;
+            case "hexadecimal", "hex" -> 3;
+            case "real" -> 4;
+            case "exponencial", "exp" -> 5;
+            case "cadena" -> 6;
+            case "booleanas", "boolean", "bool" -> 7;
+            default -> -1;
+        };
+    }
+
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // HOJA 6 — TABLA DE SIMBOLOS
+    // ═══════════════════════════════════════════════════════════════════════
+    private static void poblarTablaSimbolos(XSSFWorkbook wb) {
+
+        XSSFSheet ws = wb.createSheet("Tabla de simbolos");
+
+        String[] encabezados = {
+            "id", "tipo", "clase", "amb",
+            "tarr", "dimarr", "nopar", "tpar"
+        };
+
+        int[] anchos = {18, 18, 18, 10, 18, 12, 12, 24};
+
+        for (int i = 0; i < encabezados.length; i++) {
+            ws.setColumnWidth(i, anchos[i] * 256);
+        }
+
+        XSSFRow encabezado = ws.createRow(0);
+        CellStyle estiloEnc = estiloEncabezado(wb);
+
+        for (int i = 0; i < encabezados.length; i++) {
+            celda(encabezado, i, encabezados[i], estiloEnc);
+        }
+
+        String sql = """
+            SELECT id, tipo, clase, amb, tarr, dimarr, nopar, tpar
+            FROM tabla_simbolos
+            ORDER BY amb, id
+            """;
+
+        int fila = 1;
+
+        try (Connection conexion = ConexionBD.conectar();
+             PreparedStatement ps = conexion.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+
+            while (rs.next()) {
+
+                XSSFRow row = ws.createRow(fila);
+                boolean par = (fila % 2 == 0);
+
+                celda(row, 0, rs.getString("id"),
+                        estiloDato(wb, par, null));
+
+                celda(row, 1, rs.getString("tipo"),
+                        estiloDato(wb, par, null));
+
+                celda(row, 2, rs.getString("clase"),
+                        estiloDato(wb, par, null));
+
+                celda(row, 3, rs.getInt("amb"),
+                        estiloDatoNum(wb, par));
+
+                celda(row, 4, rs.getString("tarr"),
+                        estiloDato(wb, par, null));
+
+                // dimarr puede ser NULL
+                Object dimarr = rs.getObject("dimarr");
+                if (dimarr == null) {
+                    celda(row, 5, "", estiloDato(wb, par, null));
+                } else {
+                    celda(row, 5, rs.getInt("dimarr"),
+                            estiloDatoNum(wb, par));
+                }
+
+                // nopar puede ser NULL
+                Object nopar = rs.getObject("nopar");
+                if (nopar == null) {
+                    celda(row, 6, "", estiloDato(wb, par, null));
+                } else {
+                    celda(row, 6, rs.getInt("nopar"),
+                            estiloDatoNum(wb, par));
+                }
+
+                celda(row, 7, rs.getString("tpar"),
+                        estiloDato(wb, par, null));
+
+                fila++;
+            }
+
+        } catch (SQLException e) {
+            System.err.println("Error al obtener la tabla de símbolos.");
+            e.printStackTrace();
+
+            JOptionPane.showMessageDialog(
+                null,
+                "No se pudo generar la hoja Tabla de simbolos:\n"
+                    + e.getMessage(),
+                "Error de base de datos",
+                JOptionPane.ERROR_MESSAGE
+            );
+            return;
+        }
+
+        ws.createFreezePane(0, 1);
+
+        if (fila > 1) {
+            ws.setAutoFilter(
+                new CellRangeAddress(
+                    0, fila - 1, 0, encabezados.length - 1
+                )
+            );
+        }
+    }
+
+
+    // ═══════════════════════════════════════════════════════════════════════
     // ESTILOS
     // ═══════════════════════════════════════════════════════════════════════
 
@@ -438,7 +731,7 @@ public class ExcelExporter {
         JFileChooser fc = new JFileChooser();
         fc.setDialogTitle("Guardar análisis léxico como Excel");
         fc.setFileFilter(new FileNameExtensionFilter("Archivo Excel (*.xlsx)", "xlsx"));
-        fc.setSelectedFile(new File("analisis_lexico_Alatorre_23130243.xlsx"));
+        fc.setSelectedFile(new File("Ambito-DavidAlatorre.xlsx"));
         if (fc.showSaveDialog(parent) != JFileChooser.APPROVE_OPTION) return null;
         File f = fc.getSelectedFile();
         if (!f.getName().toLowerCase().endsWith(".xlsx"))
