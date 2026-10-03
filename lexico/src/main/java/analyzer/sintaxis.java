@@ -114,6 +114,11 @@ public class sintaxis {
     // la expresión original (infija) y su equivalente postfijo.
     private static final String ARCHIVO_POSTFIJAS = "Avance1-DavidAlatorre.txt";
 
+    // ---- AVANCE 2: operaciones desglosadas con temporales ----
+    private static final String ARCHIVO_OPERACIONES = "Avance2-DavidAlatorre.txt";
+    private final StringBuilder logOperaciones = new StringBuilder();
+    private int contadorTemporales = 0;
+
     // -----------------------------------------------------------
     // Prioridad de operadores para el algoritmo infija -> postfija.
     // Nivel más alto = se evalúa/desapila primero. No existía esta
@@ -191,6 +196,10 @@ public class sintaxis {
 
     public String getLogExpresiones() {
         return logExpresiones.toString();
+    }
+
+    public String getLogOperaciones() {
+        return logOperaciones.toString();
     }
 
     // =========================================================
@@ -1288,6 +1297,8 @@ public class sintaxis {
 
         escribirOperacionEnArchivo(lineaDondeEstaLaOperacion, prefijo);
 
+        generarOperacionesDesglosadas(postfijo);   // <-- NUEVA (Avance 2)
+
         operandosPila.clear();
         operadoresPila.clear();
         infijoActual.setLength(0);
@@ -1295,11 +1306,20 @@ public class sintaxis {
 
     private void reiniciarArchivoPostfijas() {
         logExpresiones.setLength(0);
+        logOperaciones.setLength(0);
+        contadorTemporales = 0;
         try (FileWriter fw = new FileWriter(ARCHIVO_POSTFIJAS, false)) {
             // Deja el archivo vacío al iniciar un nuevo análisis.
         } catch (IOException e) {
             System.err.println(
                     "[POSTFIJA] No se pudo reiniciar " + ARCHIVO_POSTFIJAS);
+            e.printStackTrace();
+        }
+        try (FileWriter fw = new FileWriter(ARCHIVO_OPERACIONES, false)) {
+            // Deja vacío el archivo de operaciones (Avance 2).
+        } catch (IOException e) {
+            System.err.println(
+                    "[OPERACIONES] No se pudo reiniciar " + ARCHIVO_OPERACIONES);
             e.printStackTrace();
         }
     }
@@ -1318,6 +1338,92 @@ public class sintaxis {
         } catch (IOException e) {
             System.err.println(
                     "[POSTFIJA] No se pudo escribir en " + ARCHIVO_POSTFIJAS);
+            e.printStackTrace();
+        }
+    }
+
+    // =========================================================
+    // AVANCE 2: OPERACIONES DESGLOSADAS CON TEMPORALES
+    // =========================================================
+
+    private String nuevoTemporal() {
+        return "T" + (++contadorTemporales);
+    }
+
+    private boolean esAsignacion(int tc) {
+        return tc <= -33 && tc >= -44;
+    }
+
+    /**
+     * Recorre la misma lista postfija del Avance 1 y genera
+     * cuádruplos "operador,valor1,valor2,Tn". Los temporales
+     * se reinician en cada ecuación (T1, T2, ...).
+     */
+    private void generarOperacionesDesglosadas(List<Token> postfijo) {
+
+        contadorTemporales = 0;
+
+        List<String> ops = new ArrayList<>();
+        Stack<String> pila = new Stack<>();
+
+        for (Token t : postfijo) {
+
+            int tc = t.getTokenClass();
+            String lex = t.getLexema().trim();
+
+            if (tc == -1 || tc == -2) {
+                // ++ / --: modifican la variable, no crean temporal.
+                String a = pila.isEmpty() ? "" : pila.pop();
+                ops.add(lex + "," + a);
+                pila.push(a);
+
+            } else if (tc == -29 || tc == -3) {
+                // ! y ~ : unarios, un solo operando.
+                String a = pila.isEmpty() ? "" : pila.pop();
+                String tmp = nuevoTemporal();
+                ops.add(lex + "," + a + ",," + tmp);
+                pila.push(tmp);
+
+            } else if (PRECEDENCIA_OPERADOR.containsKey(tc)) {
+
+                String der = pila.isEmpty() ? "" : pila.pop();
+                String izq = pila.isEmpty() ? "" : pila.pop();
+
+                if (esAsignacion(tc)) {
+                    // =,variable,resultado  (sin temporal)
+                    ops.add(lex + "," + izq + "," + der);
+                    pila.push(izq);
+                } else {
+                    String tmp = nuevoTemporal();
+                    ops.add(lex + "," + izq + "," + der + "," + tmp);
+                    pila.push(tmp);
+                }
+
+            } else {
+                // Operando (identificador o constante, tal cual).
+                pila.push(lex);
+            }
+        }
+
+        // Expresión sin ninguna operación real: no se genera bloque.
+        if (ops.isEmpty()) {
+            return;
+        }
+
+        StringBuilder bloque = new StringBuilder();
+        bloque.append("Linea ").append(lineaDondeEstaLaOperacion).append("\n");
+        for (String op : ops) {
+            bloque.append(op).append("\n");
+        }
+        bloque.append("\n");
+
+        logOperaciones.append(bloque);
+
+        try (FileWriter fw = new FileWriter(ARCHIVO_OPERACIONES, true)) {
+            fw.write(bloque.toString());
+        } catch (IOException e) {
+            System.err.println(
+                    "[OPERACIONES] No se pudo escribir en " + ARCHIVO_OPERACIONES);
             e.printStackTrace();
         }
     }

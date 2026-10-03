@@ -134,9 +134,6 @@ public class LeerCSV2 {
         }
     }
 
-    public static void agregarValor(int valor, int fila, int columna) {
-        Valores[fila][columna] = valor;
-    }
 
     /**
      * Devuelve la columna de la tabla para un tokenClass dado.
