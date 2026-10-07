@@ -538,21 +538,14 @@ public class sintaxis {
                         // DECLARACIONES
                         // =================================================
                         if (AreaDeDeclaraciones) {
-                            encontrado = false;
-                            for (Integer ambito : AmbitoActual) {
-                                if (tabla.idExiste(id, ambito)) {
-                                    encontrado = true;
-                                    break;
-                                }
-                            }
+                            encontrado = tabla.idExiste(id, AmbitoActual.peek());
                             // ---------------------------------------------
-                            // ID YA EXISTE
+                            // ID YA EXISTE EN EL ÁMBITO ACTUAL
                             // ---------------------------------------------
                             if (encontrado) {
                                 registrarError(
                                         tokenActual,
-                                        "Identificador ya declarado " +
-                                                "en los ámbitos accesibles: " +
+                                        "Identificador ya declarado en el ámbito actual: " +
                                                 id,
                                         -3000);
                             }
@@ -680,7 +673,9 @@ public class sintaxis {
 
                             encontrado = false;
 
-                            for (Integer ambito : AmbitoActual) {
+                            for (int i = AmbitoActual.size() - 1; i >= 0; i--) {
+
+                                int ambito = AmbitoActual.get(i);
 
                                 if (tabla.idExiste(
                                         id,
