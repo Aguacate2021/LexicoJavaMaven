@@ -62,6 +62,10 @@ public void cargarTablas() {
     ValoresLogico = cargarTabla(ARCHIVO_CSV_LOGICO);
     ValoresRelacional = cargarTabla(ARCHIVO_CSV_RELACIONAL);
     ValoresResto = cargarTabla(ARCHIVO_CSV_RESTO);
+    if (ValoresResto[0][0] == null) {
+        // Fallback a ValoresDivision si resto.csv no está presente o falla
+        ValoresResto = ValoresDivision;
+    }
     ValoresRelacional2 = cargarTabla(ARCHIVO_CSV_RELACIONAL2);
     tablasCargadas = true;
 }
@@ -131,7 +135,12 @@ public int ObtenerTipoPorTipos(int tipoIzq, int tipoDer, int tipoOperacion) {
 public static boolean tieneTabla(int tipoOperacion) {
     return numeroobetnerTipoOperacion(tipoOperacion) >= 0;
 }
-
+/** Asignación destino <- origen. Válida si el destino absorbe al origen (usa suma.csv). */
+public boolean asignacionCompatible(int tDestino, int tOrigen) {
+    if (tDestino == T_VARIANT || tOrigen == T_VARIANT) return true;
+    if (tDestino == tOrigen) return true;                       // incluye Boolean = Boolean
+    return ObtenerTipoPorTipos(tDestino, tOrigen, -11) == tDestino;
+}
 /** Código de token -> tipo (1..10). Lo que no está en el mapa es Variant. */
 public static int tipoDeToken(int tc) {
     int idx = obtenerFilasYColumnasEstatico(tc);

@@ -131,9 +131,9 @@ public class AnalyzerIDE extends JFrame {
         btns.add(btnCompilar);
         btns.add(btnExcel);
         //btns.add(btnAvance1);
-        btns.add(btnExpresiones);
+        //btns.add(btnExpresiones);
         JButton btnOperaciones = makeButton("» Avance 2", new Color(0x3C, 0x3C, 0x3C), TEXT_MAIN);
-        btns.add(btnOperaciones);
+        //btns.add(btnOperaciones);
 
         header.add(btns, BorderLayout.EAST);
         panel.add(header, BorderLayout.NORTH);
@@ -311,6 +311,27 @@ public class AnalyzerIDE extends JFrame {
     tablePanel.setErrors(errores);
 
     // =====================================================
+    // CONTAR ERRORES POR CATEGORÍA
+    // =====================================================
+
+    int errLexicos = 0;
+    int errSintacticos = 0;
+    int errAmbito = 0;
+    int errSemantica = 0;
+
+    for (ErrorEntry e : errores) {
+        if (e.getTipo() == ErrorEntry.Tipo.LEXICO) {
+            errLexicos++;
+        } else if (e.getTipo() == ErrorEntry.Tipo.SINTAXIS) {
+            errSintacticos++;
+        } else if (e.getTipo() == ErrorEntry.Tipo.AMBITO) {
+            errAmbito++;
+        } else if (e.getTipo() == ErrorEntry.Tipo.SEMANTICA) {
+            errSemantica++;
+        }
+    }
+
+    // =====================================================
     // ACTUALIZAR PANEL DE CONTADORES
     // =====================================================
 
@@ -318,8 +339,10 @@ public class AnalyzerIDE extends JFrame {
             ct,
             ct.comentarios,
             0,
-            lexer.getErrores().size(),
-            parserLexer.getErroresSintaxis().size()
+            errLexicos,
+            errSintacticos,
+            errAmbito,
+            errSemantica
     );
 
     // =====================================================
@@ -342,10 +365,12 @@ public class AnalyzerIDE extends JFrame {
     // =====================================================
 
     statusLabel.setText(String.format(
-            "Compilado  |  %d tokens  |  %d léxico  |  %d sintáctico  |  %d total  |  ManuelCode 2026",
+            "Compilado  |  %d tokens  |  Léxico: %d  |  Sintáctico: %d  |  Ámbito: %d  |  Semántica 1: %d  |  Total: %d  |  ManuelCode 2026",
             tokens.size(),
-            lexer.getErrores().size(),
-            parserLexer.getErroresSintaxis().size(),
+            errLexicos,
+            errSintacticos,
+            errAmbito,
+            errSemantica,
             errores.size()
     ));
 }

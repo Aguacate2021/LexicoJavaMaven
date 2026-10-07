@@ -39,7 +39,7 @@ public class sintaxis {
     // pueda ofrecer un diálogo "Guardar como..." sin depender de leer
     // el archivo físico de vuelta.
     private final StringBuilder logExpresiones = new StringBuilder();
-    
+
     // =========================================================
     // ÁREAS
     // =========================================================
@@ -107,7 +107,8 @@ public class sintaxis {
     // original de la operación en curso. Un ID no declarado vale Variant.
     private final Map<Token, Integer> tiposOperando = new IdentityHashMap<>();
 
-    // temporal -> tipo (TVariant1 -> 10, TDec1 -> 2, ...). Nunca se deduce del texto.
+    // temporal -> tipo (TVariant1 -> 10, TDec1 -> 2, ...). Nunca se deduce del
+    // texto.
     private final Map<String, Integer> tipoDeTemporal = new HashMap<>();
 
     // Contador independiente por tipo. Se reinicia solo en parsear().
@@ -127,7 +128,11 @@ public class sintaxis {
     private static class Operando {
         final String texto;
         final int tipo;
-        Operando(String texto, int tipo) { this.texto = texto; this.tipo = tipo; }
+
+        Operando(String texto, int tipo) {
+            this.texto = texto;
+            this.tipo = tipo;
+        }
     }
 
     // Los marcadores 804/805 (producción 44/45/46) se anidan: se abren y
@@ -160,7 +165,7 @@ public class sintaxis {
 
     static {
         // Asignación (nivel 1, asociatividad derecha)
-        for (int t : new int[]{-33, -34, -35, -36, -37, -38, -39, -40, -41, -42, -43, -44}) {
+        for (int t : new int[] { -33, -34, -35, -36, -37, -38, -39, -40, -41, -42, -43, -44 }) {
             PRECEDENCIA_OPERADOR.put(t, 1);
             ASOCIATIVIDAD_DERECHA.add(t);
         }
@@ -178,22 +183,22 @@ public class sintaxis {
         // AND bit a bit
         PRECEDENCIA_OPERADOR.put(-5, 7);
         // Igualdad
-        for (int t : new int[]{-24, -25, -26, -27, -28}) {
+        for (int t : new int[] { -24, -25, -26, -27, -28 }) {
             PRECEDENCIA_OPERADOR.put(t, 8);
         }
         // Relacional
-        for (int t : new int[]{-20, -21, -22, -23}) {
+        for (int t : new int[] { -20, -21, -22, -23 }) {
             PRECEDENCIA_OPERADOR.put(t, 9);
         }
         // Desplazamiento de bits
-        for (int t : new int[]{-17, -18, -19}) {
+        for (int t : new int[] { -17, -18, -19 }) {
             PRECEDENCIA_OPERADOR.put(t, 10);
         }
         // Aditivos
         PRECEDENCIA_OPERADOR.put(-11, 11);
         PRECEDENCIA_OPERADOR.put(-12, 11);
         // Multiplicativos
-        for (int t : new int[]{-13, -14, -15}) {
+        for (int t : new int[] { -13, -14, -15 }) {
             PRECEDENCIA_OPERADOR.put(t, 12);
         }
         // Potencia (asociatividad derecha)
@@ -406,7 +411,7 @@ public class sintaxis {
                 // -------------------------------------------------
                 // Abrir estado de operando
                 // -------------------------------------------------
-                 if (cima == 804) {
+                if (cima == 804) {
                     if (profundidadOperacion == 0) {
                         EstadoDeOperacion = true;
                         lineaDondeEstaLaOperacion = tokenActual.getLinea();
@@ -427,7 +432,7 @@ public class sintaxis {
                 // -------------------------------------------------
                 // Cerrar estado de operando
                 // -------------------------------------------------
-                 if (cima == 805) {
+                if (cima == 805) {
                     if (profundidadOperacion > 0) {
                         profundidadOperacion--;
                     }
@@ -972,8 +977,8 @@ public class sintaxis {
 
         if (numError == -3000) {
             codigo = String.format(
-                "ERR-AMB-%03d",
-                ContadorCiclos.ERRORES);
+                    "ERR-AMB-%03d",
+                    ContadorCiclos.ERRORES);
             erroresSintaxis.add(
                     new ErrorEntry(
                             codigo,
@@ -993,6 +998,7 @@ public class sintaxis {
                             + descripcion);
 
         } else if (numError == -2000) {
+
             erroresSintaxis.add(
                     new ErrorEntry(
                             codigo,
@@ -1354,7 +1360,7 @@ public class sintaxis {
                 pilaPrefijo.push(lex + " " + operando);
             } else if (PRECEDENCIA_OPERADOR.containsKey(tc)) {
                 // Operador binario: tope = operando derecho.
-                String derecho   = pilaPrefijo.isEmpty() ? "" : pilaPrefijo.pop();
+                String derecho = pilaPrefijo.isEmpty() ? "" : pilaPrefijo.pop();
                 String izquierdo = pilaPrefijo.isEmpty() ? "" : pilaPrefijo.pop();
                 pilaPrefijo.push(lex + " " + izquierdo + " " + derecho);
             } else {
@@ -1406,19 +1412,23 @@ public class sintaxis {
     // AVANCE 2: GENERADOR DE OPERACIONES
     // =========================================================
 
-    /** "Decimal" / "Real" / ... (tabla de símbolos) -> tipo 1..10. Lo demás es Variant. */
+    /**
+     * "Decimal" / "Real" / ... (tabla de símbolos) -> tipo 1..10. Lo demás es
+     * Variant.
+     */
     private static int tipoSemanticoDeSimbolo(String tipo) {
-        if (tipo == null) return LeerCSVComparacion.T_VARIANT;
+        if (tipo == null)
+            return LeerCSVComparacion.T_VARIANT;
         return switch (tipo.trim()) {
-            case "Binario"     -> LeerCSVComparacion.T_BIN;
-            case "Decimal"     -> LeerCSVComparacion.T_DEC;
-            case "Octal"       -> LeerCSVComparacion.T_OCT;
+            case "Binario" -> LeerCSVComparacion.T_BIN;
+            case "Decimal" -> LeerCSVComparacion.T_DEC;
+            case "Octal" -> LeerCSVComparacion.T_OCT;
             case "Hexadecimal" -> LeerCSVComparacion.T_HEX;
-            case "Real"        -> LeerCSVComparacion.T_REAL;
+            case "Real" -> LeerCSVComparacion.T_REAL;
             case "Exponencial" -> LeerCSVComparacion.T_EXP;
-            case "Cadena"      -> LeerCSVComparacion.T_CADENA;
-            case "Booleanas"   -> LeerCSVComparacion.T_BOOLEAN;
-            default            -> LeerCSVComparacion.T_VARIANT;
+            case "Cadena" -> LeerCSVComparacion.T_CADENA;
+            case "Booleanas" -> LeerCSVComparacion.T_BOOLEAN;
+            default -> LeerCSVComparacion.T_VARIANT;
         };
     }
 
@@ -1428,16 +1438,31 @@ public class sintaxis {
         tipoDeTemporal.put(nombre, tipo);
         if (estadisticaLineaActual != null) {
             int col = columnaEstadistica(tipo);
-            if (col >= 0) estadisticaLineaActual[col]++;
+            if (col >= 0)
+                estadisticaLineaActual[col]++;
         }
         return nombre;
     }
 
+    /**
+     * TBoolean3 -> TBoolean (solo para temporales Boolean; el resto conserva su
+     * número).
+     */
+    private String nombreTemporalAsignacion(String texto, int tipo) {
+        if (tipo == LeerCSVComparacion.T_BOOLEAN && tipoDeTemporal.containsKey(texto)) {
+            return texto.replaceAll("\\d+$", "");
+        }
+        return texto;
+    }
+
     /** tipo (1..10) -> columna de estadisticasSemantica; -1 si no tiene columna. */
     private static int columnaEstadistica(int tipo) {
-        if (tipo >= LeerCSVComparacion.T_BIN && tipo <= LeerCSVComparacion.T_CADENA) return tipo - 1;
-        if (tipo == LeerCSVComparacion.T_BOOLEAN) return 7;
-        if (tipo == LeerCSVComparacion.T_VARIANT) return 8;
+        if (tipo >= LeerCSVComparacion.T_BIN && tipo <= LeerCSVComparacion.T_CADENA)
+            return tipo - 1;
+        if (tipo == LeerCSVComparacion.T_BOOLEAN)
+            return 7;
+        if (tipo == LeerCSVComparacion.T_VARIANT)
+            return 8;
         return -1;
     }
 
@@ -1466,14 +1491,15 @@ public class sintaxis {
             case -25 -> "diferente de";
             case -30 -> "AND";
             case -31 -> "OR";
-            default  -> (tc <= -20 && tc >= -26) ? "relacional" : "lógico";
+            default -> (tc <= -20 && tc >= -26) ? "relacional" : "lógico";
         };
     }
 
     /**
      * Recorre el postfijo y emite "operador,valor1,valor2,temporal".
      * Cada operación genera un temporal cuyo tipo sale de las tablas CSV.
-     * Si la tabla dice Error: se registra "Semántica 1" y el temporal queda Variant.
+     * Si la tabla dice Error: se registra "Semántica 1" y el temporal queda
+     * Variant.
      * Operadores sin tabla (potencia, bit a bit, shifts, igualdad estricta,
      * ternario, unarios): el temporal es Variant, sin error.
      */
@@ -1504,27 +1530,32 @@ public class sintaxis {
                 pila.push(new Operando(tmp, LeerCSVComparacion.T_VARIANT));
             }
             // asignación: no genera temporal
+            // asignación: no genera temporal
+            // asignación: genera un TVariant (resultado de la operación "=")
             else if (esAsignacion(tc)) {
-                stats[9]++; // asignación (no genera temporal)
+                stats[9]++;
                 Operando valor = sacar(pila);
                 Operando destino = sacar(pila);
+
+                // Temporal Variant de la asignación (cuenta en la columna TVariant de la
+                // línea).
+                // No se agrega a la cuádrupla para no alterar el formato del archivo de Avance
+                // 2.
+                nuevoTemporal(LeerCSVComparacion.T_VARIANT);
+
                 bloque.append(lex).append(",").append(destino.texto).append(",")
                         .append(valor.texto).append("\n");
 
-                // Formato exacto de asignación: #DX -> TBoolean3
-                String formatoAsig = destino.texto + " -> " + valor.texto;
+                // Formato de detalle: #DX -> TBoolean (sin número en booleanos)
+                String formatoAsig = destino.texto + " -> "
+                        + nombreTemporalAsignacion(valor.texto, valor.tipo);
                 asignacionesDetalle.computeIfAbsent(linea, k -> new ArrayList<>()).add(formatoAsig);
 
-                // Comprobar compatibilidad de tipos en la asignación
-                int tipoDestino = tipoSemanticoDeSimbolo(tabla.obtenerTipo(destino.texto, obtenerAmbitoActual()));
-                if (tipoDestino != LeerCSVComparacion.T_VARIANT && valor.tipo != LeerCSVComparacion.T_VARIANT) {
-                    int rAsig = comparacion.ObtenerTipoPorTipos(tipoDestino, valor.tipo, -33);
-                    if (rAsig < 0) {
-                        registrarErrorSemantico(linea, destino.texto + " = " + valor.texto,
-                                "Tipos de datos incompatibles en la operación de asignación");
-                    }
+                // destino.tipo ya viene resuelto con la cadena de ámbitos
+                if (!comparacion.asignacionCompatible(destino.tipo, valor.tipo)) {
+                    registrarErrorSemantico(linea, destino.texto + " = " + valor.texto,
+                            "Tipos de datos incompatibles en la operación de asignación");
                 }
-
                 pila.push(destino);
             }
             // ternario ?: (sin tabla)
@@ -1575,7 +1606,8 @@ public class sintaxis {
         if (bloque.length() > 0) {
             // Varias operaciones en la misma línea se acumulan en una sola fila.
             int[] acumulado = estadisticasSemantica.computeIfAbsent(linea, k -> new int[10]);
-            for (int i = 0; i < 10; i++) acumulado[i] += stats[i];
+            for (int i = 0; i < 10; i++)
+                acumulado[i] += stats[i];
 
             logOperaciones.append("Linea ").append(linea).append(":\n\n")
                     .append(bloque).append("\n");
