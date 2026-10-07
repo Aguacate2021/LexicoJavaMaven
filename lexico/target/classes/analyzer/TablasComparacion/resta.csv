@@ -1,10 +1,10 @@
-;Bin;Dec;Oct;Hex;Real;exp;Cadena;Boolean;variant
+Operando;Bin;Dec;Oct;Hex;Real;exp;Cadena;Boolean;Variant
 Bin;Bin;Error;Error;Error;Error;Error;Error;Error;Bin
 Dec;Error;Dec;Error;Error;Real;exp;Error;Error;Dec
 Oct;Error;Error;Oct;Error;Error;Error;Error;Error;Oct
-Hexa;Error;Error;Error;Hex;Error;Error;Error;Error;Hexa
+Hexa;Error;Error;Error;Hex;Error;Error;Error;Error;Hex
 Real;Error;Real;Error;Error;Real;exp;Error;Error;Real
 exp;Error;exp;Error;Error;exp;exp;Error;Error;exp
 Cadena;Error;Error;Error;Error;Error;Error;Error;Error;Error
 Boolean;Error;Error;Error;Error;Error;Error;Error;Error;Error
-variant;Bin;Dec;Oct;Hexa;Real;exp;Error;Error;variant
+Variant;Bin;Dec;Oct;Hex;Real;exp;Error;Error;Variant

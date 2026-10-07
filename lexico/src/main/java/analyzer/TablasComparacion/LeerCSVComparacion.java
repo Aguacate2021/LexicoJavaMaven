@@ -11,7 +11,8 @@ public class LeerCSVComparacion {
     private static final String ARCHIVO_CSV_DIVISION = "lexico\\src\\main\\java\\analyzer\\TablasComparacion\\division.csv"; // Ruta al archivo CSV división
     private static final String ARCHIVO_CSV_LOGICO = "lexico\\src\\main\\java\\analyzer\\TablasComparacion\\logico.csv"; // Ruta al archivo CSV lógico
     private static final String ARCHIVO_CSV_RELACIONAL = "lexico\\src\\main\\java\\analyzer\\TablasComparacion\\relacional.csv"; // Ruta al archivo CSV relacional
-    private static final String ARCHIVO_CSV_MODULO = "lexico\\src\\main\\java\\analyzer\\TablasComparacion\\modulo.csv"; // Ruta al archivo CSV módulo
+    private static final String ARCHIVO_CSV_RESTO = "lexico\\src\\main\\java\\analyzer\\TablasComparacion\\resto.csv"; // Ruta al archivo CSV resto
+    private static final String ARCHIVO_CSV_RELACIONAL2 = "lexico\\src\\main\\java\\analyzer\\TablasComparacion\\relacional2.csv"; // Ruta al archivo CSV relacional2
 
     private static String ValoresSuma[][]= new String[12][12]; // Matriz para almacenar los valores
     private static String ValoresResta[][]= new String[12][12]; // Matriz para almacenar los valores
@@ -19,7 +20,8 @@ public class LeerCSVComparacion {
     private static String ValoresDivision[][]= new String[12][12]; // Matriz para almacenar los valores
     private static String ValoresLogico[][]= new String[12][12]; // Matriz para almacenar los valores
     private static String ValoresRelacional[][]= new String[12][12]; // Matriz para almacenar los valores
-    private static String ValoresModulo[][]= new String[12][12]; // Matriz para almacenar los valores
+    private static String ValoresResto[][]= new String[12][12]; // Matriz para almacenar los valores
+    private static String ValoresRelacional2[][]= new String[12][12]; // Matriz para almacenar los valores
     private static String separador = ";"; // o ";"
     private static final Map<Integer, Integer> mapaColumnasFilas = new HashMap<>();
     static {
@@ -59,7 +61,8 @@ public void cargarTablas() {
     ValoresDivision = cargarTabla(ARCHIVO_CSV_DIVISION);
     ValoresLogico = cargarTabla(ARCHIVO_CSV_LOGICO);
     ValoresRelacional = cargarTabla(ARCHIVO_CSV_RELACIONAL);
-    ValoresModulo = cargarTabla(ARCHIVO_CSV_MODULO);
+    ValoresResto = cargarTabla(ARCHIVO_CSV_RESTO);
+    ValoresRelacional2 = cargarTabla(ARCHIVO_CSV_RELACIONAL2);
     tablasCargadas = true;
 }
 // CORRECCIÓN: cada CSV tiene su propia matriz (antes todos escribían en "Valores")
@@ -116,9 +119,10 @@ public int ObtenerTipoPorTipos(int tipoIzq, int tipoDer, int tipoOperacion) {
         case 1: tabla = ValoresResta; break;
         case 2: tabla = ValoresMultiplicacion; break;
         case 3: tabla = ValoresDivision; break;
-        case 4: tabla = ValoresModulo; break;
+        case 4: tabla = ValoresResto; break;
         case 5: tabla = ValoresLogico; break;
         case 6: tabla = ValoresRelacional; break;
+        case 7: tabla = ValoresRelacional2; break;
         default: return -1;
     }
     return obtenerNumeroDeString(tabla[indiceDeTipo(tipoIzq)][indiceDeTipo(tipoDer)]);
@@ -168,9 +172,11 @@ private static int numeroobetnerTipoOperacion(int tipoOperacion) {
     else if (tipoOperacion == -12) return 1; // Resta
     else if (tipoOperacion == -13) return 2; // Multiplicación
     else if (tipoOperacion == -14) return 3; // División
-    else if (tipoOperacion == -15) return 4; // Modulo
-    else if (tipoOperacion >= -26 && tipoOperacion <= -20) return 6; // Relacional
-    else if (tipoOperacion >= -31 && tipoOperacion <= -29) return 5; // Lógico
+    else if (tipoOperacion == -15||tipoOperacion == -17||tipoOperacion == -18||tipoOperacion == -19||tipoOperacion == -6) return 4; // Resto
+    else if (tipoOperacion == -31 || tipoOperacion == -30 || tipoOperacion == -4||tipoOperacion == -5||tipoOperacion == -106) return 5; // Lógico
+    else if (tipoOperacion<=-20 && tipoOperacion>=-23) return 6; // Relacional
+    else if (tipoOperacion<=-24 && tipoOperacion>=-25) return 7; // Relacional2
+
     else return -1; // Operación desconocida
 }
 public static int obtenerNumeroDeString(String valor) {

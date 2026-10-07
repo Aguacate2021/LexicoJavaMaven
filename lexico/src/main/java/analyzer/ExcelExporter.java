@@ -479,7 +479,7 @@ public class ExcelExporter {
 
             // Total del ámbito
             int total = 0;
-            for (int i = 0; i < 9; i++) {
+            for (int i = 0; i < 8; i++) {
                 total += c[i];
             }
 

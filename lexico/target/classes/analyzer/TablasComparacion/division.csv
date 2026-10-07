@@ -1,10 +1,10 @@
-;Bin;Dec;Oct;Hex;Real;exp;Cadena;Boolean;variant
+Operando;Bin;Dec;Oct;Hex;Real;exp;Cadena;Boolean;Variant
 Bin;Bin;Error;Error;Error;Error;Error;Error;Error;Bin
 Dec;Error;Real;Error;Error;Real;exp;Error;Error;Real
 Oct;Error;Error;Oct;Error;Error;Error;Error;Error;Oct
-Hexa;Error;Error;Error;Hex;Error;Error;Error;Error;Hex
-Real;Error;Real;Error;Error;exp;exp;Error;Error;exp
-exp;Error;exp;Error;Error;exp;exp;Error;Error;exp
-Cadena;Error;Error;Error;Error;Error;Error;Error;Error;Error
-Boolean;Error;Error;Error;Error;Error;Error;Error;Error;Error
-variant;Bin;Real;Oct;Hex;exp;exp;Error;Error;variant
+Hexa;Error;Error;Error;Hex;Error;Error;Error;Error;Hexa
+Real;Error;Real;Error;Error;exp;Exp;Error;Error;Expo
+exp;Error;Exp;Error;Error;exp;exp;Error;Error;exp
+Cadena;Error;Error;Error;Error;Error;Error;Error;Error;error
+Boolean;Error;Error;Error;Error;Error;Error;Error;Error;error
+Variant;Bin;Real;Oct;Hex;Expo;exp;Error;Error;Variant

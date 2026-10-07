@@ -1,4 +1,4 @@
-;Bin;Dec;Oct;Hex;Real;exp;Cadena;Boolean;vairant
+Operando;Bin;Dec;Oct;Hex;Real;exp;Cadena;Boolean;Variant
 Bin;Error;Error;Error;Error;Error;Error;Error;Error;Error
 Dec;Error;Error;Error;Error;Error;Error;Error;Error;Error
 Oct;Error;Error;Error;Error;Error;Error;Error;Error;Error
@@ -7,4 +7,4 @@ Real;Error;Error;Error;Error;Error;Error;Error;Error;Error
 exp;Error;Error;Error;Error;Error;Error;Error;Error;Error
 Cadena;Error;Error;Error;Error;Error;Error;Error;Error;Error
 Boolean;Error;Error;Error;Error;Error;Error;Error;Boolean;Boolean
-variant;Error;Error;Error;Error;Error;Error;Error;Boolean;variant
+Variant;Error;Error;Error;Error;Error;Error;Error;Boolean;Variant
