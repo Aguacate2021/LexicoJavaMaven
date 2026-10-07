@@ -91,6 +91,15 @@ public class ExcelExporter {
                                 List<ErrorEntry>  errores,
                                 ContadorTokens    contador,
                                 Map<Integer, int[]> estadisticasSem) {
+        exportar(parent, tokens, errores, contador, estadisticasSem, null);
+    }
+
+    public static void exportar(java.awt.Component parent,
+                                List<Token>       tokens,
+                                List<ErrorEntry>  errores,
+                                ContadorTokens    contador,
+                                Map<Integer, int[]> estadisticasSem,
+                                Map<Integer, List<String>> asignacionesDetalle) {
         File destino = elegirDestino(parent);
         if (destino == null) return;
 
@@ -101,7 +110,7 @@ public class ExcelExporter {
             poblarContadoresSintaxis(wb);
             poblarAmbitos(wb, errores);
             poblarTablaSimbolos(wb);
-            poblarSemantica1(wb, estadisticasSem, errores);
+            poblarSemantica1(wb, estadisticasSem, asignacionesDetalle, errores);
 
             try (FileOutputStream fos = new FileOutputStream(destino)) {
                 wb.write(fos);
@@ -415,16 +424,18 @@ public class ExcelExporter {
             return;
         }
 
-        // Contabilizar errores reales por ámbito (índice 8 del arreglo)
+        // Contabilizar errores reales por ámbito (única y exclusivamente de tipo AMBITO)
         if (errores != null) {
             for (ErrorEntry error : errores) {
-                int ambitoError = error.getAmbito();
+                if (error.getTipo() == ErrorEntry.Tipo.AMBITO) {
+                    int ambitoError = error.getAmbito();
 
-                int[] contadores = porAmbito.computeIfAbsent(
-                    ambitoError, k -> new int[9]
-                );
+                    int[] contadores = porAmbito.computeIfAbsent(
+                        ambitoError, k -> new int[9]
+                    );
 
-                contadores[8]++;
+                    contadores[8]++;
+                }
             }
         }
 
@@ -477,7 +488,7 @@ public class ExcelExporter {
             celda(row, 9, c[8], estilo);
             totales[8] += c[8];
 
-            // Total del ámbito
+            // Total del ámbito (solo de tipos/variables, sin sumar los errores)
             int total = 0;
             for (int i = 0; i < 8; i++) {
                 total += c[i];
@@ -499,7 +510,7 @@ public class ExcelExporter {
         }
 
         int totalGeneral = 0;
-        for (int i = 0; i < 9; i++) {
+        for (int i = 0; i < 8; i++) {
             totalGeneral += totales[i];
         }
 
@@ -644,6 +655,13 @@ public class ExcelExporter {
     private static void poblarSemantica1(XSSFWorkbook wb,
                                          Map<Integer, int[]> estadisticas,
                                          List<ErrorEntry> errores) {
+        poblarSemantica1(wb, estadisticas, null, errores);
+    }
+
+    public static void poblarSemantica1(XSSFWorkbook wb,
+                                         Map<Integer, int[]> estadisticas,
+                                         Map<Integer, List<String>> asignacionesDetalle,
+                                         List<ErrorEntry> errores) {
 
         XSSFSheet ws = wb.createSheet("SEMANTICA 1");
 
@@ -653,7 +671,7 @@ public class ExcelExporter {
         };
 
         for (int i = 0; i < encabezados.length; i++) {
-            ws.setColumnWidth(i, (i == 10 ? 16 : 12) * 256);
+            ws.setColumnWidth(i, (i == 10 ? 25 : 12) * 256);
         }
 
         XSSFRow encabezado = ws.createRow(0);
@@ -663,7 +681,7 @@ public class ExcelExporter {
             celda(encabezado, i, encabezados[i], estiloEnc);
         }
 
-        // Errores Semántica 1 por línea (los de ErrorEntry, sin recalcular nada)
+        // Únicamente errores de Semántica 1
         Map<Integer, Integer> erroresPorLinea = new LinkedHashMap<>();
         if (errores != null) {
             for (ErrorEntry e : errores) {
@@ -673,7 +691,7 @@ public class ExcelExporter {
             }
         }
 
-        int[] totales = new int[11]; // 9 temporales + asignaciones + errores
+        int[] totales = new int[11]; // 9 temporales + asignaciones count + errores
         int fila = 1;
 
         if (estadisticas != null) {
@@ -685,14 +703,24 @@ public class ExcelExporter {
 
                 XSSFRow row = ws.createRow(fila);
                 row.setHeightInPoints(16);
-                CellStyle estilo = estiloDatoNum(wb, fila % 2 == 0);
+                CellStyle estiloNum = estiloDatoNum(wb, fila % 2 == 0);
+                CellStyle estiloTxt = estiloDato(wb, fila % 2 == 0, null);
 
-                celda(row, 0, linea, estilo);
-                for (int i = 0; i < 10; i++) {        // 9 temporales + asignaciones
-                    celda(row, i + 1, c[i], estilo);
+                celda(row, 0, linea, estiloNum);
+                for (int i = 0; i < 9; i++) {        // 9 temporales
+                    celda(row, i + 1, c[i], estiloNum);
                     totales[i] += c[i];
                 }
-                celda(row, 11, errs, estilo);
+
+                // Asignaciones con formato exacto: #DX -> TBoolean3
+                List<String> detalles = asignacionesDetalle != null ? asignacionesDetalle.get(linea) : null;
+                String txtAsig = (detalles != null && !detalles.isEmpty())
+                        ? String.join(", ", detalles)
+                        : String.valueOf(c[9]);
+                celda(row, 10, txtAsig, estiloTxt);
+                totales[9] += c[9];
+
+                celda(row, 11, errs, estiloNum);
                 totales[10] += errs;
                 fila++;
             }
@@ -818,7 +846,7 @@ public class ExcelExporter {
         JFileChooser fc = new JFileChooser();
         fc.setDialogTitle("Guardar análisis léxico como Excel");
         fc.setFileFilter(new FileNameExtensionFilter("Archivo Excel (*.xlsx)", "xlsx"));
-        fc.setSelectedFile(new File("Ambito-DavidAlatorre.xlsx"));
+        fc.setSelectedFile(new File("Semantica1-DavidAlatorre.xlsx"));
         if (fc.showSaveDialog(parent) != JFileChooser.APPROVE_OPTION) return null;
         File f = fc.getSelectedFile();
         if (!f.getName().toLowerCase().endsWith(".xlsx"))

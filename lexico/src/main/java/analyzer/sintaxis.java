@@ -23,7 +23,7 @@ public class sintaxis {
     private static final boolean TRACE = true;
 
     // Límite máximo de errores
-    private static final int MAX_ERRORES = 50;
+    private static final int MAX_ERRORES = 500;
 
     private final List<ErrorEntry> erroresSintaxis = new ArrayList<>();
 
@@ -121,6 +121,7 @@ public class sintaxis {
     // TReal, Texp, TCadena, TBoolean, TVariant; [9] = asignaciones.
     // Los errores no se guardan aquí: ya viven en erroresSintaxis (Tipo.SEMANTICA).
     private final Map<Integer, int[]> estadisticasSemantica = new TreeMap<>();
+    private final Map<Integer, List<String>> asignacionesDetalle = new TreeMap<>();
     private int[] estadisticaLineaActual = null;
 
     private static class Operando {
@@ -235,6 +236,10 @@ public class sintaxis {
         return estadisticasSemantica;
     }
 
+    public Map<Integer, List<String>> getAsignacionesDetalle() {
+        return asignacionesDetalle;
+    }
+
     public int getTipoTemporal(String temporal) {
         return tipoDeTemporal.getOrDefault(temporal, LeerCSVComparacion.T_VARIANT);
     }
@@ -275,6 +280,7 @@ public class sintaxis {
         contadorTemporales.clear();
         logOperaciones.setLength(0);
         estadisticasSemantica.clear();
+        asignacionesDetalle.clear();
         estadisticaLineaActual = null;
         comparacion.cargarTablas();
 
@@ -538,21 +544,14 @@ public class sintaxis {
                         // DECLARACIONES
                         // =================================================
                         if (AreaDeDeclaraciones) {
-                            encontrado = false;
-                            for (Integer ambito : AmbitoActual) {
-                                if (tabla.idExiste(id, ambito)) {
-                                    encontrado = true;
-                                    break;
-                                }
-                            }
+                            encontrado = tabla.idExiste(id, AmbitoActual.peek());
                             // ---------------------------------------------
-                            // ID YA EXISTE
+                            // ID YA EXISTE EN EL ÁMBITO ACTUAL
                             // ---------------------------------------------
                             if (encontrado) {
                                 registrarError(
                                         tokenActual,
-                                        "Identificador ya declarado " +
-                                                "en los ámbitos accesibles: " +
+                                        "Identificador ya declarado en el ámbito actual: " +
                                                 id,
                                         -3000);
                             }
@@ -680,7 +679,9 @@ public class sintaxis {
 
                             encontrado = false;
 
-                            for (Integer ambito : AmbitoActual) {
+                            for (int i = AmbitoActual.size() - 1; i >= 0; i--) {
+
+                                int ambito = AmbitoActual.get(i);
 
                                 if (tabla.idExiste(
                                         id,
@@ -970,7 +971,9 @@ public class sintaxis {
                 ContadorCiclos.ERRORES);
 
         if (numError == -3000) {
-
+            codigo = String.format(
+                "ERR-AMB-%03d",
+                ContadorCiclos.ERRORES);
             erroresSintaxis.add(
                     new ErrorEntry(
                             codigo,
@@ -990,7 +993,6 @@ public class sintaxis {
                             + descripcion);
 
         } else if (numError == -2000) {
-
             erroresSintaxis.add(
                     new ErrorEntry(
                             codigo,
@@ -1508,6 +1510,21 @@ public class sintaxis {
                 Operando destino = sacar(pila);
                 bloque.append(lex).append(",").append(destino.texto).append(",")
                         .append(valor.texto).append("\n");
+
+                // Formato exacto de asignación: #DX -> TBoolean3
+                String formatoAsig = destino.texto + " -> " + valor.texto;
+                asignacionesDetalle.computeIfAbsent(linea, k -> new ArrayList<>()).add(formatoAsig);
+
+                // Comprobar compatibilidad de tipos en la asignación
+                int tipoDestino = tipoSemanticoDeSimbolo(tabla.obtenerTipo(destino.texto, obtenerAmbitoActual()));
+                if (tipoDestino != LeerCSVComparacion.T_VARIANT && valor.tipo != LeerCSVComparacion.T_VARIANT) {
+                    int rAsig = comparacion.ObtenerTipoPorTipos(tipoDestino, valor.tipo, -33);
+                    if (rAsig < 0) {
+                        registrarErrorSemantico(linea, destino.texto + " = " + valor.texto,
+                                "Tipos de datos incompatibles en la operación de asignación");
+                    }
+                }
+
                 pila.push(destino);
             }
             // ternario ?: (sin tabla)
@@ -1530,7 +1547,9 @@ public class sintaxis {
                 if (LeerCSVComparacion.tieneTabla(tc)) {
                     int r = comparacion.ObtenerTipoPorTipos(izq.tipo, der.tipo, tc);
                     if (r < 0) {
-                        registrarErrorSemantico(linea, lex,
+                        // Concatenar expresión completa para el lexema del error semántico: "54 * #OE"
+                        String lexemaCompleto = izq.texto + " " + lex + " " + der.texto;
+                        registrarErrorSemantico(linea, lexemaCompleto,
                                 "incompatibilidad de tipo " + nombreOperacion(tc));
                         log("Semántica 1: " + izq.texto + "(" + izq.tipo + ") " + lex
                                 + " " + der.texto + "(" + der.tipo + ")");
