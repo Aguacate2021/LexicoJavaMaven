@@ -23,7 +23,7 @@ public class sintaxis {
     private static final boolean TRACE = true;
 
     // Límite máximo de errores
-    private static final int MAX_ERRORES = 50;
+    private static final int MAX_ERRORES = 500;
 
     private final List<ErrorEntry> erroresSintaxis = new ArrayList<>();
 
@@ -971,7 +971,6 @@ public class sintaxis {
                 ContadorCiclos.ERRORES);
 
         if (numError == -3000) {
-
             erroresSintaxis.add(
                     new ErrorEntry(
                             codigo,
