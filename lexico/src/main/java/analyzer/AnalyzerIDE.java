@@ -127,12 +127,12 @@ public class AnalyzerIDE extends JFrame {
         JButton btnExcel = makeButton("+- EXCEL", new Color(0x3C, 0x3C, 0x3C), TEXT_MAIN);
         //JButton btnAvance1 = makeButton("* AVANCE 2", new Color(0x3C, 0x3C, 0x3C), TEXT_MAIN);
         JButton btnExpresiones = makeButton("» Avance 1", new Color(0x3C, 0x3C, 0x3C), TEXT_MAIN);
-        JButton btnOperaciones = makeButton("» Avance 2", new Color(0x3C, 0x3C, 0x3C), TEXT_MAIN);
         btns.add(btnAbrir);
         btns.add(btnCompilar);
         btns.add(btnExcel);
         //btns.add(btnAvance1);
         btns.add(btnExpresiones);
+        JButton btnOperaciones = makeButton("» Avance 2", new Color(0x3C, 0x3C, 0x3C), TEXT_MAIN);
         btns.add(btnOperaciones);
 
         header.add(btns, BorderLayout.EAST);
@@ -143,7 +143,7 @@ public class AnalyzerIDE extends JFrame {
         btnAbrir.addActionListener(e -> abrirArchivo());
         //btnAvance1.addActionListener(e -> btnGuardarLogActionPerformed(null));
         btnExpresiones.addActionListener(e -> btnGuardarExpresionesActionPerformed(null));
-        btnOperaciones.addActionListener(e -> btnGuardarOperacionesActionPerformed(null));
+        btnOperaciones.addActionListener(e -> btnGuardarOperacionesActionPerformed());
         // ── Editor de texto ──────────────────────────────────────────────────
         codeEditor = new JTextPane();
         codeEditor.setBackground(BG_DARK);
@@ -356,7 +356,10 @@ public class AnalyzerIDE extends JFrame {
         List<Token>      tokens  = lexer.tokenizar(codeEditor.getText());
         List<ErrorEntry> errores = lexer.getErrores();
         errores.addAll(parserLexer.getErroresSintaxis());
-        ExcelExporter.exportar(this, tokens, errores);
+        ContadorTokens ct = new ContadorTokens();
+        ct.contar(tokens);
+        ExcelExporter.exportar(this, tokens, errores, ct,
+                parserLexer.getEstadisticasSemantica());
     }
     // ════════════════════════════════════════════════════════════════════════
     // Abrir archivo .txt 
@@ -524,16 +527,16 @@ public class AnalyzerIDE extends JFrame {
         }
     }
     // ════════════════════════════════════════════════════════════════════════
-    // Guardar archivo .txt de las operaciones desglosadas (Avance 2)
+    // Guardar archivo .txt de las operaciones con temporales (Avance 2)
     // ════════════════════════════════════════════════════════════════════════
-    private void btnGuardarOperacionesActionPerformed(java.awt.event.ActionEvent evt) {
+    private void btnGuardarOperacionesActionPerformed() {
 
         String contenido = parserLexer.getLogOperaciones();
 
         if (contenido.isEmpty()) {
             javax.swing.JOptionPane.showMessageDialog(
                 this,
-                "No hay operaciones generadas. Compila primero.",
+                "No hay operaciones generadas para guardar.",
                 "Sin información",
                 javax.swing.JOptionPane.WARNING_MESSAGE
             );
@@ -547,6 +550,7 @@ public class AnalyzerIDE extends JFrame {
         if (fileChooser.showSaveDialog(this) == javax.swing.JFileChooser.APPROVE_OPTION) {
 
             java.io.File archivo = fileChooser.getSelectedFile();
+
             if (!archivo.getName().toLowerCase().endsWith(".txt")) {
                 archivo = new java.io.File(archivo.getAbsolutePath() + ".txt");
             }

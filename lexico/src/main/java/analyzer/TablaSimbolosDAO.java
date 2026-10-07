@@ -46,6 +46,34 @@ public class TablaSimbolosDAO {
     }
 
     /**
+     * Devuelve el tipo (Decimal, Real, ...) de un identificador
+     * en un ámbito específico, o null si no existe.
+     */
+    public String obtenerTipo(String id, int ambito) {
+
+        String sql = "SELECT tipo FROM tabla_simbolos WHERE id = ? AND amb = ?";
+
+        try (Connection conexion = ConexionBD.conectar();
+             PreparedStatement ps = conexion.prepareStatement(sql)) {
+
+            ps.setString(1, id);
+            ps.setInt(2, ambito);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getString(1);
+                }
+            }
+
+        } catch (SQLException e) {
+            System.err.println("Error al obtener tipo del identificador: " + id);
+            e.printStackTrace();
+        }
+
+        return null;
+    }
+
+    /**
      * Inserta un identificador en la tabla de símbolos.
      */
     public boolean insertar(

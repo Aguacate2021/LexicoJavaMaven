@@ -4,14 +4,17 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.Stack;
+import java.util.TreeMap;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
+import analyzer.TablasComparacion.LeerCSVComparacion;
 
 public class sintaxis {
 
@@ -95,6 +98,37 @@ public class sintaxis {
     Stack<Token> operandosPila = new Stack<>();
     int lineaDondeEstaLaOperacion = 0;
 
+    // =========================================================
+    // AVANCE 2: OPERACIONES CON TEMPORALES TIPADOS
+    // =========================================================
+    private final LeerCSVComparacion comparacion = new LeerCSVComparacion();
+
+    // Tipo semántico (1..10, los de LeerCSVComparacion) de cada operando
+    // original de la operación en curso. Un ID no declarado vale Variant.
+    private final Map<Token, Integer> tiposOperando = new IdentityHashMap<>();
+
+    // temporal -> tipo (TVariant1 -> 10, TDec1 -> 2, ...). Nunca se deduce del texto.
+    private final Map<String, Integer> tipoDeTemporal = new HashMap<>();
+
+    // Contador independiente por tipo. Se reinicia solo en parsear().
+    private final Map<Integer, Integer> contadorTemporales = new HashMap<>();
+
+    // Operaciones generadas ("Linea N:" + cuádruplas) de toda la compilación.
+    private final StringBuilder logOperaciones = new StringBuilder();
+
+    // Estadísticas por línea de operación (Avance final Semántica 1).
+    // línea -> int[10]: [0..8] = temporales GENERADOS de TBin, TDec, TOct, THex,
+    // TReal, Texp, TCadena, TBoolean, TVariant; [9] = asignaciones.
+    // Los errores no se guardan aquí: ya viven en erroresSintaxis (Tipo.SEMANTICA).
+    private final Map<Integer, int[]> estadisticasSemantica = new TreeMap<>();
+    private int[] estadisticaLineaActual = null;
+
+    private static class Operando {
+        final String texto;
+        final int tipo;
+        Operando(String texto, int tipo) { this.texto = texto; this.tipo = tipo; }
+    }
+
     // Los marcadores 804/805 (producción 44/45/46) se anidan: se abren y
     // cierran una vez por cada identificador que aparece como factor
     // dentro de la expresión, no una sola vez por asignación completa.
@@ -113,11 +147,6 @@ public class sintaxis {
     // Archivo donde se van agregando, por cada operación, la línea,
     // la expresión original (infija) y su equivalente postfijo.
     private static final String ARCHIVO_POSTFIJAS = "Avance1-DavidAlatorre.txt";
-
-    // ---- AVANCE 2: operaciones desglosadas con temporales ----
-    private static final String ARCHIVO_OPERACIONES = "Avance2-DavidAlatorre.txt";
-    private final StringBuilder logOperaciones = new StringBuilder();
-    private int contadorTemporales = 0;
 
     // -----------------------------------------------------------
     // Prioridad de operadores para el algoritmo infija -> postfija.
@@ -202,6 +231,14 @@ public class sintaxis {
         return logOperaciones.toString();
     }
 
+    public Map<Integer, int[]> getEstadisticasSemantica() {
+        return estadisticasSemantica;
+    }
+
+    public int getTipoTemporal(String temporal) {
+        return tipoDeTemporal.getOrDefault(temporal, LeerCSVComparacion.T_VARIANT);
+    }
+
     // =========================================================
     // PARSER
     // =========================================================
@@ -231,6 +268,15 @@ public class sintaxis {
         operandosPila.clear();
         operadoresPila.clear();
         infijoActual.setLength(0);
+
+        // Avance 2: temporales y tablas de compatibilidad (nueva compilación)
+        tiposOperando.clear();
+        tipoDeTemporal.clear();
+        contadorTemporales.clear();
+        logOperaciones.setLength(0);
+        estadisticasSemantica.clear();
+        estadisticaLineaActual = null;
+        comparacion.cargarTablas();
 
         // -----------------------------------------------------
         // REINICIAR ARCHIVO DE OPERACIONES POSTFIJAS
@@ -628,6 +674,8 @@ public class sintaxis {
                         // EJECUCIONES
                         // =================================================
 
+                        int ambitoEncontrado = -1;
+
                         if (AreaDeEjecuciones) {
 
                             encontrado = false;
@@ -639,6 +687,7 @@ public class sintaxis {
                                         ambito)) {
 
                                     encontrado = true;
+                                    ambitoEncontrado = ambito;
 
                                     break;
                                 }
@@ -664,6 +713,19 @@ public class sintaxis {
                         // =================================================
 
                         if (EstadoDeOperacion) {
+                            // Avance 2: tipo del operando. No declarado => Variant
+                            // (el error de "no declarado" ya se registró arriba).
+                            int tipoSem = LeerCSVComparacion.T_VARIANT;
+                            if (AreaDeEjecuciones) {
+                                if (encontrado && ambitoEncontrado >= 0) {
+                                    tipoSem = tipoSemanticoDeSimbolo(
+                                            tabla.obtenerTipo(id, ambitoEncontrado));
+                                }
+                            } else {
+                                tipoSem = tipoSemanticoDeSimbolo(obtenerTipoDeToken(tc));
+                            }
+                            tiposOperando.put(tokenActual, tipoSem);
+
                             operandosPila.push(tokenActual);
                             if (infijoActual.length() > 0) {
                                 infijoActual.append(" ");
@@ -1226,7 +1288,10 @@ public class sintaxis {
         // práctica llegan por el bloque "MATCH IDENTIFICADOR" (ver
         // arriba), pero se deja el rango completo por si algún día se
         // representan como terminal directo en la pila del parser.
-        return (tc >= -68 && tc <= -54) || tc == -107;
+        // Avance 2: también -53 (cadena), -72/-73 (true/false) y -74 (null),
+        // que antes se perdían de la salida postfija.
+        return (tc >= -68 && tc <= -54) || tc == -107
+                || tc == -53 || tc == -72 || tc == -73 || tc == -74;
     }
 
     private boolean tienePrioridadParaDesapilar(int tokenEnPila, int tokenEntrante) {
@@ -1273,6 +1338,9 @@ public class sintaxis {
 
         List<Token> postfijo = new ArrayList<>(operandosPila);
 
+        // Avance 2: cuádruplas con temporales tipados a partir del postfijo.
+        generarOperaciones(postfijo, lineaDondeEstaLaOperacion);
+
         Stack<String> pilaPrefijo = new Stack<>();
         for (Token t : postfijo) {
             int tc = t.getTokenClass();
@@ -1297,29 +1365,19 @@ public class sintaxis {
 
         escribirOperacionEnArchivo(lineaDondeEstaLaOperacion, prefijo);
 
-        generarOperacionesDesglosadas(postfijo);   // <-- NUEVA (Avance 2)
-
         operandosPila.clear();
         operadoresPila.clear();
         infijoActual.setLength(0);
+        tiposOperando.clear();
     }
 
     private void reiniciarArchivoPostfijas() {
         logExpresiones.setLength(0);
-        logOperaciones.setLength(0);
-        contadorTemporales = 0;
         try (FileWriter fw = new FileWriter(ARCHIVO_POSTFIJAS, false)) {
             // Deja el archivo vacío al iniciar un nuevo análisis.
         } catch (IOException e) {
             System.err.println(
                     "[POSTFIJA] No se pudo reiniciar " + ARCHIVO_POSTFIJAS);
-            e.printStackTrace();
-        }
-        try (FileWriter fw = new FileWriter(ARCHIVO_OPERACIONES, false)) {
-            // Deja vacío el archivo de operaciones (Avance 2).
-        } catch (IOException e) {
-            System.err.println(
-                    "[OPERACIONES] No se pudo reiniciar " + ARCHIVO_OPERACIONES);
             e.printStackTrace();
         }
     }
@@ -1343,88 +1401,182 @@ public class sintaxis {
     }
 
     // =========================================================
-    // AVANCE 2: OPERACIONES DESGLOSADAS CON TEMPORALES
+    // AVANCE 2: GENERADOR DE OPERACIONES
     // =========================================================
 
-    private String nuevoTemporal() {
-        return "T" + (++contadorTemporales);
+    /** "Decimal" / "Real" / ... (tabla de símbolos) -> tipo 1..10. Lo demás es Variant. */
+    private static int tipoSemanticoDeSimbolo(String tipo) {
+        if (tipo == null) return LeerCSVComparacion.T_VARIANT;
+        return switch (tipo.trim()) {
+            case "Binario"     -> LeerCSVComparacion.T_BIN;
+            case "Decimal"     -> LeerCSVComparacion.T_DEC;
+            case "Octal"       -> LeerCSVComparacion.T_OCT;
+            case "Hexadecimal" -> LeerCSVComparacion.T_HEX;
+            case "Real"        -> LeerCSVComparacion.T_REAL;
+            case "Exponencial" -> LeerCSVComparacion.T_EXP;
+            case "Cadena"      -> LeerCSVComparacion.T_CADENA;
+            case "Booleanas"   -> LeerCSVComparacion.T_BOOLEAN;
+            default            -> LeerCSVComparacion.T_VARIANT;
+        };
     }
 
-    private boolean esAsignacion(int tc) {
+    private String nuevoTemporal(int tipo) {
+        int n = contadorTemporales.merge(tipo, 1, Integer::sum);
+        String nombre = LeerCSVComparacion.prefijoTemporal(tipo) + n;
+        tipoDeTemporal.put(nombre, tipo);
+        if (estadisticaLineaActual != null) {
+            int col = columnaEstadistica(tipo);
+            if (col >= 0) estadisticaLineaActual[col]++;
+        }
+        return nombre;
+    }
+
+    /** tipo (1..10) -> columna de estadisticasSemantica; -1 si no tiene columna. */
+    private static int columnaEstadistica(int tipo) {
+        if (tipo >= LeerCSVComparacion.T_BIN && tipo <= LeerCSVComparacion.T_CADENA) return tipo - 1;
+        if (tipo == LeerCSVComparacion.T_BOOLEAN) return 7;
+        if (tipo == LeerCSVComparacion.T_VARIANT) return 8;
+        return -1;
+    }
+
+    private Operando sacar(Stack<Operando> pila) {
+        return pila.isEmpty()
+                ? new Operando("", LeerCSVComparacion.T_VARIANT)
+                : pila.pop();
+    }
+
+    private static boolean esAsignacion(int tc) {
         return tc <= -33 && tc >= -44;
     }
 
+    private static String nombreOperacion(int tc) {
+        return switch (tc) {
+            case -11 -> "suma";
+            case -12 -> "resta";
+            case -13 -> "multiplicación";
+            case -14 -> "división";
+            case -15 -> "módulo";
+            case -20 -> "menor que";
+            case -21 -> "mayor que";
+            case -22 -> "menor o igual que";
+            case -23 -> "mayor o igual que";
+            case -24 -> "igual a";
+            case -25 -> "diferente de";
+            case -30 -> "AND";
+            case -31 -> "OR";
+            default  -> (tc <= -20 && tc >= -26) ? "relacional" : "lógico";
+        };
+    }
+
     /**
-     * Recorre la misma lista postfija del Avance 1 y genera
-     * cuádruplos "operador,valor1,valor2,Tn". Los temporales
-     * se reinician en cada ecuación (T1, T2, ...).
+     * Recorre el postfijo y emite "operador,valor1,valor2,temporal".
+     * Cada operación genera un temporal cuyo tipo sale de las tablas CSV.
+     * Si la tabla dice Error: se registra "Semántica 1" y el temporal queda Variant.
+     * Operadores sin tabla (potencia, bit a bit, shifts, igualdad estricta,
+     * ternario, unarios): el temporal es Variant, sin error.
      */
-    private void generarOperacionesDesglosadas(List<Token> postfijo) {
+    private void generarOperaciones(List<Token> postfijo, int linea) {
 
-        contadorTemporales = 0;
-
-        List<String> ops = new ArrayList<>();
-        Stack<String> pila = new Stack<>();
+        Stack<Operando> pila = new Stack<>();
+        StringBuilder bloque = new StringBuilder();
+        int[] stats = new int[10];
+        estadisticaLineaActual = stats;
 
         for (Token t : postfijo) {
 
             int tc = t.getTokenClass();
             String lex = t.getLexema().trim();
 
+            // ++ / -- : unario postfijo, conserva el tipo del operando
             if (tc == -1 || tc == -2) {
-                // ++ / --: modifican la variable, no crean temporal.
-                String a = pila.isEmpty() ? "" : pila.pop();
-                ops.add(lex + "," + a);
-                pila.push(a);
+                Operando o = sacar(pila);
+                String tmp = nuevoTemporal(o.tipo);
+                bloque.append(lex).append(",").append(o.texto).append(",").append(tmp).append("\n");
+                pila.push(new Operando(tmp, o.tipo));
+            }
+            // ! y ~ : unarios prefijos (no hay tabla -> Variant)
+            else if (tc == -29 || tc == -3) {
+                Operando o = sacar(pila);
+                String tmp = nuevoTemporal(LeerCSVComparacion.T_VARIANT);
+                bloque.append(lex).append(",").append(o.texto).append(",").append(tmp).append("\n");
+                pila.push(new Operando(tmp, LeerCSVComparacion.T_VARIANT));
+            }
+            // asignación: no genera temporal
+            else if (esAsignacion(tc)) {
+                stats[9]++; // asignación (no genera temporal)
+                Operando valor = sacar(pila);
+                Operando destino = sacar(pila);
+                bloque.append(lex).append(",").append(destino.texto).append(",")
+                        .append(valor.texto).append("\n");
+                pila.push(destino);
+            }
+            // ternario ?: (sin tabla)
+            else if (tc == -32 && pila.size() >= 3) {
+                Operando c = sacar(pila);
+                Operando b = sacar(pila);
+                Operando a = sacar(pila);
+                String tmp = nuevoTemporal(LeerCSVComparacion.T_VARIANT);
+                bloque.append(lex).append(",").append(a.texto).append(",").append(b.texto)
+                        .append(",").append(c.texto).append(",").append(tmp).append("\n");
+                pila.push(new Operando(tmp, LeerCSVComparacion.T_VARIANT));
+            }
+            // operador binario
+            else if (PRECEDENCIA_OPERADOR.containsKey(tc)) {
+                Operando der = sacar(pila);
+                Operando izq = sacar(pila);
 
-            } else if (tc == -29 || tc == -3) {
-                // ! y ~ : unarios, un solo operando.
-                String a = pila.isEmpty() ? "" : pila.pop();
-                String tmp = nuevoTemporal();
-                ops.add(lex + "," + a + ",," + tmp);
-                pila.push(tmp);
+                int tipoRes = LeerCSVComparacion.T_VARIANT;
 
-            } else if (PRECEDENCIA_OPERADOR.containsKey(tc)) {
-
-                String der = pila.isEmpty() ? "" : pila.pop();
-                String izq = pila.isEmpty() ? "" : pila.pop();
-
-                if (esAsignacion(tc)) {
-                    // =,variable,resultado  (sin temporal)
-                    ops.add(lex + "," + izq + "," + der);
-                    pila.push(izq);
-                } else {
-                    String tmp = nuevoTemporal();
-                    ops.add(lex + "," + izq + "," + der + "," + tmp);
-                    pila.push(tmp);
+                if (LeerCSVComparacion.tieneTabla(tc)) {
+                    int r = comparacion.ObtenerTipoPorTipos(izq.tipo, der.tipo, tc);
+                    if (r < 0) {
+                        registrarErrorSemantico(linea, lex,
+                                "incompatibilidad de tipo " + nombreOperacion(tc));
+                        log("Semántica 1: " + izq.texto + "(" + izq.tipo + ") " + lex
+                                + " " + der.texto + "(" + der.tipo + ")");
+                    } else {
+                        tipoRes = r;
+                    }
                 }
 
-            } else {
-                // Operando (identificador o constante, tal cual).
-                pila.push(lex);
+                String tmp = nuevoTemporal(tipoRes);
+                bloque.append(lex).append(",").append(izq.texto).append(",")
+                        .append(der.texto).append(",").append(tmp).append("\n");
+                pila.push(new Operando(tmp, tipoRes));
+            }
+            // operando (ID o constante)
+            else {
+                int tipo = tiposOperando.getOrDefault(t, LeerCSVComparacion.tipoDeToken(tc));
+                pila.push(new Operando(lex, tipo));
             }
         }
 
-        // Expresión sin ninguna operación real: no se genera bloque.
-        if (ops.isEmpty()) {
-            return;
-        }
+        estadisticaLineaActual = null;
 
-        StringBuilder bloque = new StringBuilder();
-        bloque.append("Linea ").append(lineaDondeEstaLaOperacion).append("\n");
-        for (String op : ops) {
-            bloque.append(op).append("\n");
-        }
-        bloque.append("\n");
+        if (bloque.length() > 0) {
+            // Varias operaciones en la misma línea se acumulan en una sola fila.
+            int[] acumulado = estadisticasSemantica.computeIfAbsent(linea, k -> new int[10]);
+            for (int i = 0; i < 10; i++) acumulado[i] += stats[i];
 
-        logOperaciones.append(bloque);
-
-        try (FileWriter fw = new FileWriter(ARCHIVO_OPERACIONES, true)) {
-            fw.write(bloque.toString());
-        } catch (IOException e) {
-            System.err.println(
-                    "[OPERACIONES] No se pudo escribir en " + ARCHIVO_OPERACIONES);
-            e.printStackTrace();
+            logOperaciones.append("Linea ").append(linea).append(":\n\n")
+                    .append(bloque).append("\n");
         }
+    }
+
+    private void registrarErrorSemantico(int linea, String lexema, String descripcion) {
+
+        ContadorCiclos.ERRORES++;
+
+        erroresSintaxis.add(
+                new ErrorEntry(
+                        "Semántica 1",
+                        descripcion,
+                        linea,
+                        "parser",
+                        ErrorEntry.Tipo.SEMANTICA,
+                        lexema,
+                        obtenerAmbitoActual()));
+
+        System.out.println("[SEM-ERR] ln=" + linea + " | Semántica 1: " + descripcion);
     }
 }

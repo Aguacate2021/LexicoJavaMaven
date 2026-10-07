@@ -79,6 +79,18 @@ public class ExcelExporter {
                                 List<Token>       tokens,
                                 List<ErrorEntry>  errores,
                                 ContadorTokens    contador) {
+        exportar(parent, tokens, errores, contador, null);
+    }
+
+    /**
+     * Igual que el anterior, pero además agrega la hoja "SEMANTICA 1" con las
+     * estadísticas que produjo sintaxis (getEstadisticasSemantica()).
+     */
+    public static void exportar(java.awt.Component parent,
+                                List<Token>       tokens,
+                                List<ErrorEntry>  errores,
+                                ContadorTokens    contador,
+                                Map<Integer, int[]> estadisticasSem) {
         File destino = elegirDestino(parent);
         if (destino == null) return;
 
@@ -89,6 +101,7 @@ public class ExcelExporter {
             poblarContadoresSintaxis(wb);
             poblarAmbitos(wb, errores);
             poblarTablaSimbolos(wb);
+            poblarSemantica1(wb, estadisticasSem, errores);
 
             try (FileOutputStream fos = new FileOutputStream(destino)) {
                 wb.write(fos);
@@ -621,6 +634,80 @@ public class ExcelExporter {
         }
     }
 
+
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // HOJA 7 — SEMANTICA 1
+    // Solo contabiliza lo que ya produjo sintaxis (temporales generados y
+    // asignaciones por línea) y los ErrorEntry de tipo SEMANTICA.
+    // ═══════════════════════════════════════════════════════════════════════
+    private static void poblarSemantica1(XSSFWorkbook wb,
+                                         Map<Integer, int[]> estadisticas,
+                                         List<ErrorEntry> errores) {
+
+        XSSFSheet ws = wb.createSheet("SEMANTICA 1");
+
+        String[] encabezados = {
+            "Linea", "TBin", "TDec", "TOct", "THex", "TReal", "Texp",
+            "TCadena", "TBoolean", "TVariant", "Asignaciones", "Errores"
+        };
+
+        for (int i = 0; i < encabezados.length; i++) {
+            ws.setColumnWidth(i, (i == 10 ? 16 : 12) * 256);
+        }
+
+        XSSFRow encabezado = ws.createRow(0);
+        encabezado.setHeightInPoints(18);
+        CellStyle estiloEnc = estiloEncabezado(wb);
+        for (int i = 0; i < encabezados.length; i++) {
+            celda(encabezado, i, encabezados[i], estiloEnc);
+        }
+
+        // Errores Semántica 1 por línea (los de ErrorEntry, sin recalcular nada)
+        Map<Integer, Integer> erroresPorLinea = new LinkedHashMap<>();
+        if (errores != null) {
+            for (ErrorEntry e : errores) {
+                if (e.getTipo() == ErrorEntry.Tipo.SEMANTICA) {
+                    erroresPorLinea.merge(e.getLinea(), 1, Integer::sum);
+                }
+            }
+        }
+
+        int[] totales = new int[11]; // 9 temporales + asignaciones + errores
+        int fila = 1;
+
+        if (estadisticas != null) {
+            for (Map.Entry<Integer, int[]> entrada : estadisticas.entrySet()) {
+
+                int linea = entrada.getKey();
+                int[] c = entrada.getValue();
+                int errs = erroresPorLinea.getOrDefault(linea, 0);
+
+                XSSFRow row = ws.createRow(fila);
+                row.setHeightInPoints(16);
+                CellStyle estilo = estiloDatoNum(wb, fila % 2 == 0);
+
+                celda(row, 0, linea, estilo);
+                for (int i = 0; i < 10; i++) {        // 9 temporales + asignaciones
+                    celda(row, i + 1, c[i], estilo);
+                    totales[i] += c[i];
+                }
+                celda(row, 11, errs, estilo);
+                totales[10] += errs;
+                fila++;
+            }
+        }
+
+        XSSFRow rowTotal = ws.createRow(fila);
+        rowTotal.setHeightInPoints(18);
+        CellStyle estiloTotal = estiloValor(wb);
+        celda(rowTotal, 0, "Totales", estiloTotal);
+        for (int i = 0; i < 11; i++) {
+            celda(rowTotal, i + 1, totales[i], estiloTotal);
+        }
+
+        ws.createFreezePane(0, 1);
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // ESTILOS
