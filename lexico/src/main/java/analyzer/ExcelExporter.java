@@ -846,7 +846,7 @@ public class ExcelExporter {
         JFileChooser fc = new JFileChooser();
         fc.setDialogTitle("Guardar análisis léxico como Excel");
         fc.setFileFilter(new FileNameExtensionFilter("Archivo Excel (*.xlsx)", "xlsx"));
-        fc.setSelectedFile(new File("Ambito-DavidAlatorre.xlsx"));
+        fc.setSelectedFile(new File("Semantica1-DavidAlatorre.xlsx"));
         if (fc.showSaveDialog(parent) != JFileChooser.APPROVE_OPTION) return null;
         File f = fc.getSelectedFile();
         if (!f.getName().toLowerCase().endsWith(".xlsx"))

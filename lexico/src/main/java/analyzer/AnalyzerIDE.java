@@ -92,7 +92,7 @@ public class AnalyzerIDE extends JFrame {
         bar.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, BORDER_COLOR));
         bar.setPreferredSize(new Dimension(0, 36));
 
-        JLabel title = new JLabel("Anlatorre - Parser V6.0", SwingConstants.CENTER);
+        JLabel title = new JLabel("Anlatorre - Parser V8.0 - Errores: Amarillo/Sintactico - Rojo/Ambito - Morado/Semantica 1", SwingConstants.CENTER);
         title.setFont(new Font("Segoe UI", Font.PLAIN, 13));
         title.setForeground(TEXT_DIM);
         bar.add(title, BorderLayout.CENTER);

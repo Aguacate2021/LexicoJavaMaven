@@ -971,6 +971,9 @@ public class sintaxis {
                 ContadorCiclos.ERRORES);
 
         if (numError == -3000) {
+            codigo = String.format(
+                "ERR-AMB-%03d",
+                ContadorCiclos.ERRORES);
             erroresSintaxis.add(
                     new ErrorEntry(
                             codigo,
@@ -990,7 +993,6 @@ public class sintaxis {
                             + descripcion);
 
         } else if (numError == -2000) {
-
             erroresSintaxis.add(
                     new ErrorEntry(
                             codigo,
