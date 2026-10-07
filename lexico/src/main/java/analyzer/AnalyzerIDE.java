@@ -359,7 +359,8 @@ public class AnalyzerIDE extends JFrame {
         ContadorTokens ct = new ContadorTokens();
         ct.contar(tokens);
         ExcelExporter.exportar(this, tokens, errores, ct,
-                parserLexer.getEstadisticasSemantica());
+                parserLexer.getEstadisticasSemantica(),
+                parserLexer.getAsignacionesDetalle());
     }
     // ════════════════════════════════════════════════════════════════════════
     // Abrir archivo .txt 

@@ -1,0 +1,16 @@
+/app/lexico/src/main/java/analyzer/AnalyzerIDE.java
+/app/lexico/src/main/java/analyzer/ConexionBD.java
+/app/lexico/src/main/java/analyzer/ContadorCiclos.java
+/app/lexico/src/main/java/analyzer/ContadorTokens.java
+/app/lexico/src/main/java/analyzer/CounterPanel.java
+/app/lexico/src/main/java/analyzer/ErrorEntry.java
+/app/lexico/src/main/java/analyzer/ExcelExporter.java
+/app/lexico/src/main/java/analyzer/LeerCSV.java
+/app/lexico/src/main/java/analyzer/LeerCSV2.java
+/app/lexico/src/main/java/analyzer/Lexer.java
+/app/lexico/src/main/java/analyzer/Producciones.java
+/app/lexico/src/main/java/analyzer/TablaSimbolosDAO.java
+/app/lexico/src/main/java/analyzer/TablasComparacion/LeerCSVComparacion.java
+/app/lexico/src/main/java/analyzer/Token.java
+/app/lexico/src/main/java/analyzer/TokenTablePanel.java
+/app/lexico/src/main/java/analyzer/sintaxis.java

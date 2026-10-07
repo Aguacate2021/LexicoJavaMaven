@@ -187,11 +187,17 @@ public class TokenTablePanel extends JPanel {
                                   : (modelRow % 2 == 0 ? BG_ROW_EVEN : BG_ROW_ODD));
 
                 Object codObj = errorModel.getValueAt(modelRow, 1);
-                boolean esWarn = codObj != null && codObj.toString().startsWith("W");
+                Object descObj = errorModel.getValueAt(modelRow, 2);
+                String cod = codObj != null ? codObj.toString() : "";
+                String desc = descObj != null ? descObj.toString() : "";
+                boolean esWarn = cod.startsWith("W");
+                boolean esSemantica = cod.contains("SEM") || desc.contains("Semántica 1")
+                        || desc.contains("incompatibilidad") || desc.contains("incompatibles");
 
+                Color semColor = new Color(0xC5, 0x86, 0xC0); // Púrpura/Magenta distintivo para Semántica 1
                 setForeground(switch (col) {
-                    case 1  -> esWarn ? WARN_YELLOW : ERR_RED;
-                    case 2  -> esWarn ? WARN_YELLOW : ERR_ORANGE;
+                    case 1  -> esSemantica ? semColor : (esWarn ? WARN_YELLOW : ERR_RED);
+                    case 2  -> esSemantica ? semColor : (esWarn ? WARN_YELLOW : ERR_ORANGE);
                     case 0  -> TEXT_DIM;
                     default -> TEXT_MAIN;
                 });
