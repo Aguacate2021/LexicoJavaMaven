@@ -62,6 +62,10 @@ public void cargarTablas() {
     ValoresLogico = cargarTabla(ARCHIVO_CSV_LOGICO);
     ValoresRelacional = cargarTabla(ARCHIVO_CSV_RELACIONAL);
     ValoresResto = cargarTabla(ARCHIVO_CSV_RESTO);
+    if (ValoresResto[0][0] == null) {
+        // Fallback a ValoresDivision si resto.csv no está presente o falla
+        ValoresResto = ValoresDivision;
+    }
     ValoresRelacional2 = cargarTabla(ARCHIVO_CSV_RELACIONAL2);
     tablasCargadas = true;
 }

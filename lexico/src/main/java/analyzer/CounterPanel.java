@@ -67,7 +67,7 @@ public class CounterPanel extends JPanel {
           new String[]{"Postfix","Log bin","Control","Matemát.","Exponente",
                        "Turno","Relac.","Igualdad","Lógicos","Ternario","Asignac.","Agrupam."} },
         { "ERRORES", CAT_ERR,
-          new String[]{"Léxicos","Sintácticos","Total"} },
+          new String[]{"Léxicos","Sintácticos","Ámbito","Semántica 1","Total"} },
     };
     private static final int ERR_COL_START;
     private static final int TOTAL_COLS;
@@ -189,9 +189,16 @@ public class CounterPanel extends JPanel {
     public static void actualizar(ContadorTokens c,
                                    int comentLinea,  int comentMulti,
                                    int errLexicos,   int errSintacticos) {
-        int errTotal = errLexicos + errSintacticos;
+        actualizar(c, comentLinea, comentMulti, errLexicos, errSintacticos, 0, 0);
+    }
+
+    public static void actualizar(ContadorTokens c,
+                                   int comentLinea,  int comentMulti,
+                                   int errLexicos,   int errSintacticos,
+                                   int errAmbito,    int errSemantica) {
+        int errTotal = errLexicos + errSintacticos + errAmbito + errSemantica;
         int[] vals = {
-            // IDENTIFICADORES (8)
+            // IDENTIFICADORES (9)
             c.idCadena, c.idBinario, c.idDecimal, c.idOctal,
             c.idHex,    c.idReal,    c.idExp,     c.idBool,
             c.idRegistro,
@@ -206,8 +213,8 @@ public class CounterPanel extends JPanel {
             c.opPostfix,    c.opLogBin,  c.opControl,    c.opMat,
             c.opExp,        c.opTurno,   c.opRel,         c.opIgualdad,
             c.opLogicos,    c.opTernario,c.opAsignacion,  c.opAgrup,
-            // ERRORES (3)
-            errLexicos, errSintacticos, errTotal
+            // ERRORES (5)
+            errLexicos, errSintacticos, errAmbito, errSemantica, errTotal
         };
         SwingUtilities.invokeLater(() -> {
             for (int col = 0; col < vals.length && col < TOTAL_COLS; col++)
