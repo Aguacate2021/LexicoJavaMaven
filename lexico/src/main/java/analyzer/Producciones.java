@@ -59,7 +59,7 @@ public class Producciones {
         producciones.put(41, Arrays.asList(-37));
         producciones.put(42, Arrays.asList(-36));
         producciones.put(43, Arrays.asList(11));
-        producciones.put(44, Arrays.asList(804,-1000, 16, 805));
+        producciones.put(44, Arrays.asList(804, -1000, 16, 805));
         producciones.put(45, Arrays.asList(-1, -1000, 16));
         producciones.put(46, Arrays.asList(-2, -1000, 16));
         producciones.put(47, Arrays.asList(-29, -49, 35, -50));
@@ -101,15 +101,15 @@ public class Producciones {
         producciones.put(90, Arrays.asList(-95, -49, 35, -50, 24));
         producciones.put(91, Arrays.asList(-96, 24, -95, -49, 35, -50));
         producciones.put(92, Arrays.asList(-97, 35));
-        producciones.put(93, Arrays.asList(-98, -49, 35, 28));
+        producciones.put(93, Arrays.asList(-98, 802, -49, 801, 35, 800, 28));
         producciones.put(94, Arrays.asList(-99, -49, 35, -50, -45, 30, -46));
         producciones.put(96, Arrays.asList(-7, 35, 25));
         producciones.put(98, Arrays.asList(-100, -49, 35, -50, 24, 26));
         producciones.put(99, Arrays.asList(-101, 24));
         producciones.put(101, Arrays.asList(-9, 24, 27));
         producciones.put(102, Arrays.asList(-7, 35, 28));
-        producciones.put(103, Arrays.asList(-10, 35, -50, 24));
-        producciones.put(104, Arrays.asList(-9, 24, -9, 35, 29, -50, 24));
+        producciones.put(103, Arrays.asList(-10, 35, -50, 24, 803));
+        producciones.put(104, Arrays.asList(-9, 24, -9, 35, 29, -50, 24, 803));
         producciones.put(106, Arrays.asList(-7, 35, 29));
         producciones.put(107, Arrays.asList(-102, 35, -10, 24, 31, -104, 32));
         producciones.put(108, Arrays.asList(-9, 24, 31));

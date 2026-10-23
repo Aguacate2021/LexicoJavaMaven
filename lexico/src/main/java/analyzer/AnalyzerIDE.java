@@ -126,14 +126,16 @@ public class AnalyzerIDE extends JFrame {
         JButton btnCompilar = makeButton("- COMPILAR", new Color(0x3C, 0x3C, 0x3C), TEXT_MAIN);
         JButton btnExcel = makeButton("+- EXCEL", new Color(0x3C, 0x3C, 0x3C), TEXT_MAIN);
         //JButton btnAvance1 = makeButton("* AVANCE 2", new Color(0x3C, 0x3C, 0x3C), TEXT_MAIN);
-        JButton btnExpresiones = makeButton("» Avance 1", new Color(0x3C, 0x3C, 0x3C), TEXT_MAIN);
+        //JButton btnExpresiones = makeButton("» Avance 1", new Color(0x3C, 0x3C, 0x3C), TEXT_MAIN);
         btns.add(btnAbrir);
         btns.add(btnCompilar);
         btns.add(btnExcel);
         //btns.add(btnAvance1);
         //btns.add(btnExpresiones);
-        JButton btnOperaciones = makeButton("» Avance 2", new Color(0x3C, 0x3C, 0x3C), TEXT_MAIN);
+        //JButton btnOperaciones = makeButton("» Avance 2", new Color(0x3C, 0x3C, 0x3C), TEXT_MAIN);
         //btns.add(btnOperaciones);
+        JButton btnMuestreo = makeButton("» Sem2 Av.1", new Color(0x3C, 0x3C, 0x3C), TEXT_MAIN);
+        btns.add(btnMuestreo);
 
         header.add(btns, BorderLayout.EAST);
         panel.add(header, BorderLayout.NORTH);
@@ -142,8 +144,9 @@ public class AnalyzerIDE extends JFrame {
         btnExcel.addActionListener(e -> exportToExcel());
         btnAbrir.addActionListener(e -> abrirArchivo());
         //btnAvance1.addActionListener(e -> btnGuardarLogActionPerformed(null));
-        btnExpresiones.addActionListener(e -> btnGuardarExpresionesActionPerformed(null));
-        btnOperaciones.addActionListener(e -> btnGuardarOperacionesActionPerformed());
+        //btnExpresiones.addActionListener(e -> btnGuardarExpresionesActionPerformed(null));
+        //btnOperaciones.addActionListener(e -> btnGuardarOperacionesActionPerformed());
+        btnMuestreo.addActionListener(e -> btnGuardarMuestreoSemantica2ActionPerformed());
         // ── Editor de texto ──────────────────────────────────────────────────
         codeEditor = new JTextPane();
         codeEditor.setBackground(BG_DARK);
@@ -549,6 +552,55 @@ public class AnalyzerIDE extends JFrame {
                         "Error",
                         javax.swing.JOptionPane.ERROR_MESSAGE
                 );
+            }
+        }
+    }
+    // ════════════════════════════════════════════════════════════════════════
+    // Guardar archivo .txt del muestreo de Semántica 2 (Avance 1)
+    // ════════════════════════════════════════════════════════════════════════
+    private void btnGuardarMuestreoSemantica2ActionPerformed() {
+
+        String contenido = parserLexer.getLogMuestreoSemantica2();
+
+        // Solo trae el renglón de encabezados cuando aún no se compiló nada
+        // (o el programa no activó ninguna regla).
+        if (contenido.trim().split("\\R").length <= 1) {
+            javax.swing.JOptionPane.showMessageDialog(
+                this,
+                "No hay registros de muestreo. Compila primero un programa que active las reglas 1 a 5.",
+                "Sin información",
+                javax.swing.JOptionPane.WARNING_MESSAGE
+            );
+            return;
+        }
+
+        javax.swing.JFileChooser fileChooser = new javax.swing.JFileChooser();
+        fileChooser.setDialogTitle("Guardar muestreo de Semántica 2 (Avance 1)");
+        fileChooser.setSelectedFile(new java.io.File("Semantica2-Avance1-DavidAlatorre.txt"));
+
+        if (fileChooser.showSaveDialog(this) == javax.swing.JFileChooser.APPROVE_OPTION) {
+
+            java.io.File archivo = fileChooser.getSelectedFile();
+
+            if (!archivo.getName().toLowerCase().endsWith(".txt")) {
+                archivo = new java.io.File(archivo.getAbsolutePath() + ".txt");
+            }
+
+            try {
+                java.nio.file.Files.writeString(
+                        archivo.toPath(), contenido, java.nio.charset.StandardCharsets.UTF_8);
+                javax.swing.JOptionPane.showMessageDialog(
+                        this,
+                        "El muestreo se guardó correctamente.\n\nArchivo:\n"
+                        + archivo.getAbsolutePath(),
+                        "Archivo guardado",
+                        javax.swing.JOptionPane.INFORMATION_MESSAGE);
+            } catch (java.io.IOException ex) {
+                javax.swing.JOptionPane.showMessageDialog(
+                        this,
+                        "Error al guardar el muestreo:\n" + ex.getMessage(),
+                        "Error",
+                        javax.swing.JOptionPane.ERROR_MESSAGE);
             }
         }
     }

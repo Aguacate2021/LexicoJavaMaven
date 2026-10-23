@@ -117,6 +117,37 @@ public class sintaxis {
     // Operaciones generadas ("Linea N:" + cuádruplas) de toda la compilación.
     private final StringBuilder logOperaciones = new StringBuilder();
 
+    // =========================================================
+    // AVANCE 1 DE SEMÁNTICA 2: MUESTREO DE LAS REGLAS 1 A 5
+    // Solo se registra información que el análisis ya tiene.
+    // No se valida nada (ver sección "AVANCE 1 SEMÁNTICA 2").
+    // =========================================================
+    private static final String ARCHIVO_MUESTREO_SEM2 = "Semantica2-Avance1-DavidAlatorre.txt";
+
+    private final MuestreoSemantico muestreo = new MuestreoSemantico();
+
+    // Último identificador consumido (cualquiera) y el ámbito donde se resolvió.
+    private String ultimoId = "";
+    private int ultimoIdAmbito = 0;
+    // Último identificador consumido fuera de corchetes: es el receptor de una
+    // asignación.
+    private String ultimoIdFueraIndice = "";
+
+    // Condición de control en curso (IF/ELSEIF/WHILE/DO-WHILE). condClave == 0:
+    // ninguna.
+    private int condClave = 0;
+    private String condDescripcion = "";
+    private int condLinea = 0;
+    private int condColumna = 0;
+    private int condProf = 0;
+    private final StringBuilder condTexto = new StringBuilder();
+
+    // Tamaños de pila donde espera su "while" cada "do" abierto.
+    private final Set<Integer> doWhilePendientes = new HashSet<>();
+
+    // Accesos a arreglo "id[...]" en curso (pueden anidarse: a[b[1]]).
+    private final List<AccesoArreglo> accesosArreglo = new ArrayList<>();
+
     // Estadísticas por línea de operación (Avance final Semántica 1).
     // línea -> int[10]: [0..8] = temporales GENERADOS de TBin, TDec, TOct, THex,
     // TReal, Texp, TCadena, TBoolean, TVariant; [9] = asignaciones.
@@ -237,6 +268,10 @@ public class sintaxis {
         return logOperaciones.toString();
     }
 
+    public String getLogMuestreoSemantica2() {
+        return muestreo.generarTabla();
+    }
+
     public Map<Integer, int[]> getEstadisticasSemantica() {
         return estadisticasSemantica;
     }
@@ -260,6 +295,8 @@ public class sintaxis {
         // -----------------------------------------------------
 
         logBuilder.setLength(0);
+
+        reiniciarMuestreoSemantica2();
 
         erroresSintaxis.clear();
         erroresAmbito.clear();
@@ -501,6 +538,7 @@ public class sintaxis {
                     Producciones.aplicarProduccion(
                             ps,
                             resultado);
+                    registrarMuestreoPorProduccion(resultado, tokenActual, ps);
                     log(
                             "NT=" + cima +
                                     " → producción " +
@@ -715,6 +753,28 @@ public class sintaxis {
                         }
 
                         // =================================================
+                        // Avance 1 Semántica 2: seguimiento para el muestreo
+                        // =================================================
+                        ultimoId = id;
+                        ultimoIdAmbito = (AreaDeEjecuciones && encontrado && ambitoEncontrado >= 0)
+                                ? ambitoEncontrado
+                                : AmbitoActual.peek();
+                        if (accesosArreglo.isEmpty()) {
+                            ultimoIdFueraIndice = id;
+                        }
+                        if (condClave != 0 || !accesosArreglo.isEmpty()) {
+                            String tipoId = AreaDeEjecuciones
+                                    ? ((encontrado && ambitoEncontrado >= 0)
+                                            ? tabla.obtenerTipo(id, ambitoEncontrado)
+                                            : null)
+                                    : obtenerTipoDeToken(tc);
+                            alimentarMuestreo(tokenActual,
+                                    (tipoId == null || tipoId.isEmpty())
+                                            ? "No declarado"
+                                            : tipoId);
+                        }
+
+                        // =================================================
                         // MATCH IDENTIFICADOR
                         // =================================================
 
@@ -799,6 +859,12 @@ public class sintaxis {
                     // MATCH NORMAL
                     // -------------------------------------------------
 
+                    // Avance 1 Semántica 2: el "while" que cierra un do-while
+                    // (se reconoce por la posición que ocupa en la pila).
+                    if (cima == -95 && doWhilePendientes.remove(ps.size())) {
+                        iniciarCondicion(1013, "DO-WHILE", tokenActual);
+                    }
+
                     ps.pop();
 
                     lt.removeFirst();
@@ -806,6 +872,8 @@ public class sintaxis {
                     log(
                             "Match: " +
                                     tokenActual.getLexema());
+
+                    alimentarMuestreo(tokenActual, null);
 
                     // -------------------------------------------------
                     // ALGORITMO INFIJA -> POSTFIJA
@@ -920,6 +988,13 @@ public class sintaxis {
                             "Cima residual: " +
                             tokenActual.getLexema(),
                     -2000);
+        }
+
+        // Avance 1 Semántica 2: se escribe el TXT de muestreo
+        String rutaMuestreo = muestreo.guardarArchivo(ARCHIVO_MUESTREO_SEM2);
+        if (rutaMuestreo != null) {
+            System.out.println("[MUESTREO] Archivo generado: " + rutaMuestreo
+                    + " (" + muestreo.cantidad() + " registros)");
         }
 
         boolean exitoso = lt.isEmpty()
@@ -1044,6 +1119,283 @@ public class sintaxis {
                             + " | "
                             + descripcion);
         }
+    }
+
+    // =========================================================
+    // AVANCE 1 SEMÁNTICA 2: MUESTREO DE LAS REGLAS 1 A 5
+    //
+    // Estos métodos NO validan nada. Solo observan por dónde pasa el
+    // análisis y anotan, para cada regla, la información que el
+    // compilador ya tiene (línea, lexema, ámbito, datos de la tabla
+    // de símbolos). La "situación" es siempre "Activada" más los datos
+    // disponibles; no se compara ningún tipo, dimensión ni rango.
+    //
+    // 1010 IF -> producción 87 (NT STATU con "if")
+    // 1011 ELSEIF -> producción 98 (NT del else-part con "elseif")
+    // 1012 WHILE -> producción 90 (NT STATU con "while")
+    // 1013 DO-WHILE -> producción 91 (do) y match del "while" de cierre
+    // 1020 = -> producción 38 (NT ASIG)
+    // 1021 += -> producción 39
+    // 1022 -= *= /= -> producciones 40, 41 y 42
+    // 1030/1040/1050 -> producción 81 (NT ARR: acceso "id[...]"),
+    // se registran al cerrar el "]"
+    // =========================================================
+
+    private static class AccesoArreglo {
+        final String id;
+        final int linea;
+        final int columna;
+        final String tarr; // tamaños declarados, ej. "5,3" (puede ser null)
+        final String dimarr; // número de dimensiones declaradas (puede ser null)
+        boolean abierto = false;
+        int par = 0;
+        final List<List<String>> idxLexemas = new ArrayList<>();
+        final List<List<String>> idxTipos = new ArrayList<>();
+
+        AccesoArreglo(String id, int linea, int columna, String tarr, String dimarr) {
+            this.id = id;
+            this.linea = linea;
+            this.columna = columna;
+            this.tarr = tarr;
+            this.dimarr = dimarr;
+        }
+
+        void nuevoIndice() {
+            idxLexemas.add(new ArrayList<>());
+            idxTipos.add(new ArrayList<>());
+        }
+
+        void agregar(String lexema, String tipo) {
+            if (idxLexemas.isEmpty()) {
+                nuevoIndice();
+            }
+            idxLexemas.get(idxLexemas.size() - 1).add(lexema);
+            idxTipos.get(idxTipos.size() - 1).add(tipo);
+        }
+    }
+
+    private void reiniciarMuestreoSemantica2() {
+        muestreo.limpiar();
+        ultimoId = "";
+        ultimoIdAmbito = 0;
+        ultimoIdFueraIndice = "";
+        condClave = 0;
+        condProf = 0;
+        condTexto.setLength(0);
+        doWhilePendientes.clear();
+        accesosArreglo.clear();
+    }
+
+    private void registrarMuestreoPorProduccion(int produccion, Token t, Stack<Integer> ps) {
+        switch (produccion) {
+            case 87 -> iniciarCondicion(1010, "IF", t);
+            case 98 -> iniciarCondicion(1011, "ELSEIF", t);
+            case 90 -> iniciarCondicion(1012, "WHILE", t);
+            // Ya apiladas -50 35 -49 -95 24 -96 (-96 en la cima): el -95
+            // queda dos posiciones por debajo de la cima actual.
+            case 91 -> doWhilePendientes.add(ps.size() - 2);
+            case 38 -> registrarAsignacion(1020, "Asignación básica", t);
+            case 39 -> registrarAsignacion(1021, "Asignación +=", t);
+            case 40, 41, 42 -> registrarAsignacion(1022,
+                    "Asignación compuesta (" + t.getLexema().trim() + ")", t);
+            case 81 -> abrirAccesoArreglo(t);
+            default -> {
+            }
+        }
+    }
+
+    private void registrarAsignacion(int regla, String descripcion, Token operador) {
+        muestreo.registrar(
+                operador.getLinea(),
+                regla,
+                descripcion,
+                "Activada",
+                ultimoIdFueraIndice,
+                obtenerAmbitoActual(),
+                operador.getColumna());
+    }
+
+    // ---------- Regla 1: condiciones ----------
+
+    private void iniciarCondicion(int clave, String descripcion, Token t) {
+        condClave = clave;
+        condDescripcion = descripcion;
+        condLinea = t.getLinea();
+        condColumna = t.getColumna();
+        condProf = 0;
+        condTexto.setLength(0);
+    }
+
+    private void alimentarCondicion(Token t) {
+        if (condClave == 0) {
+            return;
+        }
+        int tc = t.getTokenClass();
+        String lex = t.getLexema().trim();
+
+        if (tc == -49) { // (
+            condProf++;
+            if (condProf == 1) {
+                return; // paréntesis exterior: no es parte de EXP
+            }
+        } else if (tc == -50) { // )
+            if (condProf == 0) {
+                return;
+            }
+            condProf--;
+            if (condProf == 0) {
+                muestreo.registrar(
+                        condLinea,
+                        condClave,
+                        condDescripcion,
+                        "Activada",
+                        condTexto.toString(),
+                        obtenerAmbitoActual(),
+                        condColumna);
+                condClave = 0;
+                return;
+            }
+        } else if (condProf == 0) {
+            return; // palabra clave u otros tokens antes del "("
+        }
+
+        if (condTexto.length() > 0) {
+            condTexto.append(' ');
+        }
+        condTexto.append(lex);
+    }
+
+    // ---------- Reglas 3, 4 y 5: accesos a arreglo ----------
+
+    private void abrirAccesoArreglo(Token corcheteAbre) {
+        String[] datos = ultimoId.isEmpty()
+                ? null
+                : tabla.obtenerDatosArreglo(ultimoId, ultimoIdAmbito);
+
+        accesosArreglo.add(new AccesoArreglo(
+                ultimoId,
+                corcheteAbre.getLinea(),
+                corcheteAbre.getColumna(),
+                datos != null ? datos[0] : null,
+                datos != null ? datos[1] : null));
+    }
+
+    private void alimentarAccesosArreglo(Token t, String tipoId) {
+        int n = accesosArreglo.size();
+        if (n == 0) {
+            return;
+        }
+        int tc = t.getTokenClass();
+        String lex = t.getLexema().trim();
+        String tipo = tipoDeTokenParaMuestreo(tc, tipoId);
+
+        // Los accesos exteriores solo acumulan el texto de lo que pasa
+        // dentro de sus corchetes (ej. a[b[1]] -> el índice de "a" es "b [ 1 ]").
+        for (int i = 0; i < n - 1; i++) {
+            AccesoArreglo exterior = accesosArreglo.get(i);
+            if (exterior.abierto) {
+                exterior.agregar(lex, tipo);
+            }
+        }
+
+        AccesoArreglo a = accesosArreglo.get(n - 1);
+
+        if (tc == -47 && !a.abierto) { // [
+            a.abierto = true;
+            a.nuevoIndice();
+            return;
+        }
+        if (!a.abierto) {
+            return;
+        }
+        if (tc == -48 && a.par == 0) { // ]
+            accesosArreglo.remove(n - 1);
+            registrarAccesoArreglo(a);
+            return;
+        }
+        if (tc == -7 && a.par == 0) { // , separa índices
+            a.nuevoIndice();
+            return;
+        }
+        if (tc == -49) {
+            a.par++;
+        } else if (tc == -50 && a.par > 0) {
+            a.par--;
+        }
+        a.agregar(lex, tipo);
+    }
+
+    private void registrarAccesoArreglo(AccesoArreglo a) {
+
+        int ambito = obtenerAmbitoActual();
+        int usados = a.idxLexemas.size();
+        int base = a.columna * 100;
+
+        // Regla 3 (1030): solo se muestran los dos datos, no se comparan.
+        muestreo.registrar(
+                a.linea, 1030, "AR-DIM",
+                "Activada (dimensiones declaradas="
+                        + (a.dimarr == null ? "N/D" : a.dimarr)
+                        + ", índices usados=" + usados + ")",
+                a.id, ambito, base);
+
+        // Regla 4 (1040): un registro por cada expresión de índice.
+        for (int k = 0; k < usados; k++) {
+            List<String> lx = a.idxLexemas.get(k);
+            List<String> tp = a.idxTipos.get(k);
+            String situacion;
+            if (lx.isEmpty()) {
+                situacion = "Activada (índice sin expresión)";
+            } else if (lx.size() == 1) {
+                situacion = tp.get(0) != null
+                        ? "Activada (tipo del índice: " + tp.get(0) + ")"
+                        : "Activada (tipo no disponible)";
+            } else {
+                situacion = "Activada (expresión compuesta; el compilador no calcula su tipo)";
+            }
+            muestreo.registrar(
+                    a.linea, 1040, "AR-ENT", situacion,
+                    String.join(" ", lx), ambito, base + k + 1);
+        }
+
+        // Regla 5 (1050): un registro por cada índice, con el tamaño
+        // declarado de su dimensión tal como está en la tabla de símbolos.
+        String[] tamanos = a.tarr == null ? new String[0] : a.tarr.split(",");
+        for (int k = 0; k < usados; k++) {
+            String tam = k < tamanos.length ? tamanos[k].trim() : "N/D";
+            muestreo.registrar(
+                    a.linea, 1050, "AR-RANG",
+                    "Activada (dimensión " + (k + 1) + ", tamaño declarado=" + tam + ")",
+                    String.join(" ", a.idxLexemas.get(k)), ambito, base + k + 1);
+        }
+    }
+
+    /** Nombre del tipo de un token, solo con lo que el compilador ya sabe de él. */
+    private String tipoDeTokenParaMuestreo(int tc, String tipoId) {
+        if (tipoId != null) {
+            return tipoId; // identificador: tipo de la tabla de símbolos
+        }
+        boolean constante = (tc <= -53 && tc >= -59) || tc == -72 || tc == -73;
+        if (!constante) {
+            return null;
+        }
+        return switch (LeerCSVComparacion.tipoDeToken(tc)) {
+            case LeerCSVComparacion.T_BIN -> "Binario";
+            case LeerCSVComparacion.T_DEC -> "Decimal";
+            case LeerCSVComparacion.T_OCT -> "Octal";
+            case LeerCSVComparacion.T_HEX -> "Hexadecimal";
+            case LeerCSVComparacion.T_REAL -> "Real";
+            case LeerCSVComparacion.T_EXP -> "Exponencial";
+            case LeerCSVComparacion.T_CADENA -> "Cadena";
+            case LeerCSVComparacion.T_BOOLEAN -> "Booleanas";
+            default -> null;
+        };
+    }
+
+    /** Punto único por el que pasa cada token consumido, para el muestreo. */
+    private void alimentarMuestreo(Token t, String tipoId) {
+        alimentarCondicion(t);
+        alimentarAccesosArreglo(t, tipoId);
     }
 
     // =========================================================
@@ -1444,17 +1796,6 @@ public class sintaxis {
         return nombre;
     }
 
-    /**
-     * TBoolean3 -> TBoolean (solo para temporales Boolean; el resto conserva su
-     * número).
-     */
-    private String nombreTemporalAsignacion(String texto, int tipo) {
-        if (tipo == LeerCSVComparacion.T_BOOLEAN && tipoDeTemporal.containsKey(texto)) {
-            return texto.replaceAll("\\d+$", "");
-        }
-        return texto;
-    }
-
     /** tipo (1..10) -> columna de estadisticasSemantica; -1 si no tiene columna. */
     private static int columnaEstadistica(int tipo) {
         if (tipo >= LeerCSVComparacion.T_BIN && tipo <= LeerCSVComparacion.T_CADENA)
@@ -1504,12 +1845,10 @@ public class sintaxis {
      * ternario, unarios): el temporal es Variant, sin error.
      */
     private void generarOperaciones(List<Token> postfijo, int linea) {
-
         Stack<Operando> pila = new Stack<>();
         StringBuilder bloque = new StringBuilder();
         int[] stats = new int[10];
         estadisticaLineaActual = stats;
-
         for (Token t : postfijo) {
 
             int tc = t.getTokenClass();
@@ -1530,31 +1869,25 @@ public class sintaxis {
                 pila.push(new Operando(tmp, LeerCSVComparacion.T_VARIANT));
             }
             // asignación: no genera temporal
-            // asignación: no genera temporal
-            // asignación: genera un TVariant (resultado de la operación "=")
             else if (esAsignacion(tc)) {
-                stats[9]++;
+                stats[9]++; // asignación (no genera temporal)
                 Operando valor = sacar(pila);
                 Operando destino = sacar(pila);
-
-                // Temporal Variant de la asignación (cuenta en la columna TVariant de la
-                // línea).
-                // No se agrega a la cuádrupla para no alterar el formato del archivo de Avance
-                // 2.
-                nuevoTemporal(LeerCSVComparacion.T_VARIANT);
-
                 bloque.append(lex).append(",").append(destino.texto).append(",")
                         .append(valor.texto).append("\n");
 
-                // Formato de detalle: #DX -> TBoolean (sin número en booleanos)
-                String formatoAsig = destino.texto + " -> "
-                        + nombreTemporalAsignacion(valor.texto, valor.tipo);
+                // Formato exacto de asignación: #DX -> TBoolean3
+                String formatoAsig = destino.texto + " -> " + valor.texto;
                 asignacionesDetalle.computeIfAbsent(linea, k -> new ArrayList<>()).add(formatoAsig);
 
-                // destino.tipo ya viene resuelto con la cadena de ámbitos
-                if (!comparacion.asignacionCompatible(destino.tipo, valor.tipo)) {
-                    registrarErrorSemantico(linea, destino.texto + " = " + valor.texto,
-                            "Tipos de datos incompatibles en la operación de asignación");
+                // Comprobar compatibilidad de tipos en la asignación
+                int tipoDestino = tipoSemanticoDeSimbolo(tabla.obtenerTipo(destino.texto, obtenerAmbitoActual()));
+                if (tipoDestino != LeerCSVComparacion.T_VARIANT && valor.tipo != LeerCSVComparacion.T_VARIANT) {
+                    int rAsig = comparacion.ObtenerTipoPorTipos(tipoDestino, valor.tipo, -33);
+                    if (rAsig < 0) {
+                        registrarErrorSemantico(linea, destino.texto + " = " + valor.texto,
+                                "Tipos de datos incompatibles en la operación de asignación");
+                    }
                 }
                 pila.push(destino);
             }
@@ -1578,7 +1911,6 @@ public class sintaxis {
                 if (LeerCSVComparacion.tieneTabla(tc)) {
                     int r = comparacion.ObtenerTipoPorTipos(izq.tipo, der.tipo, tc);
                     if (r < 0) {
-                        // Concatenar expresión completa para el lexema del error semántico: "54 * #OE"
                         String lexemaCompleto = izq.texto + " " + lex + " " + der.texto;
                         registrarErrorSemantico(linea, lexemaCompleto,
                                 "incompatibilidad de tipo " + nombreOperacion(tc));

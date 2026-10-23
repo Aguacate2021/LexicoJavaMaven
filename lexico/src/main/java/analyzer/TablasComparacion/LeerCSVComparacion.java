@@ -199,7 +199,7 @@ public static int obtenerNumeroDeString(String valor) {
         case "oct":
             return 3;
         case "hex":
-        case "hexa": // CORRECCIÓN: los CSV escriben "Hexa" en varias celdas
+        case "hexa": 
             return 4;
         case "real":
             return 5;

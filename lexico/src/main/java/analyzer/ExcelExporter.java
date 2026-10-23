@@ -664,7 +664,6 @@ public class ExcelExporter {
                                          List<ErrorEntry> errores) {
 
         XSSFSheet ws = wb.createSheet("SEMANTICA 1");
-
         String[] encabezados = {
             "Linea", "TBin", "TDec", "TOct", "THex", "TReal", "Texp",
             "TCadena", "TBoolean", "TVariant", "Asignaciones", "Errores"
@@ -673,15 +672,12 @@ public class ExcelExporter {
         for (int i = 0; i < encabezados.length; i++) {
             ws.setColumnWidth(i, (i == 10 ? 25 : 12) * 256);
         }
-
         XSSFRow encabezado = ws.createRow(0);
         encabezado.setHeightInPoints(18);
         CellStyle estiloEnc = estiloEncabezado(wb);
         for (int i = 0; i < encabezados.length; i++) {
             celda(encabezado, i, encabezados[i], estiloEnc);
         }
-
-        // Únicamente errores de Semántica 1
         Map<Integer, Integer> erroresPorLinea = new LinkedHashMap<>();
         if (errores != null) {
             for (ErrorEntry e : errores) {
@@ -690,10 +686,8 @@ public class ExcelExporter {
                 }
             }
         }
-
         int[] totales = new int[11]; // 9 temporales + asignaciones count + errores
         int fila = 1;
-
         if (estadisticas != null) {
             for (Map.Entry<Integer, int[]> entrada : estadisticas.entrySet()) {
 
