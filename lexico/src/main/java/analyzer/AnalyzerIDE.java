@@ -134,7 +134,7 @@ public class AnalyzerIDE extends JFrame {
         //btns.add(btnExpresiones);
         //JButton btnOperaciones = makeButton("» Avance 2", new Color(0x3C, 0x3C, 0x3C), TEXT_MAIN);
         //btns.add(btnOperaciones);
-        JButton btnMuestreo = makeButton("» Sem2 Av.1", new Color(0x3C, 0x3C, 0x3C), TEXT_MAIN);
+        JButton btnMuestreo = makeButton("» Sem2 Av.2", new Color(0x3C, 0x3C, 0x3C), TEXT_MAIN);
         btns.add(btnMuestreo);
 
         header.add(btns, BorderLayout.EAST);
@@ -556,7 +556,7 @@ public class AnalyzerIDE extends JFrame {
         }
     }
     // ════════════════════════════════════════════════════════════════════════
-    // Guardar archivo .txt del muestreo de Semántica 2 (Avance 1)
+    // Guardar archivo .txt del muestreo de Semántica 2 (Avance 2)
     // ════════════════════════════════════════════════════════════════════════
     private void btnGuardarMuestreoSemantica2ActionPerformed() {
 
@@ -567,7 +567,7 @@ public class AnalyzerIDE extends JFrame {
         if (contenido.trim().split("\\R").length <= 1) {
             javax.swing.JOptionPane.showMessageDialog(
                 this,
-                "No hay registros de muestreo. Compila primero un programa que active las reglas 1 a 5.",
+                "No hay registros de muestreo. Compila primero un programa que active las reglas 1 a 10.",
                 "Sin información",
                 javax.swing.JOptionPane.WARNING_MESSAGE
             );
@@ -575,8 +575,8 @@ public class AnalyzerIDE extends JFrame {
         }
 
         javax.swing.JFileChooser fileChooser = new javax.swing.JFileChooser();
-        fileChooser.setDialogTitle("Guardar muestreo de Semántica 2 (Avance 1)");
-        fileChooser.setSelectedFile(new java.io.File("Semantica2-Avance1-DavidAlatorre.txt"));
+        fileChooser.setDialogTitle("Guardar muestreo de Semántica 2 (Avance 2)");
+        fileChooser.setSelectedFile(new java.io.File("Semantica2-Avance2-DavidAlatorre.txt"));
 
         if (fileChooser.showSaveDialog(this) == javax.swing.JFileChooser.APPROVE_OPTION) {
 

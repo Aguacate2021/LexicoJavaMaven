@@ -5,6 +5,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -122,7 +123,7 @@ public class sintaxis {
     // Solo se registra información que el análisis ya tiene.
     // No se valida nada (ver sección "AVANCE 1 SEMÁNTICA 2").
     // =========================================================
-    private static final String ARCHIVO_MUESTREO_SEM2 = "Semantica2-Avance1-DavidAlatorre.txt";
+    private static final String ARCHIVO_MUESTREO_SEM2 = "Semantica2-Avance2-DavidAlatorre.txt";
 
     private final MuestreoSemantico muestreo = new MuestreoSemantico();
 
@@ -404,6 +405,7 @@ public class sintaxis {
                 // -------------------------------------------------
                 if (cima == 800) {
 
+                    enEncabezadoFor = false;
                     AreaDeDeclaraciones = false;
                     AreaDeEjecuciones = true;
 
@@ -564,6 +566,18 @@ public class sintaxis {
                         if (produccionActual == 12
                                 || produccionActual == 17) {
 
+                            // Si ya había un arreglo pendiente en la misma lista
+                            // ("var #DA[5], @B[3];") se guarda ahora, antes de
+                            // pisar idArreglo; antes solo se guardaba el último
+                            // al llegar el ';' y los anteriores quedaban como Variable.
+                            if (!idArreglo.isEmpty() && DimensionesArreglo > 0) {
+                                tabla.actualizarArreglo(
+                                        idArreglo,
+                                        ambitoArreglo,
+                                        TamañoArreglo,
+                                        DimensionesArreglo);
+                            }
+
                             idArreglo = id;
 
                             TamañoArreglo = "";
@@ -586,7 +600,39 @@ public class sintaxis {
                         // =================================================
                         // DECLARACIONES
                         // =================================================
-                        if (AreaDeDeclaraciones) {
+                        int ambitoEncontrado = -1;
+
+                        // Encabezado de un FOR: la gramática (marcador 801) abre
+                        // un área de declaración para la primera expresión. Un
+                        // identificador que ya existe en un ámbito accesible se
+                        // reutiliza; si no existe, se declara en el ámbito del FOR.
+                        boolean encabezadoFor = AreaDeDeclaraciones
+                                && enEncabezadoFor
+                                && produccionActual == 44;
+
+                        if (encabezadoFor) {
+                            encontrado = false;
+                            for (int i = AmbitoActual.size() - 1; i >= 0; i--) {
+                                int amb = AmbitoActual.get(i);
+                                if (tabla.idExiste(id, amb)) {
+                                    encontrado = true;
+                                    ambitoEncontrado = amb;
+                                    break;
+                                }
+                            }
+                            if (!encontrado) {
+                                ambitoEncontrado = AmbitoActual.peek();
+                                tabla.insertar(
+                                        id,
+                                        obtenerTipoDeToken(tc),
+                                        "Variable",
+                                        ambitoEncontrado,
+                                        null, null, null, null);
+                                encontrado = true;
+                                log("Símbolo declarado en encabezado FOR: "
+                                        + id + " | ámbito=" + ambitoEncontrado);
+                            }
+                        } else if (AreaDeDeclaraciones) {
                             encontrado = tabla.idExiste(id, AmbitoActual.peek());
                             // ---------------------------------------------
                             // ID YA EXISTE EN EL ÁMBITO ACTUAL
@@ -716,8 +762,6 @@ public class sintaxis {
                         // EJECUCIONES
                         // =================================================
 
-                        int ambitoEncontrado = -1;
-
                         if (AreaDeEjecuciones) {
 
                             encontrado = false;
@@ -755,15 +799,16 @@ public class sintaxis {
                         // =================================================
                         // Avance 1 Semántica 2: seguimiento para el muestreo
                         // =================================================
+                        boolean modoUso = AreaDeEjecuciones || encabezadoFor;
                         ultimoId = id;
-                        ultimoIdAmbito = (AreaDeEjecuciones && encontrado && ambitoEncontrado >= 0)
+                        ultimoIdAmbito = (modoUso && encontrado && ambitoEncontrado >= 0)
                                 ? ambitoEncontrado
                                 : AmbitoActual.peek();
                         if (accesosArreglo.isEmpty()) {
                             ultimoIdFueraIndice = id;
                         }
                         if (condClave != 0 || !accesosArreglo.isEmpty()) {
-                            String tipoId = AreaDeEjecuciones
+                            String tipoId = modoUso
                                     ? ((encontrado && ambitoEncontrado >= 0)
                                             ? tabla.obtenerTipo(id, ambitoEncontrado)
                                             : null)
@@ -774,6 +819,11 @@ public class sintaxis {
                                             : tipoId);
                         }
 
+                        // Avance 2 Semántica 2: reglas 10 (1100), 7 (++/--) y
+                        // alimentación de las capturas de expresión.
+                        procesarIdSemantica2(tokenActual, id, tc, modoUso,
+                                encontrado, ambitoEncontrado);
+
                         // =================================================
                         // MATCH IDENTIFICADOR
                         // =================================================
@@ -782,7 +832,7 @@ public class sintaxis {
                             // Avance 2: tipo del operando. No declarado => Variant
                             // (el error de "no declarado" ya se registró arriba).
                             int tipoSem = LeerCSVComparacion.T_VARIANT;
-                            if (AreaDeEjecuciones) {
+                            if (modoUso) {
                                 if (encontrado && ambitoEncontrado >= 0) {
                                     tipoSem = tipoSemanticoDeSimbolo(
                                             tabla.obtenerTipo(id, ambitoEncontrado));
@@ -874,6 +924,13 @@ public class sintaxis {
                                     tokenActual.getLexema());
 
                     alimentarMuestreo(tokenActual, null);
+
+                    // Avance 2 Semántica 2: cierre de SWITCH (su "}") y capturas.
+                    if (cima == -46 && !switches.isEmpty()
+                            && switches.peek().base == ps.size()) {
+                        switches.pop();
+                    }
+                    alimentarCapturas(tokenActual);
 
                     // -------------------------------------------------
                     // ALGORITMO INFIJA -> POSTFIJA
@@ -1184,6 +1241,7 @@ public class sintaxis {
         condTexto.setLength(0);
         doWhilePendientes.clear();
         accesosArreglo.clear();
+        reiniciarSemantica2Avance2();
     }
 
     private void registrarMuestreoPorProduccion(int produccion, Token t, Stack<Integer> ps) {
@@ -1199,6 +1257,19 @@ public class sintaxis {
             case 40, 41, 42 -> registrarAsignacion(1022,
                     "Asignación compuesta (" + t.getLexema().trim() + ")", t);
             case 81 -> abrirAccesoArreglo(t);
+            // ---- Avance 2 de Semántica 2 (reglas 6 a 10) ----
+            case 93 -> iniciarCapturaParen(CAP_FOR, t, null);
+            case 94 -> {
+                // Ya apiladas -99 -49 35 -50 -45 30 -46: el "}" de cierre
+                // (-46) queda siete posiciones por debajo del tope.
+                SwitchCtx sw = new SwitchCtx(ps.size() - 7);
+                switches.push(sw);
+                iniciarCapturaParen(CAP_SWITCH, t, sw);
+            }
+            case 107 -> capCase = new CapCase(t);
+            case 45, 46 -> unarioPendiente = t;
+            case 47 -> iniciarCapturaParen(CAP_NOT, t, null);
+            case 48 -> iniciarCapturaParen(CAP_TILDE, t, null);
             default -> {
             }
         }
@@ -1213,6 +1284,7 @@ public class sintaxis {
                 ultimoIdFueraIndice,
                 obtenerAmbitoActual(),
                 operador.getColumna());
+        validarClaseReceptor(operador);
     }
 
     // ---------- Regla 1: condiciones ----------
@@ -1396,6 +1468,788 @@ public class sintaxis {
     private void alimentarMuestreo(Token t, String tipoId) {
         alimentarCondicion(t);
         alimentarAccesosArreglo(t, tipoId);
+    }
+
+    // =========================================================
+    // AVANCE 2 DE SEMÁNTICA 2: REGLAS 6 A 10
+    //
+    // 1060/1061 SWITCH-CASE | 1070 operador unario | 1080..1084 FOR
+    // 1090 clase del receptor de una asignación | 1100 identificador declarado
+    //
+    // A diferencia del Avance 1 (solo muestreo), estas reglas SÍ validan:
+    // cada una escribe una fila "ACEPT" o "ERROR (motivo)" en el muestreo y,
+    // si es error, agrega un ErrorEntry (Tipo.SEMANTICA) a erroresSintaxis.
+    //
+    // El tipo de una expresión completa (condición del FOR, expresión del
+    // SWITCH, valor de un CASE...) NO lo calcula la maquinaria infija->postfija
+    // (esa solo cubre asignaciones), así que aquí se captura la lista de tokens
+    // de la expresión y se evalúa con las mismas tablas CSV (LeerCSVComparacion)
+    // y la misma tabla de símbolos del proyecto.
+    // =========================================================
+
+    private static final int CAP_SWITCH = 1;
+    private static final int CAP_NOT = 2;
+    private static final int CAP_TILDE = 3;
+    private static final int CAP_FOR = 4;
+
+    /** Lo que el análisis resolvió de un identificador en el momento de consumirlo. */
+    private static class IdInfo {
+        final boolean declarado;
+        final String tipo;
+        final String clase;
+        final int ambito;
+
+        IdInfo(boolean declarado, String tipo, String clase, int ambito) {
+            this.declarado = declarado;
+            this.tipo = tipo;
+            this.clase = clase;
+            this.ambito = ambito;
+        }
+    }
+
+    /** Captura de los tokens entre un "(" y su ")" (SWITCH, FOR, ! y ~). */
+    private static class CapParen {
+        final int clase;
+        final Token origen;
+        final SwitchCtx sw;
+        final List<Token> toks = new ArrayList<>();
+        boolean iniciada = false;
+        int par = 0;
+
+        CapParen(int clase, Token origen, SwitchCtx sw) {
+            this.clase = clase;
+            this.origen = origen;
+            this.sw = sw;
+        }
+    }
+
+    /** Captura de la expresión de un CASE (hasta su ":"). */
+    private static class CapCase {
+        final Token origen;
+        final List<Token> toks = new ArrayList<>();
+        boolean iniciada = false;
+        int par = 0, brk = 0, tern = 0;
+
+        CapCase(Token origen) {
+            this.origen = origen;
+        }
+    }
+
+    /** Un SWITCH abierto: sirve para validar sus CASE (pueden anidarse). */
+    private static class SwitchCtx {
+        final int base; // posición, en la pila del parser, de su "}"
+        String texto = "";
+        Integer tipoRef = null; // tipo contra el que se comparan los CASE
+        SwitchCtx(int base) {
+            this.base = base;
+        }
+    }
+
+    /** Resultado de evaluar una expresión. */
+    private static class Val {
+        final int tipo;
+        Token idSimple = null; // si la expresión es un identificador solo
+        boolean arreglo = false; // ese identificador es de clase Arreglo (sin índice)
+
+        Val(int tipo) {
+            this.tipo = tipo;
+        }
+    }
+
+    private final Map<Token, IdInfo> idInfos = new IdentityHashMap<>();
+    private final List<CapParen> capsParen = new ArrayList<>();
+    private final Stack<SwitchCtx> switches = new Stack<>();
+    private CapCase capCase = null;
+    private Token unarioPendiente = null;
+    private Token ultimoIdFueraTok = null;
+    private boolean enEncabezadoFor = false;
+
+    private void reiniciarSemantica2Avance2() {
+        idInfos.clear();
+        capsParen.clear();
+        switches.clear();
+        capCase = null;
+        unarioPendiente = null;
+        ultimoIdFueraTok = null;
+        enEncabezadoFor = false;
+    }
+
+    // ---------- Registro de filas y errores ----------
+
+    private static String descripcionRegla(int clave) {
+        return switch (clave) {
+            case 1060 -> "TIPO DEL SWITCH";
+            case 1061 -> "CASE DEL MISMO TIPO";
+            case 1070 -> "OPERADOR UNARIO EN VALOR NUMÉRICO";
+            case 1080 -> "FOR INICIALIZACIÓN";
+            case 1081 -> "ID COMPARACIÓN";
+            case 1082 -> "INCREMENTO O DECREMENTO";
+            case 1083 -> "MANEJO DE CADENAS";
+            case 1084 -> "MANEJO DE ARREGLOS";
+            case 1090 -> "TIPOS VÁLIDOS PARA RECIBIR VALOR";
+            case 1100 -> "VARIABLE DECLARADA";
+            default -> "";
+        };
+    }
+
+    /** Escribe la fila en el muestreo. Devuelve false si era un duplicado. */
+    private boolean fila(int linea, int clave, boolean ok, String motivo,
+            String lexema, int pos) {
+        return muestreo.registrar(
+                linea, clave, descripcionRegla(clave),
+                ok ? "ACEPT" : "ERROR (" + motivo + ")",
+                lexema, obtenerAmbitoActual(), pos);
+    }
+
+    /** Fila + ErrorEntry cuando la regla falla. */
+    private void filaConError(int linea, int clave, boolean ok, String motivo,
+            String lexema, int pos) {
+        boolean nueva = fila(linea, clave, ok, motivo, lexema, pos);
+        if (!ok && nueva) {
+            ContadorCiclos.ERRORES++;
+            erroresSintaxis.add(new ErrorEntry(
+                    "Semántica 2",
+                    "Semántica 2 (" + clave + "): " + motivo,
+                    linea,
+                    "parser",
+                    ErrorEntry.Tipo.SEMANTICA,
+                    lexema,
+                    obtenerAmbitoActual()));
+            System.out.println("[SEM2-ERR] ln=" + linea + " | " + clave + " | " + motivo);
+        }
+    }
+
+    private static String nombreTipoSem(int t) {
+        switch (t) {
+            case LeerCSVComparacion.T_BIN: return "Binario";
+            case LeerCSVComparacion.T_DEC: return "Decimal";
+            case LeerCSVComparacion.T_OCT: return "Octal";
+            case LeerCSVComparacion.T_HEX: return "Hexadecimal";
+            case LeerCSVComparacion.T_REAL: return "Real";
+            case LeerCSVComparacion.T_EXP: return "Exponencial";
+            case LeerCSVComparacion.T_CADENA: return "Cadena";
+            case LeerCSVComparacion.T_CARACTER: return "Caracter";
+            case LeerCSVComparacion.T_BOOLEAN: return "Booleanas";
+            default: return "Variant";
+        }
+    }
+
+    private static String textoDe(List<Token> toks) {
+        StringBuilder sb = new StringBuilder();
+        for (Token t : toks) {
+            if (sb.length() > 0) {
+                sb.append(' ');
+            }
+            sb.append(t.getLexema().trim());
+        }
+        return sb.toString();
+    }
+
+    private static boolean esIdToken(int tc) {
+        return (tc >= -67 && tc <= -60) || tc == -107;
+    }
+
+    private static boolean esEntero(int t) {
+        return t == LeerCSVComparacion.T_BIN || t == LeerCSVComparacion.T_DEC
+                || t == LeerCSVComparacion.T_OCT || t == LeerCSVComparacion.T_HEX;
+    }
+
+    // ---------- Cada identificador consumido (reglas 10 y 7) ----------
+
+    private void procesarIdSemantica2(Token t, String id, int tc, boolean uso,
+            boolean encontradoId, int ambitoEnc) {
+
+        IdInfo info;
+        if (uso && encontradoId && ambitoEnc >= 0) {
+            info = new IdInfo(true,
+                    tabla.obtenerTipo(id, ambitoEnc),
+                    tabla.obtenerClase(id, ambitoEnc),
+                    ambitoEnc);
+        } else if (uso) {
+            info = new IdInfo(false, null, null, -1);
+        } else {
+            info = new IdInfo(true, obtenerTipoDeToken(tc), "", obtenerAmbitoActual());
+        }
+        idInfos.put(t, info);
+
+        if (accesosArreglo.isEmpty()) {
+            ultimoIdFueraTok = t;
+        }
+
+        // Regla 10 (1100): solo para USOS. El error ya lo registra el parser
+        // como ERR-AMB; aquí solo se deja la fila del muestreo (sin duplicar).
+        if (uso) {
+            fila(t.getLinea(), 1100, info.declarado,
+                    "identificador no declarado en los ámbitos accesibles",
+                    id, t.getColumna());
+        }
+
+        // Regla 7 (1070) para ++ / --: el identificador debe ser Decimal (#D).
+        // Variant (no declarado) se acepta; el error de 1100 ya lo cubre.
+        if (unarioPendiente != null) {
+            Token op = unarioPendiente;
+            unarioPendiente = null;
+            int tp = (uso && info.declarado)
+                    ? tipoSemanticoDeSimbolo(info.tipo)
+                    : LeerCSVComparacion.T_VARIANT;
+            boolean ok = tp == LeerCSVComparacion.T_DEC || tp == LeerCSVComparacion.T_VARIANT;
+            filaConError(op.getLinea(), 1070, ok,
+                    "el operando de " + op.getLexema().trim()
+                            + " debe ser Decimal (#D), se encontró " + nombreTipoSem(tp),
+                    id, op.getColumna());
+        }
+
+        alimentarCapturas(t);
+    }
+
+    // ---------- Regla 9 (1090): clase del receptor ----------
+
+    private void validarClaseReceptor(Token operador) {
+        if (ultimoIdFueraTok == null) {
+            return;
+        }
+        IdInfo info = idInfos.get(ultimoIdFueraTok);
+        if (info == null) {
+            return;
+        }
+        String id = ultimoIdFueraTok.getLexema().trim();
+        boolean ok;
+        String motivo = "";
+        if (!info.declarado) {
+            ok = true; // Variant: se acepta como variable (solo para esta regla)
+        } else {
+            String clase = info.clase == null ? "" : info.clase.trim();
+            ok = clase.equals("Variable") || clase.equals("Parametro")
+                    || clase.equals("Arreglo");
+            if (!ok) {
+                motivo = id + " es de clase "
+                        + (clase.isEmpty() ? "desconocida" : clase)
+                        + "; solo se asigna a Variable, Parametro o Arreglo";
+            }
+        }
+        filaConError(operador.getLinea(), 1090, ok, motivo,
+                ok ? id : id + " es " + (info.clase == null ? "?" : info.clase.toLowerCase()),
+                operador.getColumna());
+    }
+
+    // ---------- Capturas de expresión ----------
+
+    private void iniciarCapturaParen(int clase, Token origen, SwitchCtx sw) {
+        if (clase == CAP_FOR) {
+            enEncabezadoFor = true;
+        }
+        capsParen.add(new CapParen(clase, origen, sw));
+    }
+
+    /** Punto único por el que pasa cada terminal consumido (ID o no). */
+    private void alimentarCapturas(Token t) {
+        int tc = t.getTokenClass();
+
+        List<CapParen> terminadas = null;
+        for (Iterator<CapParen> it = capsParen.iterator(); it.hasNext();) {
+            CapParen c = it.next();
+            if (!c.iniciada) {
+                if (tc == -49) {
+                    c.iniciada = true;
+                    c.par = 1;
+                }
+                continue;
+            }
+            if (tc == -49) {
+                c.par++;
+                c.toks.add(t);
+            } else if (tc == -50) {
+                c.par--;
+                if (c.par == 0) {
+                    it.remove();
+                    if (terminadas == null) {
+                        terminadas = new ArrayList<>();
+                    }
+                    terminadas.add(c);
+                } else {
+                    c.toks.add(t);
+                }
+            } else {
+                c.toks.add(t);
+            }
+        }
+
+        CapCase caso = null;
+        if (capCase != null) {
+            CapCase k = capCase;
+            if (!k.iniciada) {
+                if (tc == -102) {
+                    k.iniciada = true;
+                }
+            } else {
+                boolean plano = k.par == 0 && k.brk == 0;
+                if (tc == -49) {
+                    k.par++;
+                } else if (tc == -50) {
+                    k.par--;
+                } else if (tc == -47) {
+                    k.brk++;
+                } else if (tc == -48) {
+                    k.brk--;
+                } else if (tc == -32 && plano) {
+                    k.tern++;
+                }
+                if (tc == -10 && plano) {
+                    if (k.tern > 0) {
+                        k.tern--;
+                        k.toks.add(t);
+                    } else {
+                        capCase = null;
+                        caso = k;
+                    }
+                } else {
+                    k.toks.add(t);
+                }
+            }
+        }
+
+        if (terminadas != null) {
+            for (CapParen c : terminadas) {
+                finalizarCapturaParen(c);
+            }
+        }
+        if (caso != null) {
+            finalizarCase(caso);
+        }
+    }
+
+    private void finalizarCapturaParen(CapParen c) {
+        switch (c.clase) {
+            case CAP_SWITCH -> finalizarSwitch(c);
+            case CAP_NOT, CAP_TILDE -> finalizarUnarioLogico(c);
+            case CAP_FOR -> finalizarFor(c);
+            default -> {
+            }
+        }
+    }
+
+    // ---------- Regla 6: SWITCH (1060) y CASE (1061) ----------
+
+    private void finalizarSwitch(CapParen c) {
+        Val v = evaluar(c.toks);
+        String texto = textoDe(c.toks);
+        boolean valido = v.tipo == LeerCSVComparacion.T_CADENA
+                || v.tipo == LeerCSVComparacion.T_DEC
+                || v.tipo == LeerCSVComparacion.T_VARIANT;
+
+        c.sw.texto = texto;
+        // Variant, o 1060 con error (se revisan los CASE "como si fuera Variant"):
+        // el tipo de referencia lo fijará el primer CASE válido.
+        c.sw.tipoRef = (valido && v.tipo != LeerCSVComparacion.T_VARIANT) ? v.tipo : null;
+
+        filaConError(c.origen.getLinea(), 1060, valido,
+                "la expresión del switch debe ser Cadena o Decimal (#D), se encontró "
+                        + nombreTipoSem(v.tipo),
+                texto, c.origen.getColumna());
+    }
+
+    private void finalizarCase(CapCase k) {
+        if (switches.isEmpty()) {
+            return;
+        }
+        SwitchCtx sw = switches.peek();
+        Val v = evaluar(k.toks);
+        String lexema = sw.texto + " vs " + textoDe(k.toks);
+        int tipo = v.tipo;
+        boolean cadenaODec = tipo == LeerCSVComparacion.T_CADENA || tipo == LeerCSVComparacion.T_DEC;
+        boolean variant = tipo == LeerCSVComparacion.T_VARIANT;
+
+        boolean ok = true;
+        String motivo = "";
+        if (!cadenaODec && !variant) {
+            ok = false;
+            motivo = "el case debe ser Cadena o Decimal (#D), se encontró " + nombreTipoSem(tipo);
+        } else if (sw.tipoRef != null) {
+            if (!variant && tipo != sw.tipoRef) {
+                ok = false;
+                motivo = "el case es " + nombreTipoSem(tipo)
+                        + " y el tipo de referencia del switch es " + nombreTipoSem(sw.tipoRef);
+            }
+        } else if (cadenaODec) {
+            sw.tipoRef = tipo; // primer CASE válido: fija el tipo de los siguientes
+        }
+        filaConError(k.origen.getLinea(), 1061, ok, motivo, lexema, k.origen.getColumna());
+    }
+
+    // ---------- Regla 7: ! y ~ (1070) ----------
+
+    private void finalizarUnarioLogico(CapParen c) {
+        Val v = evaluar(c.toks);
+        boolean esNot = c.clase == CAP_NOT;
+        boolean ok;
+        String motivo;
+        if (esNot) {
+            ok = v.tipo == LeerCSVComparacion.T_BOOLEAN || v.tipo == LeerCSVComparacion.T_VARIANT;
+            motivo = "el operando de ! debe ser Booleano, se encontró " + nombreTipoSem(v.tipo);
+        } else {
+            ok = esEntero(v.tipo) || v.tipo == LeerCSVComparacion.T_VARIANT;
+            motivo = "el operando de ~ debe ser Decimal, Octal, Binario o Hexadecimal, se encontró "
+                    + nombreTipoSem(v.tipo);
+        }
+        filaConError(c.origen.getLinea(), 1070, ok, motivo,
+                textoDe(c.toks), c.origen.getColumna());
+    }
+
+    // ---------- Regla 8: FOR (1080 a 1084) ----------
+
+    private void finalizarFor(CapParen c) {
+        List<Token> toks = c.toks;
+        int par = 0, brk = 0, tern = 0, idxColon = -1;
+        List<Integer> puntoYComa = new ArrayList<>();
+        for (int k = 0; k < toks.size(); k++) {
+            int tc = toks.get(k).getTokenClass();
+            if (tc == -49) {
+                par++;
+            } else if (tc == -50) {
+                par--;
+            } else if (tc == -47) {
+                brk++;
+            } else if (tc == -48) {
+                brk--;
+            } else if (par == 0 && brk == 0) {
+                if (tc == -32) {
+                    tern++;
+                } else if (tc == -10) {
+                    if (tern > 0) {
+                        tern--;
+                    } else if (idxColon < 0 && puntoYComa.isEmpty()) {
+                        idxColon = k;
+                    }
+                } else if (tc == -9) {
+                    puntoYComa.add(k);
+                }
+            }
+        }
+
+        if (idxColon >= 0 && puntoYComa.isEmpty()) {
+            forEach(toks.subList(0, idxColon), toks.subList(idxColon + 1, toks.size()), c);
+            return;
+        }
+        if (puntoYComa.size() < 2) {
+            return; // encabezado mal formado: ya lo reporta el análisis sintáctico
+        }
+        List<Token> ini = toks.subList(0, puntoYComa.get(0));
+        List<Token> cond = toks.subList(puntoYComa.get(0) + 1, puntoYComa.get(1));
+        List<Token> inc = toks.subList(puntoYComa.get(1) + 1, toks.size());
+
+        // 1080: cada inicialización debe ser "ID = EXP" (asignación a un identificador)
+        for (List<Token> item : separarPorComas(ini)) {
+            if (item.isEmpty()) {
+                continue;
+            }
+            boolean ok = esFormaAsignacion(item);
+            filaConError(item.get(0).getLinea(), 1080, ok,
+                    "la inicialización del for debe ser una asignación a un identificador",
+                    textoDe(item), item.get(0).getColumna());
+        }
+
+        // 1081: la comparación debe ser lógica (Variant se acepta)
+        if (!cond.isEmpty()) {
+            Val v = evaluar(cond);
+            boolean ok = v.tipo == LeerCSVComparacion.T_BOOLEAN
+                    || v.tipo == LeerCSVComparacion.T_VARIANT;
+            filaConError(cond.get(0).getLinea(), 1081, ok,
+                    "la condición del for debe ser lógica (Booleanas), se encontró "
+                            + nombreTipoSem(v.tipo),
+                    textoDe(cond), cond.get(0).getColumna());
+        }
+
+        // 1082: incremento o decremento: ++ / -- sobre un identificador
+        for (List<Token> item : separarPorComas(inc)) {
+            if (item.isEmpty()) {
+                continue;
+            }
+            boolean ok = esFormaIncremento(item);
+            filaConError(item.get(0).getLinea(), 1082, ok,
+                    "el tercer componente del for debe ser un incremento o decremento (++ o --)",
+                    textoDe(item), item.get(0).getColumna());
+        }
+    }
+
+    private void forEach(List<Token> v1, List<Token> v2, CapParen c) {
+        if (v1.isEmpty() || v2.isEmpty()) {
+            return;
+        }
+        Val a = evaluar(v1);
+        Val b = evaluar(v2);
+        String lexema = textoDe(v1) + " : " + textoDe(v2);
+        int linea = v1.get(0).getLinea();
+        int pos = v1.get(0).getColumna();
+        int t1 = a.tipo, t2 = b.tipo;
+        boolean arr2 = b.arreglo && b.idSimple != null;
+        boolean v1EsId = v1.size() == 1 && esIdToken(v1.get(0).getTokenClass());
+
+        if (!v1EsId) {
+            int clave = (t2 == LeerCSVComparacion.T_CADENA && !arr2) ? 1083 : 1084;
+            filaConError(linea, clave, false,
+                    "el valor 1 del for debe ser un identificador", lexema, pos);
+            return;
+        }
+
+        if (t2 == LeerCSVComparacion.T_VARIANT && !arr2) {
+            // Valor 2 Variant: se toma como arreglo del tipo del valor 1.
+            // Si ambos son Variant, se aceptan ambas reglas.
+            if (t1 == LeerCSVComparacion.T_VARIANT) {
+                filaConError(linea, 1083, true, "", lexema, pos);
+            }
+            filaConError(linea, 1084, true, "", lexema, pos);
+        } else if (arr2) {
+            boolean ok = t1 == LeerCSVComparacion.T_VARIANT || t1 == t2;
+            filaConError(linea, 1084, ok,
+                    "el valor 1 es " + nombreTipoSem(t1)
+                            + " y el arreglo es de " + nombreTipoSem(t2),
+                    lexema, pos);
+        } else if (t2 == LeerCSVComparacion.T_CADENA) {
+            boolean ok = t1 == LeerCSVComparacion.T_DEC || t1 == LeerCSVComparacion.T_VARIANT;
+            filaConError(linea, 1083, ok,
+                    "al recorrer una cadena el valor 1 debe ser Decimal (#D), se encontró "
+                            + nombreTipoSem(t1),
+                    lexema, pos);
+        } else {
+            filaConError(linea, 1084, false,
+                    "el valor 2 debe ser un arreglo o una cadena, se encontró "
+                            + (b.idSimple == null ? "un elemento o expresión de tipo " : "un valor de tipo ")
+                            + nombreTipoSem(t2),
+                    lexema, pos);
+        }
+    }
+
+    private static List<List<Token>> separarPorComas(List<Token> toks) {
+        List<List<Token>> res = new ArrayList<>();
+        List<Token> actual = new ArrayList<>();
+        int par = 0, brk = 0;
+        for (Token t : toks) {
+            int tc = t.getTokenClass();
+            if (tc == -49) {
+                par++;
+            } else if (tc == -50) {
+                par--;
+            } else if (tc == -47) {
+                brk++;
+            } else if (tc == -48) {
+                brk--;
+            }
+            if (tc == -7 && par == 0 && brk == 0) {
+                res.add(actual);
+                actual = new ArrayList<>();
+            } else {
+                actual.add(t);
+            }
+        }
+        res.add(actual);
+        return res;
+    }
+
+    /** ID [ '[' ... ']' ]* operadorDeAsignación EXP */
+    private static boolean esFormaAsignacion(List<Token> item) {
+        int i = 0;
+        if (item.isEmpty() || !esIdToken(item.get(0).getTokenClass())) {
+            return false;
+        }
+        i = saltarIndices(item, 1);
+        return i < item.size() - 1 && esAsignacion(item.get(i).getTokenClass());
+    }
+
+    /** (++|--) ID [índices]  |  ID [índices] (++|--) */
+    private static boolean esFormaIncremento(List<Token> item) {
+        int n = item.size();
+        if (n < 2) {
+            return false;
+        }
+        int primero = item.get(0).getTokenClass();
+        if (primero == -1 || primero == -2) {
+            return esIdToken(item.get(1).getTokenClass())
+                    && saltarIndices(item, 2) == n;
+        }
+        if (esIdToken(primero)) {
+            int i = saltarIndices(item, 1);
+            return i == n - 1 && (item.get(i).getTokenClass() == -1
+                    || item.get(i).getTokenClass() == -2);
+        }
+        return false;
+    }
+
+    private static int saltarIndices(List<Token> item, int i) {
+        while (i < item.size() && item.get(i).getTokenClass() == -47) {
+            int prof = 0;
+            while (i < item.size()) {
+                int tc = item.get(i).getTokenClass();
+                if (tc == -47) {
+                    prof++;
+                } else if (tc == -48) {
+                    prof--;
+                    if (prof == 0) {
+                        i++;
+                        break;
+                    }
+                }
+                i++;
+            }
+        }
+        return i;
+    }
+
+    // ---------- Evaluador de tipo de una expresión ----------
+
+    private Val evaluar(List<Token> toks) {
+        if (toks == null || toks.isEmpty()) {
+            return new Val(LeerCSVComparacion.T_VARIANT);
+        }
+        return new EvalExpr(toks).expr(1);
+    }
+
+    /**
+     * Precedencia (PRECEDENCIA_OPERADOR) sobre la lista de tokens capturada.
+     * El tipo de cada operación sale de las mismas tablas CSV que usa
+     * generarOperaciones; si la tabla dice Error, o el operador no tiene tabla,
+     * el resultado es Variant (el error de tipos de las asignaciones ya lo
+     * reporta Semántica 1; aquí no se duplica).
+     */
+    private class EvalExpr {
+        final List<Token> t;
+        int i = 0;
+
+        EvalExpr(List<Token> t) {
+            this.t = t;
+        }
+
+        boolean fin() {
+            return i >= t.size();
+        }
+
+        int tc() {
+            return t.get(i).getTokenClass();
+        }
+
+        Val expr(int min) {
+            Val lhs = unario();
+            while (!fin()) {
+                int c = tc();
+                if (c == -32) { // ternario ?:
+                    if (2 < min) {
+                        break;
+                    }
+                    i++;
+                    expr(1);
+                    if (!fin() && tc() == -10) {
+                        i++;
+                    }
+                    expr(2);
+                    lhs = new Val(LeerCSVComparacion.T_VARIANT);
+                    continue;
+                }
+                Integer p = PRECEDENCIA_OPERADOR.get(c);
+                if (p == null || p < min) {
+                    break;
+                }
+                i++;
+                Val rhs = expr(ASOCIATIVIDAD_DERECHA.contains(c) ? p : p + 1);
+                lhs = combinar(c, lhs, rhs);
+            }
+            return lhs;
+        }
+
+        Val combinar(int c, Val l, Val r) {
+            if (esAsignacion(c)) {
+                return new Val(l.tipo);
+            }
+            if (LeerCSVComparacion.tieneTabla(c)) {
+                int res = comparacion.ObtenerTipoPorTipos(l.tipo, r.tipo, c);
+                return new Val(res < 0 ? LeerCSVComparacion.T_VARIANT : res);
+            }
+            return new Val(LeerCSVComparacion.T_VARIANT);
+        }
+
+        Val unario() {
+            if (fin()) {
+                return new Val(LeerCSVComparacion.T_VARIANT);
+            }
+            int c = tc();
+            if (c == -29) { // !
+                i++;
+                unario();
+                return new Val(LeerCSVComparacion.T_BOOLEAN);
+            }
+            if (c == -3) { // ~
+                i++;
+                Val o = unario();
+                return new Val(esEntero(o.tipo) ? o.tipo : LeerCSVComparacion.T_VARIANT);
+            }
+            if (c == -1 || c == -2 || c == -11 || c == -12) { // ++ -- + -
+                i++;
+                return new Val(unario().tipo);
+            }
+            return primario();
+        }
+
+        Val primario() {
+            Token tok = t.get(i);
+            int c = tok.getTokenClass();
+
+            if (c == -49) { // ( EXP )
+                i++;
+                Val v = expr(1);
+                if (!fin() && tc() == -50) {
+                    i++;
+                }
+                return new Val(v.tipo);
+            }
+            if ((c <= -53 && c >= -59) || c == -72 || c == -73 || c == -74) {
+                i++;
+                return new Val(LeerCSVComparacion.tipoDeToken(c));
+            }
+            if (esIdToken(c)) {
+                i++;
+                IdInfo inf = idInfos.get(tok);
+                int tp = (inf != null && inf.declarado)
+                        ? tipoSemanticoDeSimbolo(inf.tipo)
+                        : LeerCSVComparacion.T_VARIANT;
+                Val v = new Val(tp);
+                v.idSimple = tok;
+                v.arreglo = inf != null && inf.declarado && "Arreglo".equals(inf.clase);
+                while (!fin() && (tc() == -47 || tc() == -49)) {
+                    saltarBalanceado(tc() == -47 ? -48 : -50);
+                    v.idSimple = null; // índice o llamada: ya no es el identificador solo
+                    v.arreglo = false;
+                }
+                if (!fin() && (tc() == -1 || tc() == -2)) {
+                    i++;
+                    v.idSimple = null;
+                }
+                return v;
+            }
+            if (c <= -75 && c >= -94) { // funciones predefinidas: resultado Variant
+                i++;
+                if (!fin() && tc() == -49) {
+                    saltarBalanceado(-50);
+                }
+                return new Val(LeerCSVComparacion.T_VARIANT);
+            }
+            i++;
+            return new Val(LeerCSVComparacion.T_VARIANT);
+        }
+
+        void saltarBalanceado(int cierre) {
+            int abre = (cierre == -50) ? -49 : -47;
+            int prof = 0;
+            while (!fin()) {
+                int c = tc();
+                i++;
+                if (c == abre) {
+                    prof++;
+                } else if (c == cierre) {
+                    prof--;
+                    if (prof == 0) {
+                        return;
+                    }
+                }
+            }
+        }
     }
 
     // =========================================================

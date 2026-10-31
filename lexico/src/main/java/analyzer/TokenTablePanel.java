@@ -191,7 +191,7 @@ public class TokenTablePanel extends JPanel {
                 String cod = codObj != null ? codObj.toString() : "";
                 String desc = descObj != null ? descObj.toString() : "";
                 boolean esWarn = cod.startsWith("W");
-                boolean esSemantica = cod.contains("SEM") || desc.contains("Semántica 1")
+                boolean esSemantica = cod.contains("SEM") || cod.startsWith("Semántica") || desc.contains("Semántica 1")
                         || desc.contains("incompatibilidad") || desc.contains("incompatibles");
 
                 Color semColor = new Color(0xC5, 0x86, 0xC0); // Púrpura/Magenta distintivo para Semántica 1

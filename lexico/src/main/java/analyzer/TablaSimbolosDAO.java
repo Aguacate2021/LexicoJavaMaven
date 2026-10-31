@@ -74,6 +74,35 @@ public class TablaSimbolosDAO {
     }
 
     /**
+     * Devuelve la clase (Variable, Parametro, Arreglo, Funcion, Constante...)
+     * de un identificador en un ámbito específico, o null si no existe.
+     * Se usa en la regla 9 (1090) de Semántica 2.
+     */
+    public String obtenerClase(String id, int ambito) {
+
+        String sql = "SELECT clase FROM tabla_simbolos WHERE id = ? AND amb = ?";
+
+        try (Connection conexion = ConexionBD.conectar();
+             PreparedStatement ps = conexion.prepareStatement(sql)) {
+
+            ps.setString(1, id);
+            ps.setInt(2, ambito);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getString(1);
+                }
+            }
+
+        } catch (SQLException e) {
+            System.err.println("Error al obtener clase del identificador: " + id);
+            e.printStackTrace();
+        }
+
+        return null;
+    }
+
+    /**
      * Devuelve los datos de arreglo ya guardados para un identificador:
      * {tarr, dimarr}. Solo lectura (se usa para el muestreo de Semántica 2).
      * Devuelve null si el identificador no existe en ese ámbito.

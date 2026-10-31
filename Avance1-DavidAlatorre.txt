@@ -1,8 +1,72 @@
-Linea 13: = #DX && < - + 35 * #XT 8 / * 54 #OE 58 % 35 #OE > / * $A $B 854 + + 58 * / $T 85 985 6547
+Linea 8: = #DK 0
 
-Linea 29: = #DX && < - + 35 * 5 8 / * 54 #XE 58 % 35 #DE > / * $A $B 854 + + 58 * / #DT 85 985 6547
+Linea 8: #DK
 
-Linea 47: = $X - + 35 * ¡Q 8 / * 54 #XE 58
+Linea 8: #DMax
 
-Linea 53: = #DX - + 35 * ¡Q 8 / * 54 #DE 58
+Linea 10: += #DA #DK
+
+Linea 13: #DJ
+
+Linea 13: #DJ
+
+Linea 13: = #DJ 1
+
+Linea 15: #DJ
+
+Linea 17: #DA
+
+Linea 22: = ¡F < #DA 5
+
+Linea 24: #DA
+
+Linea 25: = #DSuma #DA
+
+Linea 28: = @cad "hola"
+
+Linea 29: = 2 7
+
+Linea 30: #DCar
+
+Linea 30: @cad
+
+Linea 32: #DCar
+
+Linea 34: $RCar
+
+Linea 34: @cad
+
+Linea 36: $RCar
+
+Linea 38: #DVal
+
+Linea 38: #DLista
+
+Linea 40: #DVal
+
+Linea 42: #DOtro
+
+Linea 42: @Nombres
+
+Linea 44: #DOtro
+
+Linea 46: #DUno
+
+Linea 46: 1
+
+Linea 48: #DUno
+
+Linea 50: #DX
+
+Linea 52: = #DY 2
+
+Linea 53: = #DY 3
+
+Linea 54: #DY
+
+Linea 56: #DX
+
+Linea 62: $R
+
+Linea 66: = #DMax 20
 

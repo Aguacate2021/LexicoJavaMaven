@@ -1,0 +1,98 @@
+Línea | Regla | Descripción                       | Situación de la regla                                                                                    | Lexema                | Ámbito
+8     | 1100  | VARIABLE DECLARADA                | ACEPT                                                                                                    | #DK                   | 2
+8     | 1020  | Asignación básica                 | Activada                                                                                                 | #DK                   | 2
+8     | 1090  | TIPOS VÁLIDOS PARA RECIBIR VALOR  | ACEPT                                                                                                    | #DK                   | 2
+8     | 1100  | VARIABLE DECLARADA                | ACEPT                                                                                                    | #DK                   | 2
+8     | 1100  | VARIABLE DECLARADA                | ACEPT                                                                                                    | #DMax                 | 2
+8     | 1100  | VARIABLE DECLARADA                | ACEPT                                                                                                    | #DK                   | 2
+8     | 1070  | OPERADOR UNARIO EN VALOR NUMÉRICO | ACEPT                                                                                                    | #DK                   | 2
+8     | 1080  | FOR INICIALIZACIÓN                | ACEPT                                                                                                    | #DK = 0               | 2
+8     | 1081  | ID COMPARACIÓN                    | ACEPT                                                                                                    | #DK < #DMax           | 2
+8     | 1082  | INCREMENTO O DECREMENTO           | ACEPT                                                                                                    | ++ #DK                | 2
+10    | 1100  | VARIABLE DECLARADA                | ACEPT                                                                                                    | #DA                   | 2
+10    | 1021  | Asignación +=                     | Activada                                                                                                 | #DA                   | 2
+10    | 1090  | TIPOS VÁLIDOS PARA RECIBIR VALOR  | ACEPT                                                                                                    | #DA                   | 2
+10    | 1100  | VARIABLE DECLARADA                | ACEPT                                                                                                    | #DK                   | 2
+11    | 1100  | VARIABLE DECLARADA                | ACEPT                                                                                                    | $R                    | 2
+11    | 1070  | OPERADOR UNARIO EN VALOR NUMÉRICO | ERROR (el operando de -- debe ser Decimal (#D), se encontró Real)                                        | $R                    | 2
+13    | 1100  | VARIABLE DECLARADA                | ACEPT                                                                                                    | #DJ                   | 3
+13    | 1100  | VARIABLE DECLARADA                | ACEPT                                                                                                    | #DJ                   | 3
+13    | 1100  | VARIABLE DECLARADA                | ACEPT                                                                                                    | #DJ                   | 3
+13    | 1020  | Asignación básica                 | Activada                                                                                                 | #DJ                   | 3
+13    | 1090  | TIPOS VÁLIDOS PARA RECIBIR VALOR  | ACEPT                                                                                                    | #DJ                   | 3
+13    | 1080  | FOR INICIALIZACIÓN                | ERROR (la inicialización del for debe ser una asignación a un identificador)                             | #DJ                   | 3
+13    | 1081  | ID COMPARACIÓN                    | ERROR (la condición del for debe ser lógica (Booleanas), se encontró Decimal)                            | #DJ                   | 3
+13    | 1082  | INCREMENTO O DECREMENTO           | ERROR (el tercer componente del for debe ser un incremento o decremento (++ o --))                       | #DJ = 1               | 3
+15    | 1100  | VARIABLE DECLARADA                | ACEPT                                                                                                    | #DJ                   | 3
+17    | 1100  | VARIABLE DECLARADA                | ACEPT                                                                                                    | #DA                   | 1
+17    | 1012  | WHILE                             | Activada                                                                                                 | #DA > 0               | 1
+19    | 1100  | VARIABLE DECLARADA                | ACEPT                                                                                                    | #DA                   | 1
+19    | 1070  | OPERADOR UNARIO EN VALOR NUMÉRICO | ACEPT                                                                                                    | #DA                   | 1
+22    | 1100  | VARIABLE DECLARADA                | ACEPT                                                                                                    | ¡F                    | 1
+22    | 1020  | Asignación básica                 | Activada                                                                                                 | ¡F                    | 1
+22    | 1090  | TIPOS VÁLIDOS PARA RECIBIR VALOR  | ACEPT                                                                                                    | ¡F                    | 1
+22    | 1100  | VARIABLE DECLARADA                | ACEPT                                                                                                    | #DA                   | 1
+23    | 1100  | VARIABLE DECLARADA                | ACEPT                                                                                                    | @C                    | 1
+23    | 1070  | OPERADOR UNARIO EN VALOR NUMÉRICO | ERROR (el operando de ++ debe ser Decimal (#D), se encontró Cadena)                                      | @C                    | 1
+24    | 1100  | VARIABLE DECLARADA                | ACEPT                                                                                                    | #DA                   | 1
+24    | 1013  | DO-WHILE                          | Activada                                                                                                 | #DA                   | 1
+25    | 1100  | VARIABLE DECLARADA                | ACEPT                                                                                                    | #DSuma                | 1
+25    | 1020  | Asignación básica                 | Activada                                                                                                 | #DSuma                | 1
+25    | 1090  | TIPOS VÁLIDOS PARA RECIBIR VALOR  | ERROR (#DSuma es de clase Funcion; solo se asigna a Variable, Parametro o Arreglo)                       | #DSuma es funcion     | 1
+25    | 1100  | VARIABLE DECLARADA                | ACEPT                                                                                                    | #DA                   | 1
+28    | 1100  | VARIABLE DECLARADA                | ACEPT                                                                                                    | @cad                  | 0
+28    | 1020  | Asignación básica                 | Activada                                                                                                 | @cad                  | 0
+28    | 1090  | TIPOS VÁLIDOS PARA RECIBIR VALOR  | ACEPT                                                                                                    | @cad                  | 0
+29    | 1100  | VARIABLE DECLARADA                | ACEPT                                                                                                    | #DLista               | 0
+29    | 1030  | AR-DIM                            | Activada (dimensiones declaradas=1, índices usados=1)                                                    | #DLista               | 0
+29    | 1040  | AR-ENT                            | Activada (tipo del índice: Decimal)                                                                      | 2                     | 0
+29    | 1050  | AR-RANG                           | Activada (dimensión 1, tamaño declarado=5)                                                               | 2                     | 0
+29    | 1020  | Asignación básica                 | Activada                                                                                                 | #DLista               | 0
+29    | 1090  | TIPOS VÁLIDOS PARA RECIBIR VALOR  | ACEPT                                                                                                    | #DLista               | 0
+30    | 1100  | VARIABLE DECLARADA                | ACEPT                                                                                                    | #DCar                 | 4
+30    | 1100  | VARIABLE DECLARADA                | ACEPT                                                                                                    | @cad                  | 4
+30    | 1083  | MANEJO DE CADENAS                 | ACEPT                                                                                                    | #DCar : @cad          | 4
+32    | 1100  | VARIABLE DECLARADA                | ACEPT                                                                                                    | #DCar                 | 4
+34    | 1100  | VARIABLE DECLARADA                | ACEPT                                                                                                    | $RCar                 | 5
+34    | 1100  | VARIABLE DECLARADA                | ACEPT                                                                                                    | @cad                  | 5
+34    | 1083  | MANEJO DE CADENAS                 | ERROR (al recorrer una cadena el valor 1 debe ser Decimal (#D), se encontró Real)                        | $RCar : @cad          | 5
+36    | 1100  | VARIABLE DECLARADA                | ACEPT                                                                                                    | $RCar                 | 5
+38    | 1100  | VARIABLE DECLARADA                | ACEPT                                                                                                    | #DVal                 | 6
+38    | 1100  | VARIABLE DECLARADA                | ACEPT                                                                                                    | #DLista               | 6
+38    | 1084  | MANEJO DE ARREGLOS                | ACEPT                                                                                                    | #DVal : #DLista       | 6
+40    | 1100  | VARIABLE DECLARADA                | ACEPT                                                                                                    | #DVal                 | 6
+42    | 1100  | VARIABLE DECLARADA                | ACEPT                                                                                                    | #DOtro                | 7
+42    | 1100  | VARIABLE DECLARADA                | ACEPT                                                                                                    | @Nombres              | 7
+42    | 1084  | MANEJO DE ARREGLOS                | ERROR (el valor 1 es Decimal y el arreglo es de Cadena)                                                  | #DOtro : @Nombres     | 7
+44    | 1100  | VARIABLE DECLARADA                | ACEPT                                                                                                    | #DOtro                | 7
+46    | 1100  | VARIABLE DECLARADA                | ACEPT                                                                                                    | #DUno                 | 8
+46    | 1100  | VARIABLE DECLARADA                | ACEPT                                                                                                    | #DLista               | 8
+46    | 1030  | AR-DIM                            | Activada (dimensiones declaradas=1, índices usados=1)                                                    | #DLista               | 8
+46    | 1040  | AR-ENT                            | Activada (tipo del índice: Decimal)                                                                      | 1                     | 8
+46    | 1050  | AR-RANG                           | Activada (dimensión 1, tamaño declarado=5)                                                               | 1                     | 8
+46    | 1084  | MANEJO DE ARREGLOS                | ERROR (el valor 2 debe ser un arreglo o una cadena, se encontró un elemento o expresión de tipo Decimal) | #DUno : #DLista [ 1 ] | 8
+48    | 1100  | VARIABLE DECLARADA                | ACEPT                                                                                                    | #DUno                 | 8
+50    | 1100  | VARIABLE DECLARADA                | ACEPT                                                                                                    | #DX                   | 0
+50    | 1060  | TIPO DEL SWITCH                   | ACEPT                                                                                                    | #DX                   | 0
+52    | 1061  | CASE DEL MISMO TIPO               | ACEPT                                                                                                    | #DX vs 1              | 0
+52    | 1100  | VARIABLE DECLARADA                | ACEPT                                                                                                    | #DY                   | 0
+52    | 1020  | Asignación básica                 | Activada                                                                                                 | #DY                   | 0
+52    | 1090  | TIPOS VÁLIDOS PARA RECIBIR VALOR  | ACEPT                                                                                                    | #DY                   | 0
+53    | 1061  | CASE DEL MISMO TIPO               | ACEPT                                                                                                    | #DX vs 2              | 0
+53    | 1100  | VARIABLE DECLARADA                | ACEPT                                                                                                    | #DY                   | 0
+53    | 1020  | Asignación básica                 | Activada                                                                                                 | #DY                   | 0
+53    | 1090  | TIPOS VÁLIDOS PARA RECIBIR VALOR  | ACEPT                                                                                                    | #DY                   | 0
+54    | 1100  | VARIABLE DECLARADA                | ACEPT                                                                                                    | #DY                   | 0
+56    | 1100  | VARIABLE DECLARADA                | ACEPT                                                                                                    | #DX                   | 0
+56    | 1060  | TIPO DEL SWITCH                   | ACEPT                                                                                                    | #DX / "hola"          | 0
+58    | 1061  | CASE DEL MISMO TIPO               | ACEPT                                                                                                    | #DX / "hola" vs 1     | 0
+59    | 1061  | CASE DEL MISMO TIPO               | ERROR (el case es Cadena y el tipo de referencia del switch es Decimal)                                  | #DX / "hola" vs "a"   | 0
+60    | 1061  | CASE DEL MISMO TIPO               | ACEPT                                                                                                    | #DX / "hola" vs 3     | 0
+62    | 1100  | VARIABLE DECLARADA                | ACEPT                                                                                                    | $R                    | 0
+62    | 1060  | TIPO DEL SWITCH                   | ERROR (la expresión del switch debe ser Cadena o Decimal (#D), se encontró Real)                         | $R                    | 0
+64    | 1061  | CASE DEL MISMO TIPO               | ACEPT                                                                                                    | $R vs 1               | 0
+66    | 1100  | VARIABLE DECLARADA                | ACEPT                                                                                                    | #DMax                 | 0
+66    | 1020  | Asignación básica                 | Activada                                                                                                 | #DMax                 | 0
+66    | 1090  | TIPOS VÁLIDOS PARA RECIBIR VALOR  | ERROR (#DMax es de clase Constante; solo se asigna a Variable, Parametro o Arreglo)                      | #DMax es constante    | 0
+67    | 1100  | VARIABLE DECLARADA                | ERROR (identificador no declarado en los ámbitos accesibles)                                             | #DZ                   | 0
+67    | 1070  | OPERADOR UNARIO EN VALOR NUMÉRICO | ACEPT                                                                                                    | #DZ                   | 0
