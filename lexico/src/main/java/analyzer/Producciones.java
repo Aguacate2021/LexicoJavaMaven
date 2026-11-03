@@ -51,7 +51,11 @@ public class Producciones {
         producciones.put(32, Arrays.asList(-11, 10));
         producciones.put(33, Arrays.asList(-12, 10));
         producciones.put(34, Arrays.asList(10));
-        producciones.put(35, Arrays.asList(-49, -1000, 13, -50));
+        // Avance 3 Sem2: lista de parámetros opcional (permite def f() y def f(a,b)).
+        // NT12 '(' -> 37 = ( P0 ) ; NT48(P0): ID -> 35 = ID B1 ; ')' -> epsilon.
+        // La producción 35 sigue siendo la del primer parámetro (sintaxis.java depende de 35/36).
+        producciones.put(35, Arrays.asList(-1000, 13));
+        producciones.put(37, Arrays.asList(-49, 48, -50));
         producciones.put(36, Arrays.asList(-7, -1000, 13));
         producciones.put(38, Arrays.asList(-33));
         producciones.put(39, Arrays.asList(-34));

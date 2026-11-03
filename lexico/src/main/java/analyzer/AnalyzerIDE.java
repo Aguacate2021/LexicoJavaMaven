@@ -134,7 +134,7 @@ public class AnalyzerIDE extends JFrame {
         //btns.add(btnExpresiones);
         //JButton btnOperaciones = makeButton("» Avance 2", new Color(0x3C, 0x3C, 0x3C), TEXT_MAIN);
         //btns.add(btnOperaciones);
-        JButton btnMuestreo = makeButton("» Sem2 Av.2", new Color(0x3C, 0x3C, 0x3C), TEXT_MAIN);
+        JButton btnMuestreo = makeButton("» Sem2 Av.3", new Color(0x3C, 0x3C, 0x3C), TEXT_MAIN);
         btns.add(btnMuestreo);
 
         header.add(btns, BorderLayout.EAST);
@@ -575,8 +575,8 @@ public class AnalyzerIDE extends JFrame {
         }
 
         javax.swing.JFileChooser fileChooser = new javax.swing.JFileChooser();
-        fileChooser.setDialogTitle("Guardar muestreo de Semántica 2 (Avance 2)");
-        fileChooser.setSelectedFile(new java.io.File("Semantica2-Avance2-DavidAlatorre.txt"));
+        fileChooser.setDialogTitle("Guardar muestreo de Semántica 2 (Avance 3)");
+        fileChooser.setSelectedFile(new java.io.File("Semantica2-Avance3-DavidAlatorre.txt"));
 
         if (fileChooser.showSaveDialog(this) == javax.swing.JFileChooser.APPROVE_OPTION) {
 
@@ -622,8 +622,8 @@ public class AnalyzerIDE extends JFrame {
         }
 
         javax.swing.JFileChooser fileChooser = new javax.swing.JFileChooser();
-        fileChooser.setDialogTitle("Guardar operaciones (Avance 2)");
-        fileChooser.setSelectedFile(new java.io.File("Avance2-DavidAlatorre.txt"));
+        fileChooser.setDialogTitle("Guardar operaciones (Avance 3)");
+        fileChooser.setSelectedFile(new java.io.File("Avance3-DavidAlatorre.txt"));
 
         if (fileChooser.showSaveDialog(this) == javax.swing.JFileChooser.APPROVE_OPTION) {
 

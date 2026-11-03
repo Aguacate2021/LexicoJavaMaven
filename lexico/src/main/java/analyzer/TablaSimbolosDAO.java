@@ -103,6 +103,36 @@ public class TablaSimbolosDAO {
     }
 
     /**
+     * Devuelve el número de parámetros (nopar) declarado para una función o
+     * procedimiento en un ámbito específico, o null si no existe / no tiene.
+     * Se usa en la regla 15 (1150) de Semántica 2. Solo lectura.
+     */
+    public Integer obtenerNumParametros(String id, int ambito) {
+
+        String sql = "SELECT nopar FROM tabla_simbolos WHERE id = ? AND amb = ?";
+
+        try (Connection conexion = ConexionBD.conectar();
+             PreparedStatement ps = conexion.prepareStatement(sql)) {
+
+            ps.setString(1, id);
+            ps.setInt(2, ambito);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    int valor = rs.getInt(1);
+                    return rs.wasNull() ? null : Integer.valueOf(valor);
+                }
+            }
+
+        } catch (SQLException e) {
+            System.err.println("Error al obtener nopar del identificador: " + id);
+            e.printStackTrace();
+        }
+
+        return null;
+    }
+
+    /**
      * Devuelve los datos de arreglo ya guardados para un identificador:
      * {tarr, dimarr}. Solo lectura (se usa para el muestreo de Semántica 2).
      * Devuelve null si el identificador no existe en ese ámbito.

@@ -1,5 +1,0 @@
-Línea | Regla | Descripción       | Situación de la regla | Lexema | Ámbito
-13    | 1020  | Asignación básica | Activada              | #DX    | 1
-29    | 1020  | Asignación básica | Activada              | #DX    | 5
-47    | 1020  | Asignación básica | Activada              | $X     | 8
-53    | 1020  | Asignación básica | Activada              | #DX    | 0

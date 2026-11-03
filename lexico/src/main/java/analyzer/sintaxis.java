@@ -596,6 +596,11 @@ public class sintaxis {
                             NumParametros = 0;
 
                             ambitoFuncion = AmbitoActual.peek();
+
+                            // Avance 3 Sem2: contexto semántico de la función/procedimiento.
+                            // Un id con nombre de registro (-107) es PROCEDIMIENTO; uno tipado es FUNCIÓN.
+                            defPendiente = new FuncInfo(id, obtenerTipoDeToken(tc), tc == -107,
+                                    AmbitoActual.peek(), tokenActual.getLinea(), tokenActual.getColumna());
                         }
                         // =================================================
                         // DECLARACIONES
@@ -655,6 +660,10 @@ public class sintaxis {
                                 int ambito = AmbitoActual.peek();
 
                                 boolean insertado = false;
+                                // Avance 3 Sem2: se distingue la clase Procedimiento de Funcion.
+                                if (produccionActual == 7 && tc == -107) {
+                                    clase = "Procedimiento";
+                                }
                                 // -----------------------------------------
                                 // FUNCIÓN
                                 // -----------------------------------------
@@ -677,6 +686,16 @@ public class sintaxis {
                                     // 802 inmediatamente después. Se
                                     // completa en AbrirAmbito().
                                     pendienteAmbitoFuncion = true;
+
+                                    if (defPendiente != null) {
+                                        funciones.put(id + "|" + ambito, defPendiente);
+                                    }
+
+                                    // Avance 3 (ajuste): la declaración registra 1120
+                                    // (función) o 1110 (procedimiento).
+                                    if (insertado) {
+                                        registrarDeclaracionCallable(tokenActual, id, tc);
+                                    }
                                 }
 
                                 // -----------------------------------------
@@ -726,6 +745,11 @@ public class sintaxis {
                                             null,
                                             null,
                                             idFuncion);
+
+                                    if (insertado && !funcStack.isEmpty()) {
+                                        funcStack.peek().paramNombres.add(id);
+                                        funcStack.peek().paramTipos.add(tipo);
+                                    }
                                 }
 
                                 // -----------------------------------------
@@ -828,7 +852,9 @@ public class sintaxis {
                         // MATCH IDENTIFICADOR
                         // =================================================
 
-                        if (EstadoDeOperacion) {
+                        if (EstadoDeOperacion && llamadaOpProf > 0) {
+                            llamadaOpAcumular(id); // argumento de una llamada: no es operando de la operación externa
+                        } else if (EstadoDeOperacion) {
                             // Avance 2: tipo del operando. No declarado => Variant
                             // (el error de "no declarado" ya se registró arriba).
                             int tipoSem = LeerCSVComparacion.T_VARIANT;
@@ -955,8 +981,7 @@ public class sintaxis {
                     // la declaración del arreglo.
                     // -------------------------------------------------
 
-                    if (";".equals(
-                            tokenActual.getLexema())
+                    if (tokenActual.getTokenClass() == -9 /* ";" (el lexema puede traer \r en archivos CRLF) */
                             &&
                             !idArreglo.isEmpty()
                             &&
@@ -983,8 +1008,7 @@ public class sintaxis {
                     // Cuando termina la lista de parámetros.
                     // -------------------------------------------------
 
-                    if (")".equals(
-                            tokenActual.getLexema())
+                    if (tokenActual.getTokenClass() == -50 /* ")" (el lexema puede traer \r en archivos CRLF) */
                             &&
                             !idFuncion.isEmpty()
                             &&
@@ -1202,32 +1226,37 @@ public class sintaxis {
         final String id;
         final int linea;
         final int columna;
-        final String tarr; // tamaños declarados, ej. "5,3" (puede ser null)
-        final String dimarr; // número de dimensiones declaradas (puede ser null)
+        final String tarr; // tamaños declarados, ej. "3,4" (null si no es arreglo)
+        final String dimarr; // número de dimensiones declaradas (null si no es arreglo)
+        final boolean existe; // el identificador está declarado en algún ámbito accesible
+        final String clase; // Variable, Arreglo, Parametro, Funcion...
         boolean abierto = false;
         int par = 0;
         final List<List<String>> idxLexemas = new ArrayList<>();
-        final List<List<String>> idxTipos = new ArrayList<>();
+        final List<List<Token>> idxToks = new ArrayList<>();
 
-        AccesoArreglo(String id, int linea, int columna, String tarr, String dimarr) {
+        AccesoArreglo(String id, int linea, int columna, String tarr, String dimarr,
+                boolean existe, String clase) {
             this.id = id;
             this.linea = linea;
             this.columna = columna;
             this.tarr = tarr;
             this.dimarr = dimarr;
+            this.existe = existe;
+            this.clase = clase;
         }
 
         void nuevoIndice() {
             idxLexemas.add(new ArrayList<>());
-            idxTipos.add(new ArrayList<>());
+            idxToks.add(new ArrayList<>());
         }
 
-        void agregar(String lexema, String tipo) {
+        void agregar(String lexema, Token t) {
             if (idxLexemas.isEmpty()) {
                 nuevoIndice();
             }
             idxLexemas.get(idxLexemas.size() - 1).add(lexema);
-            idxTipos.get(idxTipos.size() - 1).add(tipo);
+            idxToks.get(idxToks.size() - 1).add(t);
         }
     }
 
@@ -1269,6 +1298,9 @@ public class sintaxis {
             case 107 -> capCase = new CapCase(t);
             case 45, 46 -> unarioPendiente = t;
             case 47 -> iniciarCapturaParen(CAP_NOT, t, null);
+            // ---- Avance 3 de Semántica 2 (reglas 11 a 16) ----
+            case 52 -> iniciarLlamada(t); // ID X1 con '(': llamada a función/procedimiento
+            case 92 -> iniciarReturn(t); // STATU -> return OR
             case 48 -> iniciarCapturaParen(CAP_TILDE, t, null);
             default -> {
             }
@@ -1340,16 +1372,27 @@ public class sintaxis {
     // ---------- Reglas 3, 4 y 5: accesos a arreglo ----------
 
     private void abrirAccesoArreglo(Token corcheteAbre) {
-        String[] datos = ultimoId.isEmpty()
-                ? null
-                : tabla.obtenerDatosArreglo(ultimoId, ultimoIdAmbito);
+        // El ID recién consumido es el arreglo. Se resuelve en los ámbitos
+        // accesibles (no solo en el último ámbito visto) y se lee su clase y sus
+        // dimensiones/tamaños de la tabla de símbolos.
+        String id = ultimoId;
+        int amb = id.isEmpty() ? -1 : buscarAmbitoSimbolo(id);
+        String clase = "";
+        String[] datos = null;
+        if (amb >= 0) {
+            String c = tabla.obtenerClase(id, amb);
+            clase = c == null ? "" : c.trim();
+            datos = tabla.obtenerDatosArreglo(id, amb);
+        }
 
         accesosArreglo.add(new AccesoArreglo(
-                ultimoId,
+                id,
                 corcheteAbre.getLinea(),
                 corcheteAbre.getColumna(),
                 datos != null ? datos[0] : null,
-                datos != null ? datos[1] : null));
+                datos != null ? datos[1] : null,
+                amb >= 0,
+                clase));
     }
 
     private void alimentarAccesosArreglo(Token t, String tipoId) {
@@ -1359,14 +1402,13 @@ public class sintaxis {
         }
         int tc = t.getTokenClass();
         String lex = t.getLexema().trim();
-        String tipo = tipoDeTokenParaMuestreo(tc, tipoId);
 
-        // Los accesos exteriores solo acumulan el texto de lo que pasa
-        // dentro de sus corchetes (ej. a[b[1]] -> el índice de "a" es "b [ 1 ]").
+        // Los accesos exteriores solo acumulan lo que pasa dentro de sus
+        // corchetes (ej. a[b[1]] -> el índice de "a" es "b [ 1 ]").
         for (int i = 0; i < n - 1; i++) {
             AccesoArreglo exterior = accesosArreglo.get(i);
             if (exterior.abierto) {
-                exterior.agregar(lex, tipo);
+                exterior.agregar(lex, t);
             }
         }
 
@@ -1394,52 +1436,168 @@ public class sintaxis {
         } else if (tc == -50 && a.par > 0) {
             a.par--;
         }
-        a.agregar(lex, tipo);
+        a.agregar(lex, t);
     }
 
+    /**
+     * Reglas 3, 4 y 5 sobre un acceso id[i1, i2, ...] ya cerrado:
+     *  1030 cantidad de índices = dimensiones declaradas (y que id sea arreglo)
+     *  1040 cada índice debe ser entero (Decimal, Octal, Binario o Hexadecimal)
+     *  1050 cada índice debe estar en 0..tamaño-1 de su dimensión (slide 7:
+     *       declarado #DmiLista[3], el acceso [3] es ERROR). Solo se verifica si
+     *       el índice es una constante calculable en compilación.
+     * Si el identificador no está declarado no se valida nada: ya lo reporta 1100.
+     */
     private void registrarAccesoArreglo(AccesoArreglo a) {
 
-        int ambito = obtenerAmbitoActual();
+        if (!a.existe) {
+            return; // no declarado: sin símbolo no hay dimensiones, tipos ni rangos que validar
+        }
+
         int usados = a.idxLexemas.size();
         int base = a.columna * 100;
 
-        // Regla 3 (1030): solo se muestran los dos datos, no se comparan.
-        muestreo.registrar(
-                a.linea, 1030, "AR-DIM",
-                "Activada (dimensiones declaradas="
-                        + (a.dimarr == null ? "N/D" : a.dimarr)
-                        + ", índices usados=" + usados + ")",
-                a.id, ambito, base);
-
-        // Regla 4 (1040): un registro por cada expresión de índice.
-        for (int k = 0; k < usados; k++) {
-            List<String> lx = a.idxLexemas.get(k);
-            List<String> tp = a.idxTipos.get(k);
-            String situacion;
-            if (lx.isEmpty()) {
-                situacion = "Activada (índice sin expresión)";
-            } else if (lx.size() == 1) {
-                situacion = tp.get(0) != null
-                        ? "Activada (tipo del índice: " + tp.get(0) + ")"
-                        : "Activada (tipo no disponible)";
-            } else {
-                situacion = "Activada (expresión compuesta; el compilador no calcula su tipo)";
-            }
-            muestreo.registrar(
-                    a.linea, 1040, "AR-ENT", situacion,
-                    String.join(" ", lx), ambito, base + k + 1);
+        // Regla 3 (1030): ¿es un arreglo?
+        if (!"Arreglo".equals(a.clase)) {
+            filaSitConError(a.linea, 1030, false, null,
+                    a.id + " no es un arreglo (clase "
+                            + (a.clase.isEmpty() ? "desconocida" : a.clase)
+                            + "); no puede usarse con índices",
+                    a.id, base);
+            return; // lo demás sería un error secundario
         }
 
-        // Regla 5 (1050): un registro por cada índice, con el tamaño
-        // declarado de su dimensión tal como está en la tabla de símbolos.
         String[] tamanos = a.tarr == null ? new String[0] : a.tarr.split(",");
-        for (int k = 0; k < usados; k++) {
-            String tam = k < tamanos.length ? tamanos[k].trim() : "N/D";
-            muestreo.registrar(
-                    a.linea, 1050, "AR-RANG",
-                    "Activada (dimensión " + (k + 1) + ", tamaño declarado=" + tam + ")",
-                    String.join(" ", a.idxLexemas.get(k)), ambito, base + k + 1);
+        int declaradas = tamanos.length;
+        try {
+            if (a.dimarr != null) {
+                declaradas = Integer.parseInt(a.dimarr.trim());
+            }
+        } catch (NumberFormatException e) {
+            // se conserva la cantidad deducida de los tamaños
         }
+
+        // Regla 3 (1030): cantidad de índices = dimensiones declaradas
+        filaSitConError(a.linea, 1030, usados == declaradas,
+                "dimensiones declaradas=" + declaradas + ", índices usados=" + usados,
+                "se usaron " + usados + " índice(s) y " + a.id + " declara "
+                        + declaradas + " dimensión(es)",
+                a.id, base);
+
+        for (int k = 0; k < usados; k++) {
+            List<Token> toks = a.idxToks.get(k);
+            String textoIdx = String.join(" ", a.idxLexemas.get(k));
+
+            // Regla 4 (1040): el índice debe ser entero. Variant (no declarado /
+            // sin tipo conocido) se acepta: su error ya lo da otra regla.
+            int tipo = evaluar(toks).tipo;
+            boolean entero = esEntero(tipo) || tipo == LeerCSVComparacion.T_VARIANT;
+            filaSitConError(a.linea, 1040, entero,
+                    "tipo del índice: " + nombreTipoSem(tipo),
+                    "el índice " + (k + 1) + " de " + a.id
+                            + " debe ser entero (Decimal, Octal, Binario o Hexadecimal), se encontró "
+                            + nombreTipoSem(tipo),
+                    textoIdx, base + k + 1);
+
+            // Regla 5 (1050): solo si el índice es entero y existe esa dimensión.
+            if (!entero || k >= tamanos.length) {
+                continue; // sin tipo válido o sin dimensión declarada no hay rango que comparar
+            }
+            long tam;
+            try {
+                tam = Long.parseLong(tamanos[k].trim());
+            } catch (NumberFormatException e) {
+                continue;
+            }
+            Long valor = valorConstanteEntero(toks);
+            if (valor == null) {
+                filaSitConError(a.linea, 1050, true,
+                        "dimensión " + (k + 1) + ", tamaño declarado=" + tam
+                                + "; índice no constante, rango no verificable en compilación",
+                        null, textoIdx, base + k + 1);
+            } else {
+                filaSitConError(a.linea, 1050, valor >= 0 && valor < tam,
+                        "dimensión " + (k + 1) + ", tamaño declarado=" + tam + ", índice=" + valor,
+                        "el índice " + valor + " está fuera del rango 0.." + (tam - 1)
+                                + " de la dimensión " + (k + 1) + " de " + a.id,
+                        textoIdx, base + k + 1);
+            }
+        }
+    }
+
+    /**
+     * Valor de una expresión formada solo por constantes Decimal con + - * y
+     * paréntesis (ej. "3+6", "4+70"); null si no es una constante calculable.
+     */
+    private static Long valorConstanteEntero(List<Token> toks) {
+        if (toks == null || toks.isEmpty()) {
+            return null;
+        }
+        int[] pos = { 0 };
+        Long v = constExpr(toks, pos);
+        return (v != null && pos[0] == toks.size()) ? v : null;
+    }
+
+    private static Long constExpr(List<Token> t, int[] p) {
+        Long v = constTermino(t, p);
+        while (v != null && p[0] < t.size()) {
+            int tc = t.get(p[0]).getTokenClass();
+            if (tc != -11 && tc != -12) {
+                break;
+            }
+            p[0]++;
+            Long r = constTermino(t, p);
+            if (r == null) {
+                return null;
+            }
+            v = tc == -11 ? v + r : v - r;
+        }
+        return v;
+    }
+
+    private static Long constTermino(List<Token> t, int[] p) {
+        Long v = constFactor(t, p);
+        while (v != null && p[0] < t.size() && t.get(p[0]).getTokenClass() == -13) {
+            p[0]++;
+            Long r = constFactor(t, p);
+            if (r == null) {
+                return null;
+            }
+            v = v * r;
+        }
+        return v;
+    }
+
+    private static Long constFactor(List<Token> t, int[] p) {
+        if (p[0] >= t.size()) {
+            return null;
+        }
+        Token tok = t.get(p[0]);
+        int tc = tok.getTokenClass();
+        if (tc == -11 || tc == -12) { // signo unario
+            p[0]++;
+            Long v = constFactor(t, p);
+            return v == null ? null : (tc == -12 ? -v : v);
+        }
+        if (tc == -49) { // ( expr )
+            p[0]++;
+            Long v = constExpr(t, p);
+            if (v == null || p[0] >= t.size() || t.get(p[0]).getTokenClass() != -50) {
+                return null;
+            }
+            p[0]++;
+            return v;
+        }
+        if (tc == -55) { // constante Decimal
+            try {
+                long v = Long.parseLong(tok.getLexema().trim());
+                p[0]++;
+                return v;
+            } catch (NumberFormatException e) {
+                return null;
+            }
+        }
+        return null; // identificador, real, etc.: no es constante calculable
     }
 
     /** Nombre del tipo de un token, solo con lo que el compilador ya sabe de él. */
@@ -1565,6 +1723,15 @@ public class sintaxis {
     private boolean enEncabezadoFor = false;
 
     private void reiniciarSemantica2Avance2() {
+        funciones.clear();
+        funcStack.clear();
+        defPendiente = null;
+        ultimoIdTok = null;
+        capReturn = null;
+        llamadaOpPendiente = false;
+        llamadaOpProf = 0;
+        llamadaOpCallee = null;
+        llamadaOpTexto.setLength(0);
         idInfos.clear();
         capsParen.clear();
         switches.clear();
@@ -1578,6 +1745,9 @@ public class sintaxis {
 
     private static String descripcionRegla(int clave) {
         return switch (clave) {
+            case 1030 -> "AR-DIM";
+            case 1040 -> "AR-ENT";
+            case 1050 -> "AR-RANG";
             case 1060 -> "TIPO DEL SWITCH";
             case 1061 -> "CASE DEL MISMO TIPO";
             case 1070 -> "OPERADOR UNARIO EN VALOR NUMÉRICO";
@@ -1588,6 +1758,13 @@ public class sintaxis {
             case 1084 -> "MANEJO DE ARREGLOS";
             case 1090 -> "TIPOS VÁLIDOS PARA RECIBIR VALOR";
             case 1100 -> "VARIABLE DECLARADA";
+            case 1110 -> "PROCEDIMIENTO";
+            case 1120 -> "FUNCIONES";
+            case 1130 -> "RETURN DE FUNCION";
+            case 1131 -> "TIPO DE RETORNO IGUAL";
+            case 1140 -> "NO RETURN DE PROCEDIMIENTO";
+            case 1150 -> "PARAMETROS DECLARADOS";
+            case 1160 -> "PARAMETROS DE TIPO";
             default -> "";
         };
     }
@@ -1604,7 +1781,21 @@ public class sintaxis {
     /** Fila + ErrorEntry cuando la regla falla. */
     private void filaConError(int linea, int clave, boolean ok, String motivo,
             String lexema, int pos) {
-        boolean nueva = fila(linea, clave, ok, motivo, lexema, pos);
+        filaSitConError(linea, clave, ok, null, motivo, lexema, pos);
+    }
+
+    /**
+     * Igual que filaConError, pero la situación aceptada puede llevar detalle:
+     * "ACEPT (detalle)". Si falla: "ERROR (motivo)" + ErrorEntry (sin duplicar).
+     */
+    private void filaSitConError(int linea, int clave, boolean ok, String detalleOk,
+            String motivo, String lexema, int pos) {
+        String situacion = ok
+                ? ((detalleOk == null || detalleOk.isEmpty()) ? "ACEPT" : "ACEPT (" + detalleOk + ")")
+                : "ERROR (" + motivo + ")";
+        boolean nueva = muestreo.registrar(
+                linea, clave, descripcionRegla(clave), situacion,
+                lexema, obtenerAmbitoActual(), pos);
         if (!ok && nueva) {
             ContadorCiclos.ERRORES++;
             erroresSintaxis.add(new ErrorEntry(
@@ -1658,6 +1849,8 @@ public class sintaxis {
 
     private void procesarIdSemantica2(Token t, String id, int tc, boolean uso,
             boolean encontradoId, int ambitoEnc) {
+
+        ultimoIdTok = t; // Avance 3: callee potencial de una llamada
 
         IdInfo info;
         if (uso && encontradoId && ambitoEnc >= 0) {
@@ -1808,10 +2001,40 @@ public class sintaxis {
             }
         }
 
+        CapReturn ret = null;
+        if (capReturn != null) {
+            CapReturn k = capReturn;
+            if (!k.iniciada) {
+                if (tc == -97) {
+                    k.iniciada = true;
+                }
+            } else {
+                boolean plano = k.par == 0 && k.brk == 0;
+                if (plano && esFinDeReturn(tc)) {
+                    capReturn = null;
+                    ret = k;
+                } else {
+                    if (tc == -49) {
+                        k.par++;
+                    } else if (tc == -50) {
+                        k.par--;
+                    } else if (tc == -47) {
+                        k.brk++;
+                    } else if (tc == -48) {
+                        k.brk--;
+                    }
+                    k.toks.add(t);
+                }
+            }
+        }
+
         if (terminadas != null) {
             for (CapParen c : terminadas) {
                 finalizarCapturaParen(c);
             }
+        }
+        if (ret != null) {
+            finalizarReturn(ret);
         }
         if (caso != null) {
             finalizarCase(caso);
@@ -1823,6 +2046,7 @@ public class sintaxis {
             case CAP_SWITCH -> finalizarSwitch(c);
             case CAP_NOT, CAP_TILDE -> finalizarUnarioLogico(c);
             case CAP_FOR -> finalizarFor(c);
+            case CAP_CALL -> finalizarLlamada(c);
             default -> {
             }
         }
@@ -2253,6 +2477,354 @@ public class sintaxis {
     }
 
     // =========================================================
+    // AVANCE 3 DE SEMÁNTICA 2: REGLAS 11 A 16
+    //
+    // 1110 PROCEDIMIENTO | 1120 FUNCIONES | 1130 RETURN DE FUNCIÓN
+    // 1131 TIPO DE RETORNO IGUAL | 1140 NO RETURN DE PROCEDIMIENTO
+    // 1150 PARÁMETROS DECLARADOS (cantidad) | 1160 PARÁMETROS DE TIPO
+    //
+    // Cómo distingue la gramática del proyecto cada cosa:
+    //  - Declaración: producción 7 (def ID ...). Si el ID es de registro (token
+    //    -107, nombre "plano" como m) es un PROCEDIMIENTO (clase "Procedimiento",
+    //    tipo Registro). Si el ID es tipado (#Df, @f, $f...) es una FUNCIÓN
+    //    (clase "Funcion") y debe devolver ese tipo.
+    //  - Llamada: producción 52 (X1 -> ( lista de argumentos )). El nombre del
+    //    callee indica cómo se está invocando: nombre de registro => se invoca
+    //    como procedimiento (1110); nombre tipado => como función (1120).
+    //  - return: producción 92 (STATU -> return OR).
+    //  - Cuerpo: el ámbito que abre el marcador 802 justo tras "def ID"; se
+    //    cierra con 803. Ahí se resuelven 1130/1140.
+    // =========================================================
+
+    private static final int CAP_CALL = 5;
+
+    /** Lo que se sabe de una función/procedimiento declarado. */
+    private static class FuncInfo {
+        final String id;
+        final String tipo; // "Decimal", "Cadena"... o "Registro" (procedimiento)
+        final boolean procedimiento;
+        final int ambitoDecl;
+        final int linea;
+        final int columna;
+        int ambitoCuerpo = -1;
+        int returns = 0;
+        boolean returnRegistrado = false; // ya se dejó la fila 1130 ACEPT
+        final List<String> paramNombres = new ArrayList<>();
+        final List<String> paramTipos = new ArrayList<>();
+
+        FuncInfo(String id, String tipo, boolean procedimiento, int ambitoDecl,
+                int linea, int columna) {
+            this.id = id;
+            this.tipo = tipo;
+            this.procedimiento = procedimiento;
+            this.ambitoDecl = ambitoDecl;
+            this.linea = linea;
+            this.columna = columna;
+        }
+    }
+
+    /** Captura de la expresión de un return (hasta ; } else ... ). */
+    private static class CapReturn {
+        final Token origen;
+        final FuncInfo f;
+        final List<Token> toks = new ArrayList<>();
+        boolean iniciada = false;
+        int par = 0, brk = 0;
+
+        CapReturn(Token origen, FuncInfo f) {
+            this.origen = origen;
+            this.f = f;
+        }
+    }
+
+    // id|ámbito -> info (los parámetros van EN ORDEN; la BD no garantiza orden).
+    private final Map<String, FuncInfo> funciones = new HashMap<>();
+    // Funciones/procedimientos cuyo cuerpo está abierto (pueden anidarse).
+    private final Stack<FuncInfo> funcStack = new Stack<>();
+    // "def ID" ya leído, aún sin abrir su ámbito.
+    private FuncInfo defPendiente = null;
+    private Token ultimoIdTok = null;
+    private CapReturn capReturn = null;
+
+    // Llamada tratada como un solo operando de la operación infija->postfija.
+    private boolean llamadaOpPendiente = false;
+    private int llamadaOpProf = 0;
+    private Token llamadaOpCallee = null;
+    private final StringBuilder llamadaOpTexto = new StringBuilder();
+
+    // ---------- Utilidades ----------
+
+    /** Ámbito (de los accesibles) donde está declarado id, o -1. */
+    private int buscarAmbitoSimbolo(String id) {
+        for (int i = AmbitoActual.size() - 1; i >= 0; i--) {
+            int amb = AmbitoActual.get(i);
+            if (tabla.idExiste(id, amb)) {
+                return amb;
+            }
+        }
+        return -1;
+    }
+
+    /**
+     * Compatibilidad estricta destino<-origen para parámetros y retornos.
+     * suma.csv deja que Cadena absorba cualquier tipo (concatenación), pero un
+     * argumento Decimal NO es válido para un parámetro Cadena (ejemplo del
+     * profesor: fun1(2,5,5) falla en la posición 2). Variant se acepta siempre.
+     */
+    private boolean tiposCompatibles(int dest, int orig) {
+        if (dest == LeerCSVComparacion.T_VARIANT || orig == LeerCSVComparacion.T_VARIANT) {
+            return true;
+        }
+        if (dest == orig) {
+            return true;
+        }
+        if (dest == LeerCSVComparacion.T_CADENA || orig == LeerCSVComparacion.T_CADENA
+                || dest == LeerCSVComparacion.T_BOOLEAN || orig == LeerCSVComparacion.T_BOOLEAN) {
+            return false;
+        }
+        return comparacion.asignacionCompatible(dest, orig); // p. ej. Real <- Decimal
+    }
+
+    private static boolean esFinDeReturn(int tc) {
+        // ; } else elseif case default while(do-while)
+        return tc == -9 || tc == -46 || tc == -101 || tc == -100
+                || tc == -102 || tc == -103 || tc == -95;
+    }
+
+    // ---------- return (reglas 1131 y 1140) ----------
+
+    private void iniciarReturn(Token ret) {
+        if (capReturn != null) { // return anterior que no llegó a cerrarse
+            CapReturn previo = capReturn;
+            capReturn = null;
+            finalizarReturn(previo);
+        }
+        if (funcStack.isEmpty()) {
+            return; // return en el main del programa: fuera de este avance
+        }
+        FuncInfo f = funcStack.peek();
+        f.returns++;
+        if (f.procedimiento) {
+            // Regla 14 (1140): un procedimiento no debe tener return.
+            filaConError(ret.getLinea(), 1140, false,
+                    "el procedimiento " + f.id + " no debe contener return",
+                    f.id, ret.getColumna());
+            return;
+        }
+        capReturn = new CapReturn(ret, f);
+    }
+
+    /** Regla 13 (1131): el tipo devuelto debe ser el declarado para la función. */
+    private void finalizarReturn(CapReturn k) {
+        Val v = evaluar(k.toks);
+        int declarado = tipoSemanticoDeSimbolo(k.f.tipo);
+        // Regla 13 (1130): la función tiene (al menos) un return. Se registra
+        // una vez, en la línea del primer return, no en la declaración.
+        if (!k.f.returnRegistrado) {
+            k.f.returnRegistrado = true;
+            fila(k.origen.getLinea(), 1130, true, "", k.f.id, k.origen.getColumna());
+        }
+        boolean ok = tiposCompatibles(declarado, v.tipo);
+        filaConError(k.origen.getLinea(), 1131, ok,
+                "la función " + k.f.id + " devuelve " + nombreTipoSem(declarado)
+                        + " y el return entrega " + nombreTipoSem(v.tipo),
+                "return " + textoDe(k.toks), k.origen.getColumna());
+    }
+
+    /** Se cierra el cuerpo: resuelve 1130 (función sin return) y 1140 (ACEPT). */
+    private void cerrarFuncion(FuncInfo f) {
+        if (capReturn != null && capReturn.f == f) {
+            CapReturn k = capReturn;
+            capReturn = null;
+            finalizarReturn(k);
+        }
+        if (f.procedimiento) {
+            if (f.returns == 0) {
+                fila(f.linea, 1140, true, "", f.id, f.columna);
+            }
+        } else {
+            // Regla 13 (1130): solo falla aquí; el ACEPT se registra en el return.
+            if (f.returns == 0) {
+                filaConError(f.linea, 1130, false,
+                        "la función " + f.id + " no contiene ninguna instrucción return",
+                        f.id, f.columna);
+            }
+        }
+    }
+
+    // ---------- Llamadas (reglas 1110, 1120, 1150 y 1160) ----------
+
+    private void iniciarLlamada(Token abre) {
+        if (ultimoIdTok == null) {
+            return;
+        }
+        // El ID recién consumido es el callee: X1 se expande justo después de él.
+        capsParen.add(new CapParen(CAP_CALL, ultimoIdTok, null));
+        if (EstadoDeOperacion && llamadaOpProf == 0) {
+            llamadaOpPendiente = true;
+        }
+    }
+
+    private void finalizarLlamada(CapParen c) {
+        Token callee = c.origen;
+        String id = callee.getLexema().trim();
+        boolean comoProc = callee.getTokenClass() == -107;
+        int clave = comoProc ? 1110 : 1120;
+        int linea = callee.getLinea();
+        int col = callee.getColumna();
+
+        int amb = buscarAmbitoSimbolo(id);
+        if (amb < 0) {
+            // El error de "no declarado" ya lo registra la regla 1100 / el parser:
+            // aquí solo queda la fila, sin duplicar el ErrorEntry.
+            fila(linea, clave, false,
+                    "identificador no declarado en los ámbitos accesibles", id, col);
+            return;
+        }
+
+        String clase = tabla.obtenerClase(id, amb);
+        clase = clase == null ? "" : clase.trim();
+        boolean ok = comoProc ? clase.equals("Procedimiento") : clase.equals("Funcion");
+        filaConError(linea, clave, ok,
+                id + " es de clase " + (clase.isEmpty() ? "desconocida" : clase)
+                        + "; se invocó como " + (comoProc ? "procedimiento" : "función")
+                        + " pero no lo es",
+                id, col);
+        if (!ok) {
+            return; // sin función/procedimiento no hay parámetros que comparar
+        }
+
+        List<List<Token>> args = c.toks.isEmpty()
+                ? new ArrayList<List<Token>>()
+                : separarPorComas(c.toks);
+        int n = args.size();
+        FuncInfo f = funciones.get(id + "|" + amb);
+        Integer declN = tabla.obtenerNumParametros(id, amb);
+        int declarados = declN != null ? declN : (f != null ? f.paramTipos.size() : n);
+
+        // Regla 15 (1150): cantidad de argumentos = cantidad declarada.
+        registrarCantidadArgumentos(id, f, args, n, declarados, linea, col, textoDe(c.toks));
+
+        // Regla 16 (1160): tipo de cada argumento contra su parámetro, en orden.
+        // Solo se revisan las posiciones que existen en ambos lados.
+        if (f == null) {
+            return;
+        }
+        int m = Math.min(n, Math.min(declarados, f.paramTipos.size()));
+        for (int i = 0; i < m; i++) {
+            List<Token> arg = args.get(i);
+            Val v = evaluar(arg);
+            int tParam = tipoSemanticoDeSimbolo(f.paramTipos.get(i));
+            boolean okTipo = tiposCompatibles(tParam, v.tipo);
+            if (!ARG_DECIMAL_ACEPTA_EN_REAL && tParam == LeerCSVComparacion.T_REAL
+                    && esEntero(v.tipo)) {
+                okTipo = false;
+            }
+            int lineaArg = arg.isEmpty() ? linea : arg.get(0).getLinea();
+            filaConError(lineaArg, 1160, okTipo,
+                    "posición " + (i + 1) + ": el argumento es " + nombreTipoSem(v.tipo)
+                            + " y el parámetro " + f.paramNombres.get(i)
+                            + " es " + nombreTipoSem(tParam),
+                    arg.isEmpty() ? "(vacío)" : textoDe(arg), col * 100 + i + 1);
+        }
+    }
+
+    // ---------- La llamada como UN operando de la infija->postfija ----------
+
+    private void llamadaOpAcumular(String lex) {
+        if (llamadaOpTexto.length() > 0) {
+            llamadaOpTexto.append(' ');
+        }
+        llamadaOpTexto.append(lex);
+    }
+
+    /**
+     * Al cerrar el ")" de la llamada, el callee (ya en operandosPila) y sus
+     * argumentos pasan a ser un único operando "f(args)" cuyo tipo es el de
+     * retorno de la función (Variant si es procedimiento o no se conoce).
+     */
+    private void cerrarLlamadaOperando() {
+        Token callee = llamadaOpCallee;
+        if (callee != null && !operandosPila.isEmpty() && operandosPila.peek() == callee) {
+            operandosPila.pop();
+            String id = callee.getLexema().trim();
+            Token unico = new Token(id + "(" + llamadaOpTexto + ")", callee.getTipo(),
+                    callee.getLinea(), callee.getColumna(), callee.getTokenClass());
+            int tipo = LeerCSVComparacion.T_VARIANT;
+            int amb = buscarAmbitoSimbolo(id);
+            FuncInfo f = amb >= 0 ? funciones.get(id + "|" + amb) : null;
+            if (f != null && !f.procedimiento) {
+                tipo = tipoSemanticoDeSimbolo(f.tipo);
+            }
+            tiposOperando.put(unico, tipo);
+            operandosPila.push(unico);
+        }
+        llamadaOpCallee = null;
+        llamadaOpTexto.setLength(0);
+    }
+
+    /**
+     * Interruptor de la regla 16 (1160): ¿un argumento entero (Decimal, Octal,
+     * Binario, Hexadecimal) es válido para un parámetro Real? true = sí, como en
+     * el ejemplo del profesor (fun1(2,"hola",6) con $k Real) y como en las
+     * asignaciones ($r = 3). Poner false para exigir Real exacto.
+     */
+    private static final boolean ARG_DECIMAL_ACEPTA_EN_REAL = true;
+
+    /** Declaración de función (1120) o procedimiento (1110): la clase quedó bien registrada. */
+    private void registrarDeclaracionCallable(Token t, String id, int tc) {
+        boolean proc = tc == -107;
+        String clase = tabla.obtenerClase(id, AmbitoActual.peek());
+        clase = clase == null ? "" : clase.trim();
+        boolean ok = proc ? clase.equals("Procedimiento") : clase.equals("Funcion");
+        filaConError(t.getLinea(), proc ? 1110 : 1120, ok,
+                id + " no quedó registrado como " + (proc ? "procedimiento" : "función")
+                        + " en la tabla de símbolos",
+                id, t.getColumna());
+    }
+
+    /**
+     * Regla 15 (1150) posición por posición. Si coincide la cantidad: una fila
+     * ACEPT. Si no: una fila ERROR por cada posición que falta o que sobra; solo
+     * la primera genera el ErrorEntry (las demás son detalle, sin duplicar).
+     */
+    private void registrarCantidadArgumentos(String id, FuncInfo f, List<List<Token>> args,
+            int n, int declarados, int linea, int col, String textoArgs) {
+        String llamada = id + "(" + textoArgs + ")";
+        if (n == declarados) {
+            filaConError(linea, 1150, true, "", llamada, col);
+            return;
+        }
+        boolean faltan = n < declarados;
+        int desde = Math.min(n, declarados);
+        int hasta = Math.max(n, declarados);
+        for (int i = desde; i < hasta; i++) {
+            String detalle;
+            int lineaFila = linea;
+            if (faltan) {
+                String nombre = (f != null && i < f.paramNombres.size())
+                        ? " (parámetro " + f.paramNombres.get(i) + ")" : "";
+                detalle = "posición " + (i + 1) + ": falta el argumento" + nombre;
+            } else {
+                detalle = "posición " + (i + 1) + ": argumento sobrante, " + id
+                        + " solo declara " + declarados + " parámetro(s)";
+                if (!args.get(i).isEmpty()) {
+                    lineaFila = args.get(i).get(0).getLinea();
+                }
+            }
+            int pos = col * 100 + i + 1;
+            if (i == desde) {
+                filaConError(lineaFila, 1150, false,
+                        "se enviaron " + n + " argumento(s) y " + id + " declara "
+                                + declarados + "; " + detalle,
+                        llamada, pos);
+            } else {
+                fila(lineaFila, 1150, false, detalle, llamada, pos);
+            }
+        }
+    }
+
+    // =========================================================
     // LOG
     // =========================================================
 
@@ -2300,6 +2872,14 @@ public class sintaxis {
 
             pendienteAmbitoFuncion = false;
         }
+
+        // Avance 3 Sem2: el primer ámbito abierto tras "def ID" es el cuerpo
+        // de esa función/procedimiento; se apila su contexto.
+        if (defPendiente != null) {
+            defPendiente.ambitoCuerpo = AmbitoActual.peek();
+            funcStack.push(defPendiente);
+            defPendiente = null;
+        }
     }
 
     private void CerrarAmbito(
@@ -2308,6 +2888,13 @@ public class sintaxis {
         if (AmbitoActual.size() <= 1) {
 
             return;
+        }
+
+        // Avance 3 Sem2: se cierra el cuerpo de una función/procedimiento
+        // (reglas 1130 y 1140). Aún estamos dentro de su ámbito.
+        if (!funcStack.isEmpty()
+                && funcStack.peek().ambitoCuerpo == AmbitoActual.peek()) {
+            cerrarFuncion(funcStack.pop());
         }
 
         logBuilder.append(
@@ -2431,6 +3018,28 @@ public class sintaxis {
             infijoActual.append(" ");
         }
         infijoActual.append(t.getLexema());
+
+        // Avance 3 Sem2: una llamada f(args) se trata como UN solo operando.
+        if (llamadaOpProf > 0) {
+            if (tc == -49) {
+                llamadaOpProf++;
+            } else if (tc == -50) {
+                llamadaOpProf--;
+            }
+            if (llamadaOpProf == 0) {
+                cerrarLlamadaOperando();
+            } else {
+                llamadaOpAcumular(t.getLexema().trim());
+            }
+            return;
+        }
+        if (llamadaOpPendiente && tc == -49) {
+            llamadaOpPendiente = false;
+            llamadaOpProf = 1;
+            llamadaOpCallee = operandosPila.isEmpty() ? null : operandosPila.peek();
+            llamadaOpTexto.setLength(0);
+            return;
+        }
 
         // ---------------------------------------------------------
         // OPERANDO (constantes: Binario, Decimal, Octal, Hexadecimal,
@@ -2583,6 +3192,10 @@ public class sintaxis {
         operadoresPila.clear();
         infijoActual.setLength(0);
         tiposOperando.clear();
+        llamadaOpPendiente = false;
+        llamadaOpProf = 0;
+        llamadaOpCallee = null;
+        llamadaOpTexto.setLength(0);
     }
 
     private void reiniciarArchivoPostfijas() {
