@@ -5,6 +5,10 @@ import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Font;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.GridLayout;
+import java.awt.Insets;
 
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
@@ -12,12 +16,11 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollBar;
 import javax.swing.JScrollPane;
-import javax.swing.JTable;
+import javax.swing.BoxLayout;
 import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
+import javax.swing.border.EmptyBorder;
 import javax.swing.border.MatteBorder;
-import javax.swing.table.DefaultTableCellRenderer;
-import javax.swing.table.DefaultTableModel;
 
 public class CounterPanel extends JPanel {
 
@@ -35,6 +38,7 @@ public class CounterPanel extends JPanel {
     private static final Color TEXT_ERR    = new Color(0xF4, 0x47, 0x47);
     private static final Color TEXT_WARN   = new Color(0xE5, 0xC0, 0x7B);
     private static final Color TEXT_TOTAL  = new Color(0xFF, 0x60, 0x60);
+    private static final Color TEXT_SEM2   = new Color(0xFF, 0xA0, 0x40); // errores de Semántica 2: distinto al rojo del resto
 
     // Colores de categoría
     private static final Color CAT_ID  = new Color(0x1E, 0x3A, 0x5F);
@@ -43,18 +47,19 @@ public class CounterPanel extends JPanel {
     private static final Color CAT_CST = new Color(0x4A, 0x2B, 0x12);
     private static final Color CAT_OP  = new Color(0x4A, 0x12, 0x12);
     private static final Color CAT_ERR = new Color(0x5A, 0x10, 0x10);
-    private static final Color[] CAT_COLORS = {
-        CAT_ID, CAT_COM, CAT_KW, CAT_CST, CAT_OP, CAT_ERR
-    };
 
     // Fuentes
-    private static final Font FONT_TITLE = new Font("Segoe UI", Font.BOLD, 11);
-    private static final Font FONT_CAT   = new Font("Segoe UI", Font.BOLD, 10);
-    private static final Font FONT_SUB   = new Font("Segoe UI", Font.ITALIC, 9);
-    private static final Font FONT_VAL   = new Font("Consolas", Font.BOLD, 12);
+    private static final Font FONT_TITLE = new Font("Segoe UI", Font.BOLD, 12);
+    private static final Font FONT_CAT   = new Font("Segoe UI", Font.BOLD, 11);
+    private static final Font FONT_SUB   = new Font("Segoe UI", Font.PLAIN, 12);
+    private static final Font FONT_VAL   = new Font("Consolas", Font.BOLD, 13);
 
     // ── Definición de categorías ────────────────────────────────────────────
+    // ERRORES va primero: es el bloque que se muestra arriba. El orden de los
+    // valores en actualizar(...) sigue exactamente este orden.
     private static final Object[][] CATS = {
+        { "ERRORES", CAT_ERR,
+          new String[]{"Léxicos","Sintácticos","Ámbito","Semántica 1","Semántica 2","Total"} },
         { "IDENTIFICADORES", CAT_ID,
           new String[]{"Cadena","Binario","Decimal","Octal","Hex","Real","Exp","Bool","Registro"} },
         { "COMENTARIOS", CAT_COM,
@@ -66,25 +71,22 @@ public class CounterPanel extends JPanel {
         { "OPERADORES", CAT_OP,
           new String[]{"Postfix","Log bin","Control","Matemát.","Exponente",
                        "Turno","Relac.","Igualdad","Lógicos","Ternario","Asignac.","Agrupam."} },
-        { "ERRORES", CAT_ERR,
-          new String[]{"Léxicos","Sintácticos","Ámbito","Semántica 1","Total"} },
     };
-    private static final int ERR_COL_START;
+    private static final int IDX_SEM2  = 4;  // posición de "Semántica 2" dentro de ERRORES
+    private static final int IDX_TOTAL = 5;  // posición de "Total" dentro de ERRORES
     private static final int TOTAL_COLS;
-     // índice donde empieza la cat. ERRORES
 
     static {
-        int n = 0, errStart = 0;
-        for (int ci = 0; ci < CATS.length; ci++) {
-            if (ci == CATS.length - 1) errStart = n;
-            n += ((String[]) CATS[ci][2]).length;
-        }
-        TOTAL_COLS    = n;
-        ERR_COL_START = errStart;
+        int n = 0;
+        for (Object[] cat : CATS) n += ((String[]) cat[2]).length;
+        TOTAL_COLS = n;
     }
 
-    private static DefaultTableModel model;
-    private static JTable            table;
+    // Etiquetas de valor, en el mismo orden que los valores de actualizar(...)
+    private static JLabel[] valores;
+
+    /** Alto con el que se ve completo (la columna de ERRORES: 9 filas + 3 títulos + márgenes). */
+    public static final int ALTO_IDEAL = 26 + 9 * 20 + 3 * 24 + 2 * 8 + 16 + 6 + 18;
 
     // ════════════════════════════════════════════════════════════════════════
     public CounterPanel() {
@@ -99,82 +101,123 @@ public class CounterPanel extends JPanel {
         title.setBackground(BG_HDR);
         title.setOpaque(true);
         title.setBorder(new MatteBorder(0, 0, 1, 0, BORDER));
-        title.setPreferredSize(new Dimension(0, 22));
+        title.setPreferredSize(new Dimension(0, 26));
         add(title, BorderLayout.NORTH);
 
-        // Tabla
-        model = new DefaultTableModel(3, TOTAL_COLS) {
-            @Override public boolean isCellEditable(int r, int c) { return false; }
-        };
-        table = new JTable(model);
-        table.setTableHeader(null);
-        table.setRowHeight(18);
-        table.setBackground(BG_VAL);
-        table.setForeground(TEXT_MAIN);
-        table.setGridColor(BORDER);
-        table.setShowGrid(true);
-        table.setIntercellSpacing(new Dimension(0, 0));
-        table.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
-        table.setFillsViewportHeight(false);
-        table.setSelectionBackground(new Color(0x26, 0x40, 0x6E));
-        table.setSelectionForeground(TEXT_MAIN);
-
-        table.setDefaultRenderer(Object.class, new DefaultTableCellRenderer() {
-            @Override
-            public Component getTableCellRendererComponent(JTable t, Object val,
-                    boolean sel, boolean foc, int row, int col) {
-                super.getTableCellRendererComponent(t, val, sel, foc, row, col);
-                setHorizontalAlignment(SwingConstants.CENTER);
-                setBorder(BorderFactory.createMatteBorder(0, 0, 0, 1, BORDER));
-
-                Color catBg     = CAT_COLORS[catIndexForCol(col)];
-                boolean isErrCat = col >= ERR_COL_START;
-
-                switch (row) {
-                    case 0 -> {
-                        setBackground(catBg);
-                        setForeground(lighter(catBg));
-                        setFont(FONT_CAT);
-                        if (!isPrimerColDeCat(col)) setText("");
-                    }
-                    case 1 -> {
-                        setBackground(BG_SUB);
-                        setForeground(isErrCat ? TEXT_WARN : TEXT_DIM);
-                        setFont(FONT_SUB);
-                    }
-                    default -> {
-                        setBackground(BG_VAL);
-                        String s = val != null ? val.toString() : "0";
-                        if (isErrCat) {
-                            int errOffset = col - ERR_COL_START;
-                            // col 0=Léxicos, 1=Sintácticos, 2=Total
-                            setForeground("0".equals(s) ? TEXT_ZERO
-                                    : errOffset == 2   ? TEXT_TOTAL
-                                                       : TEXT_ERR);
-                        } else {
-                            setForeground("0".equals(s) ? TEXT_ZERO : TEXT_NUMBER);
-                        }
-                        setFont(FONT_VAL);
-                    }
-                }
-                return this;
+        // Una tarjeta por categoría; cada contador es una fila "nombre ....... valor".
+        JLabel[] vals = new JLabel[TOTAL_COLS];
+        JPanel[] tarjetas = new JPanel[CATS.length];
+        int col = 0;
+        for (int ci = 0; ci < CATS.length; ci++) {
+            String[] subs = (String[]) CATS[ci][2];
+            JLabel[] mias = new JLabel[subs.length];
+            for (int si = 0; si < subs.length; si++) {
+                vals[col] = new JLabel("0", SwingConstants.RIGHT);
+                mias[si] = vals[col];
+                col++;
             }
-        });
+            tarjetas[ci] = crearTarjeta((String) CATS[ci][0], (Color) CATS[ci][1], subs, mias);
+        }
+        valores = vals;
+        pintarValores(new String[TOTAL_COLS]);
 
-        initColumnas();
+        // Cada columna es una lista vertical de contadores. ERRORES queda primero
+        // (arriba a la izquierda), separado de los elementos aceptados.
+        JPanel[] columnas = {
+            columna(tarjetas[0], tarjetas[2], tarjetas[3]), // ERRORES, COMENTARIOS, PAL. RESERVADAS
+            columna(tarjetas[1]),                            // IDENTIFICADORES
+            columna(tarjetas[4]),                            // CONSTANTES
+            columna(tarjetas[5]),                            // OPERADORES
+        };
 
-        JScrollPane scroll = new JScrollPane(table,
-                JScrollPane.VERTICAL_SCROLLBAR_NEVER,
-                JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
+        JPanel body = new JPanel(new GridBagLayout());
+        body.setBackground(BG_DARK);
+        body.setBorder(new EmptyBorder(8, 8, 8, 8));
+        GridBagConstraints g = new GridBagConstraints();
+        g.fill = GridBagConstraints.BOTH;
+        g.anchor = GridBagConstraints.NORTH;
+        g.weightx = 1;
+        g.weighty = 1;
+        for (int i = 0; i < columnas.length; i++) {
+            g.gridx = i;
+            g.insets = new Insets(0, i == 0 ? 0 : 5, 0, i == columnas.length - 1 ? 0 : 5);
+            body.add(columnas[i], g);
+        }
+
+        JScrollPane scroll = new JScrollPane(body,
+                JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,
+                JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
         scroll.setBorder(null);
-        scroll.getViewport().setBackground(BG_VAL);
-        styleScrollBar(scroll.getHorizontalScrollBar());
+        scroll.getViewport().setBackground(BG_DARK);
+        scroll.getVerticalScrollBar().setUnitIncrement(16);
+        styleScrollBar(scroll.getVerticalScrollBar());
         add(scroll, BorderLayout.CENTER);
 
-        int fixedH = 22 + 18 * 3 + 8;
-        setPreferredSize(new Dimension(0, fixedH));
-        setMinimumSize(new Dimension(0, fixedH));
-        setMaximumSize(new Dimension(Integer.MAX_VALUE, fixedH));
+        setPreferredSize(new Dimension(380, ALTO_IDEAL));
+        setMinimumSize(new Dimension(260, 120));
+    }
+
+    private JPanel columna(JPanel... tarjetas) {
+        JPanel col = new JPanel();
+        col.setLayout(new BoxLayout(col, BoxLayout.Y_AXIS));
+        col.setBackground(BG_DARK);
+        for (int i = 0; i < tarjetas.length; i++) {
+            if (i > 0) col.add(javax.swing.Box.createVerticalStrut(8));
+            tarjetas[i].setAlignmentX(Component.LEFT_ALIGNMENT);
+            col.add(tarjetas[i]);
+        }
+        return col;
+    }
+
+    private JPanel crearTarjeta(String titulo, Color catBg, String[] subs, JLabel[] vals) {
+        JPanel card = new JPanel(new BorderLayout());
+        card.setBackground(BG_VAL);
+        card.setBorder(BorderFactory.createLineBorder(BORDER));
+
+        JLabel h = new JLabel("  " + titulo);
+        h.setOpaque(true);
+        h.setBackground(catBg);
+        h.setForeground(lighter(catBg));
+        h.setFont(FONT_CAT);
+        h.setPreferredSize(new Dimension(0, 24));
+        card.add(h, BorderLayout.NORTH);
+
+        JPanel filas = new JPanel(new GridLayout(subs.length, 1));
+        filas.setBackground(BG_VAL);
+        for (int i = 0; i < subs.length; i++) {
+            JPanel fila = new JPanel(new BorderLayout());
+            fila.setBackground(i % 2 == 0 ? BG_VAL : BG_SUB);
+            fila.setBorder(new EmptyBorder(2, 10, 2, 10));
+            JLabel n = new JLabel(subs[i]);
+            n.setFont(FONT_SUB);
+            n.setForeground(TEXT_MAIN);
+            vals[i].setFont(FONT_VAL);
+            fila.add(n, BorderLayout.WEST);
+            fila.add(vals[i], BorderLayout.EAST);
+            fila.setPreferredSize(new Dimension(0, 20));
+            filas.add(fila);
+        }
+        card.add(filas, BorderLayout.CENTER);
+        return card;
+    }
+
+    /** Escribe los valores y los colorea (errores en rojo, Semántica 2 en naranja). */
+    private static void pintarValores(String[] txt) {
+        int errCount = ((String[]) CATS[0][2]).length;
+        for (int col = 0; col < TOTAL_COLS; col++) {
+            String s = txt[col] == null ? "0" : txt[col];
+            JLabel l = valores[col];
+            l.setText(s);
+            boolean cero = "0".equals(s);
+            if (col < errCount) {
+                l.setForeground(cero ? TEXT_ZERO
+                        : col == IDX_TOTAL ? TEXT_TOTAL
+                        : col == IDX_SEM2  ? TEXT_SEM2
+                                           : TEXT_ERR);
+            } else {
+                l.setForeground(cero ? TEXT_ZERO : TEXT_NUMBER);
+            }
+        }
     }
 
     public static void actualizar(ContadorTokens c) {
@@ -185,7 +228,6 @@ public class CounterPanel extends JPanel {
         actualizar(c, comentLinea, comentMulti, 0, 0);
     }
 
-  
     public static void actualizar(ContadorTokens c,
                                    int comentLinea,  int comentMulti,
                                    int errLexicos,   int errSintacticos) {
@@ -196,8 +238,20 @@ public class CounterPanel extends JPanel {
                                    int comentLinea,  int comentMulti,
                                    int errLexicos,   int errSintacticos,
                                    int errAmbito,    int errSemantica) {
-        int errTotal = errLexicos + errSintacticos + errAmbito + errSemantica;
+        actualizar(c, comentLinea, comentMulti, errLexicos, errSintacticos,
+                errAmbito, errSemantica, 0);
+    }
+
+    /** errSemantica = Semántica 1; errSemantica2 = Semántica 2 (contador independiente). */
+    public static void actualizar(ContadorTokens c,
+                                   int comentLinea,  int comentMulti,
+                                   int errLexicos,   int errSintacticos,
+                                   int errAmbito,    int errSemantica,
+                                   int errSemantica2) {
+        int errTotal = errLexicos + errSintacticos + errAmbito + errSemantica + errSemantica2;
         int[] vals = {
+            // ERRORES (6)
+            errLexicos, errSintacticos, errAmbito, errSemantica, errSemantica2, errTotal,
             // IDENTIFICADORES (9)
             c.idCadena, c.idBinario, c.idDecimal, c.idOctal,
             c.idHex,    c.idReal,    c.idExp,     c.idBool,
@@ -212,69 +266,24 @@ public class CounterPanel extends JPanel {
             // OPERADORES (12)
             c.opPostfix,    c.opLogBin,  c.opControl,    c.opMat,
             c.opExp,        c.opTurno,   c.opRel,         c.opIgualdad,
-            c.opLogicos,    c.opTernario,c.opAsignacion,  c.opAgrup,
-            // ERRORES (5)
-            errLexicos, errSintacticos, errAmbito, errSemantica, errTotal
+            c.opLogicos,    c.opTernario,c.opAsignacion,  c.opAgrup
         };
         SwingUtilities.invokeLater(() -> {
+            if (valores == null) return;
+            String[] txt = new String[TOTAL_COLS];
             for (int col = 0; col < vals.length && col < TOTAL_COLS; col++)
-                model.setValueAt(String.valueOf(vals[col]), 2, col);
-            table.repaint();
+                txt[col] = String.valueOf(vals[col]);
+            pintarValores(txt);
         });
     }
 
-    
     public void limpiar() {
-        SwingUtilities.invokeLater(() -> {
-            for (int col = 0; col < TOTAL_COLS; col++)
-                model.setValueAt("0", 2, col);
-            table.repaint();
-        });
+        SwingUtilities.invokeLater(() -> pintarValores(new String[TOTAL_COLS]));
     }
 
     // ════════════════════════════════════════════════════════════════════════
     // INTERNOS
     // ════════════════════════════════════════════════════════════════════════
-
-    private void initColumnas() {
-        int col = 0;
-        for (Object[] cat : CATS) {
-            String   label = (String)   cat[0];
-            String[] subs  = (String[]) cat[2];
-            for (int si = 0; si < subs.length; si++) {
-                model.setValueAt(si == 0 ? label : "", 0, col);
-                model.setValueAt(subs[si],             1, col);
-                model.setValueAt("0",                  2, col);
-                int w = switch (label) {
-                    case "PAL. RESERVADAS" -> 82;
-                    case "OPERADORES"      -> 70;
-                    case "ERRORES"         -> 82;
-                    default                -> 68;
-                };
-                table.getColumnModel().getColumn(col).setPreferredWidth(w);
-                table.getColumnModel().getColumn(col).setMinWidth(48);
-                col++;
-            }
-        }
-    }
-
-    private int catIndexForCol(int col) {
-        int acc = 0;
-        for (int ci = 0; ci < CATS.length; ci++) {
-            acc += ((String[]) CATS[ci][2]).length;
-            if (col < acc) return ci;
-        }
-        return CATS.length - 1;
-    }
-
-    private boolean isPrimerColDeCat(int col) {
-        int acc = 0;
-        for (Object[] cat : CATS) {
-            if (col == acc) return true;
-            acc += ((String[]) cat[2]).length;
-        }
-        return false;
-    }
 
     private Color lighter(Color c) {
         return new Color(
@@ -285,7 +294,7 @@ public class CounterPanel extends JPanel {
     }
 
     private void styleScrollBar(JScrollBar sb) {
-        sb.setPreferredSize(new Dimension(0, 7));
+        sb.setPreferredSize(new Dimension(8, 0));
         sb.setBackground(BG_PANEL);
         sb.setUI(new javax.swing.plaf.basic.BasicScrollBarUI() {
             @Override protected void configureScrollBarColors() {

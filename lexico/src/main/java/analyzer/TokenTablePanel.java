@@ -42,7 +42,7 @@ public class TokenTablePanel extends JPanel {
     static final Color WARN_YELLOW  = new Color(0xE5, 0xC0, 0x7B);
 
     // ── Fuentes ──────────────────────────────────────────────────────────────
-    static final Font TABLE_FONT = new Font("Consolas", Font.PLAIN, 12);
+    static final Font TABLE_FONT = new Font("Consolas", Font.PLAIN, 13);
     static final Font HDR_FONT   = new Font("Segoe UI", Font.BOLD, 11);
     static final Font LBL_FONT   = new Font("Segoe UI", Font.BOLD, 11);
 
@@ -54,17 +54,24 @@ public class TokenTablePanel extends JPanel {
     private JTable tokenTable;
     private JTable errorTable;
 
+    // Secciones ya construidas: AnalyzerIDE las acomoda en el layout general.
+    private final JPanel tokenSection;
+    private final JPanel errorSection;
+
     // ════════════════════════════════════════════════════════════════════════
     public TokenTablePanel() {
         setLayout(new BorderLayout());
-        setPreferredSize(new Dimension(560, 0));
         setBackground(new Color(0x1E, 0x1E, 0x1E));
 
         tokenModel = buildTokenModel();
         errorModel = buildErrorModel();
 
-        JSplitPane split = new JSplitPane(JSplitPane.VERTICAL_SPLIT,
-                buildTokenSection(), buildErrorSection());
+        tokenSection = buildTokenSection();
+        errorSection = buildErrorSection();
+
+        // Si el panel se usa solo, conserva la vista anterior (tokens arriba, errores abajo).
+        // AnalyzerIDE en cambio toma las secciones por separado con los getters.
+        JSplitPane split = new JSplitPane(JSplitPane.VERTICAL_SPLIT, tokenSection, errorSection);
         split.setResizeWeight(0.58);
         split.setDividerSize(4);
         split.setBorder(null);
@@ -72,6 +79,12 @@ public class TokenTablePanel extends JPanel {
 
         add(split, BorderLayout.CENTER);
     }
+
+    /** Sección "TABLA DE TOKENS" (tabla + encabezado). */
+    public JPanel getTokenSection() { return tokenSection; }
+
+    /** Sección "PANEL DE ERRORES" (tabla + encabezado). */
+    public JPanel getErrorSection() { return errorSection; }
 
     // ════════════════════════════════════════════════════════════════════════
     // SECCIÓN TOKENS
@@ -191,24 +204,27 @@ public class TokenTablePanel extends JPanel {
                 String cod = codObj != null ? codObj.toString() : "";
                 String desc = descObj != null ? descObj.toString() : "";
                 boolean esWarn = cod.startsWith("W");
+                boolean esSem2 = cod.startsWith("Semántica 2");
                 boolean esSemantica = cod.contains("SEM") || cod.startsWith("Semántica") || desc.contains("Semántica 1")
                         || desc.contains("incompatibilidad") || desc.contains("incompatibles");
 
                 Color semColor = new Color(0xC5, 0x86, 0xC0); // Púrpura/Magenta distintivo para Semántica 1
+                Color sem2Color = new Color(0xFF, 0xA0, 0x40); // mismo naranja del contador de Semántica 2
                 setForeground(switch (col) {
-                    case 1  -> esSemantica ? semColor : (esWarn ? WARN_YELLOW : ERR_RED);
-                    case 2  -> esSemantica ? semColor : (esWarn ? WARN_YELLOW : ERR_ORANGE);
+                    case 1  -> esSem2 ? sem2Color : esSemantica ? semColor : (esWarn ? WARN_YELLOW : ERR_RED);
+                    case 2  -> esSem2 ? sem2Color : esSemantica ? semColor : (esWarn ? WARN_YELLOW : ERR_ORANGE);
                     case 0  -> TEXT_DIM;
                     default -> TEXT_MAIN;
                 });
                 setFont(TABLE_FONT);
                 setBorder(new EmptyBorder(3, 8, 3, 8));
+                setToolTipText(col == 2 && val != null ? val.toString() : null); // descripción completa
                 return this;
             }
         });
 
-        // #=40  TOKEN=130  DESCRIPCIÓN=235  LEXEMA=90  LÍNEA=55
-        int[] widths = {40, 130, 235, 90, 55};
+        // #=40  TOKEN=120  DESCRIPCIÓN=460  LEXEMA=130  LÍNEA=60 (el panel de errores es ahora el principal)
+        int[] widths = {40, 120, 460, 130, 60};
         for (int i = 0; i < widths.length; i++) {
             TableColumn c = errorTable.getColumnModel().getColumn(i);
             c.setPreferredWidth(widths[i]);
@@ -217,6 +233,16 @@ public class TokenTablePanel extends JPanel {
 
         JScrollPane scroll = new JScrollPane(errorTable);
         scroll.setBorder(null);
+        // DESCRIPCIÓN aprovecha todo el ancho disponible del panel de errores.
+        scroll.getViewport().addComponentListener(new java.awt.event.ComponentAdapter() {
+            @Override public void componentResized(java.awt.event.ComponentEvent ev) {
+                int resto = scroll.getViewport().getWidth() - (40 + 120 + 130 + 60);
+                TableColumn d = errorTable.getColumnModel().getColumn(2);
+                int w = Math.max(460, resto);
+                d.setPreferredWidth(w);
+                d.setWidth(w);
+            }
+        });
         scroll.getViewport().setBackground(BG_ROW_EVEN);
         scroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
         scroll.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);

@@ -6,6 +6,8 @@ import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
+import java.awt.GraphicsEnvironment;
+import java.awt.Rectangle;
 import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
@@ -23,6 +25,7 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollBar;
 import javax.swing.JScrollPane;
+import javax.swing.JSplitPane;
 import javax.swing.JTextPane;
 import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
@@ -67,20 +70,66 @@ public class AnalyzerIDE extends JFrame {
     public AnalyzerIDE() {
         super("Analyzer IDE v6.5 - Lenguajes y automatas II");
         setDefaultCloseOperation(EXIT_ON_CLOSE);
-        setSize(1200, 740);
-        setMinimumSize(new Dimension(900, 560));
-        setLocationRelativeTo(null);
+        // Ocupa todo el área útil de la pantalla (sin pasar la barra de tareas).
+        Rectangle area = GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds();
+        setMinimumSize(new Dimension(Math.min(900, area.width), Math.min(560, area.height)));
+        setBounds(area);
+        setExtendedState(MAXIMIZED_BOTH);
         getContentPane().setBackground(BG_DARK);
         setLayout(new BorderLayout());
 
         add(buildTitleBar(),  BorderLayout.NORTH);
-        add(buildEditor(),    BorderLayout.CENTER);
-        add(buildTablePanel(),BorderLayout.EAST);
+        add(buildMainSplit(), BorderLayout.CENTER);
         add(buildStatusBar(), BorderLayout.SOUTH);
-        CounterPanel counterPanel = new CounterPanel();
-        add(counterPanel, BorderLayout.SOUTH);
         //loadSampleCode();
         setVisible(true);
+        ajustarDivisores();
+    }
+
+    // ── Distribución: editor a la izquierda; a la derecha errores, contadores y tokens ──
+    private JSplitPane splitPrincipal, splitDerecho, splitInferior;
+
+    private JSplitPane buildMainSplit() {
+        JPanel editor = buildEditor();
+        buildTablePanel(); // crea tablePanel; sus dos secciones se acomodan aquí
+        CounterPanel counterPanel = new CounterPanel();
+
+        // Contadores (prioridad alta) arriba de los tokens (secundario)
+        splitInferior = nuevoSplit(JSplitPane.VERTICAL_SPLIT, counterPanel, tablePanel.getTokenSection());
+        splitInferior.setResizeWeight(0.60);
+        // Errores (prioridad máxima) arriba de todo
+        splitDerecho = nuevoSplit(JSplitPane.VERTICAL_SPLIT, tablePanel.getErrorSection(), splitInferior);
+        splitDerecho.setResizeWeight(0.50);
+        splitDerecho.setMinimumSize(new Dimension(420, 0));
+
+        editor.setMinimumSize(new Dimension(380, 0));
+        splitPrincipal = nuevoSplit(JSplitPane.HORIZONTAL_SPLIT, editor, splitDerecho);
+        splitPrincipal.setResizeWeight(0.45);
+        return splitPrincipal;
+    }
+
+    private JSplitPane nuevoSplit(int orientacion, java.awt.Component a, java.awt.Component b) {
+        JSplitPane sp = new JSplitPane(orientacion, a, b);
+        sp.setContinuousLayout(true);
+        sp.setDividerSize(5);
+        sp.setBorder(null);
+        sp.setBackground(BG_DARK);
+        sp.setOneTouchExpandable(false);
+        return sp;
+    }
+
+    /** Proporciones iniciales (ya con la ventana en su tamaño final); luego el usuario las ajusta. */
+    private void ajustarDivisores() {
+        SwingUtilities.invokeLater(() -> {
+            splitPrincipal.setDividerLocation(0.45);  // editor ~45 %, derecha ~55 %
+            // Contadores con su alto completo; tokens con lo mínimo legible; errores con el resto.
+            int alto = splitDerecho.getHeight();
+            int contadores = Math.min(CounterPanel.ALTO_IDEAL, (int) (alto * 0.50));
+            int tokens = Math.max(130, (int) (alto * 0.18));
+            int errores = Math.max((int) (alto * 0.28), alto - contadores - tokens - 2 * 5);
+            splitDerecho.setDividerLocation(errores);
+            splitInferior.setDividerLocation(contadores);
+        });
     }
 
     // ════════════════════════════════════════════════════════════════════════
@@ -92,7 +141,7 @@ public class AnalyzerIDE extends JFrame {
         bar.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, BORDER_COLOR));
         bar.setPreferredSize(new Dimension(0, 36));
 
-        JLabel title = new JLabel("Anlatorre - Parser V8.0 - Errores: Amarillo/Sintactico - Rojo/Ambito - Morado/Semantica 1", SwingConstants.CENTER);
+        JLabel title = new JLabel("Anlatorre - Parser V10.0 - Errores: Amarillo/Sintactico - Rojo/Ambito - Morado/Semantica 1- Naranja/Semantica 2", SwingConstants.CENTER);
         title.setFont(new Font("Segoe UI", Font.PLAIN, 13));
         title.setForeground(TEXT_DIM);
         bar.add(title, BorderLayout.CENTER);
@@ -134,8 +183,8 @@ public class AnalyzerIDE extends JFrame {
         //btns.add(btnExpresiones);
         //JButton btnOperaciones = makeButton("» Avance 2", new Color(0x3C, 0x3C, 0x3C), TEXT_MAIN);
         //btns.add(btnOperaciones);
-        JButton btnMuestreo = makeButton("» Sem2 Av.3", new Color(0x3C, 0x3C, 0x3C), TEXT_MAIN);
-        btns.add(btnMuestreo);
+        JButton btnMuestreo = makeButton("» Sem2 Av.2", new Color(0x3C, 0x3C, 0x3C), TEXT_MAIN);
+        //btns.add(btnMuestreo);
 
         header.add(btns, BorderLayout.EAST);
         panel.add(header, BorderLayout.NORTH);
@@ -246,7 +295,7 @@ public class AnalyzerIDE extends JFrame {
         statusLabel.setForeground(Color.WHITE);
         bar.add(statusLabel, BorderLayout.WEST);
 
-        JLabel right = new JLabel("Anlatorre v1.0");
+        JLabel right = new JLabel("Anlatorre v10.0");
         right.setFont(new Font("Segoe UI", Font.PLAIN, 11));
         right.setForeground(new Color(0xCC, 0xE0, 0xFF));
         bar.add(right, BorderLayout.EAST);
@@ -321,6 +370,7 @@ public class AnalyzerIDE extends JFrame {
     int errSintacticos = 0;
     int errAmbito = 0;
     int errSemantica = 0;
+    int errSemantica2 = 0;
 
     for (ErrorEntry e : errores) {
         if (e.getTipo() == ErrorEntry.Tipo.LEXICO) {
@@ -330,7 +380,12 @@ public class AnalyzerIDE extends JFrame {
         } else if (e.getTipo() == ErrorEntry.Tipo.AMBITO) {
             errAmbito++;
         } else if (e.getTipo() == ErrorEntry.Tipo.SEMANTICA) {
-            errSemantica++;
+            // Semántica 2 registra sus errores con código "Semántica 2"; el resto es Semántica 1
+            if ("Semántica 2".equals(e.getCodigo())) {
+                errSemantica2++;
+            } else {
+                errSemantica++;
+            }
         }
     }
 
@@ -345,7 +400,8 @@ public class AnalyzerIDE extends JFrame {
             errLexicos,
             errSintacticos,
             errAmbito,
-            errSemantica
+            errSemantica,
+            errSemantica2
     );
 
     // =====================================================
@@ -368,12 +424,13 @@ public class AnalyzerIDE extends JFrame {
     // =====================================================
 
     statusLabel.setText(String.format(
-            "Compilado  |  %d tokens  |  Léxico: %d  |  Sintáctico: %d  |  Ámbito: %d  |  Semántica 1: %d  |  Total: %d  |  ManuelCode 2026",
+            "Compilado  |  %d tokens  |  Léxico: %d  |  Sintáctico: %d  |  Ámbito: %d  |  Semántica 1: %d  |  Semántica 2: %d  |  Total: %d  |  ManuelCode 2026",
             tokens.size(),
             errLexicos,
             errSintacticos,
             errAmbito,
             errSemantica,
+            errSemantica2,
             errores.size()
     ));
 }
@@ -388,7 +445,8 @@ public class AnalyzerIDE extends JFrame {
         ct.contar(tokens);
         ExcelExporter.exportar(this, tokens, errores, ct,
                 parserLexer.getEstadisticasSemantica(),
-                parserLexer.getAsignacionesDetalle());
+                parserLexer.getAsignacionesDetalle(),
+                parserLexer.getFilasMuestreoSemantica2());
     }
     // ════════════════════════════════════════════════════════════════════════
     // Abrir archivo .txt 
@@ -575,8 +633,8 @@ public class AnalyzerIDE extends JFrame {
         }
 
         javax.swing.JFileChooser fileChooser = new javax.swing.JFileChooser();
-        fileChooser.setDialogTitle("Guardar muestreo de Semántica 2 (Avance 3)");
-        fileChooser.setSelectedFile(new java.io.File("Semantica2-Avance3-DavidAlatorre.txt"));
+        fileChooser.setDialogTitle("Guardar muestreo de Semántica 2 (Avance 2)");
+        fileChooser.setSelectedFile(new java.io.File("Semantica2-Avance2-DavidAlatorre.txt"));
 
         if (fileChooser.showSaveDialog(this) == javax.swing.JFileChooser.APPROVE_OPTION) {
 
@@ -622,8 +680,8 @@ public class AnalyzerIDE extends JFrame {
         }
 
         javax.swing.JFileChooser fileChooser = new javax.swing.JFileChooser();
-        fileChooser.setDialogTitle("Guardar operaciones (Avance 3)");
-        fileChooser.setSelectedFile(new java.io.File("Avance3-DavidAlatorre.txt"));
+        fileChooser.setDialogTitle("Guardar operaciones (Avance 2)");
+        fileChooser.setSelectedFile(new java.io.File("Avance2-DavidAlatorre.txt"));
 
         if (fileChooser.showSaveDialog(this) == javax.swing.JFileChooser.APPROVE_OPTION) {
 

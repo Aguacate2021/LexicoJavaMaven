@@ -1,0 +1,98 @@
+Linea 19: #Dxms9sdas
+
+Linea 31: = ¡xms9sdas true
+
+Linea 32: = ¡xms9sdas false
+
+Linea 34: #DMiLista[4 , 3]
+
+Linea 35: #DMiLista[4 , 3 , 7]
+
+Linea 37: #DMiLista[4.5 , "Hola"]
+
+Linea 39: #DMiLista[5 , 4]
+
+Linea 41: ¡xms9sdas
+
+Linea 45: ¡xms9sdas
+
+Linea 69: @xms9sd
+
+Linea 70: #Bxms9sdas
+
+Linea 71: #Dxms9sdas
+
+Linea 72: #Oxms9sdas
+
+Linea 73: #Xxms9sdas
+
+Linea 74: $xms9sdas
+
+Linea 75: ¿xms9sdas
+
+Linea 76: ¡xms9sdas
+
+Linea 78: @xms9sd
+
+Linea 79: #Bxms9sdas
+
+Linea 80: #Dxms9sdas
+
+Linea 81: #Oxms9sdas
+
+Linea 82: #Xxms9sdas
+
+Linea 83: $xms9sdas
+
+Linea 84: ¿xms9sdas
+
+Linea 85: ¡xms9sdas
+
+Linea 87: = #Di 0
+
+Linea 87: #Di
+
+Linea 88: #Di
+
+Linea 88: #Di
+
+Linea 89: = #Di 0
+
+Linea 89: #Di
+
+Linea 90: = #Di 0
+
+Linea 90: #Di
+
+Linea 90: #Di
+
+Linea 91: @xms9sd
+
+Linea 92: #Di
+
+Linea 92: @xms9sd
+
+Linea 93: @xms9sd
+
+Linea 94: #DecimalNoDeclarado
+
+Linea 94: @CadenaNoDeclarada
+
+Linea 95: = funcion 5
+
+Linea 96: = #DSuma 10
+
+Linea 97: = #Dxms9sdas 10
+
+Linea 98: = @xms9sd "Cadena"
+
+Linea 99: = #DMiLista[2 , 1] 10
+
+Linea 101: = @CadenaNoDeclarada "No se puede hacer esto"
+
+Linea 103: = #Dxms9sdas #DSuma(#Dxms9sdas , @xms9sd)
+
+Linea 104: = #Dxms9sdas #DSuma(#Dxms9sdas , @xms9sd , #Dxms9sdas)
+
+Linea 106: = #Dxms9sdas #DSuma(@xms9sd , #Dxms9sdas)
+

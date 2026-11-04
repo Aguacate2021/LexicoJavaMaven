@@ -91,7 +91,7 @@ public class ExcelExporter {
                                 List<ErrorEntry>  errores,
                                 ContadorTokens    contador,
                                 Map<Integer, int[]> estadisticasSem) {
-        exportar(parent, tokens, errores, contador, estadisticasSem, null);
+        exportar(parent, tokens, errores, contador, estadisticasSem, null, null);
     }
 
     public static void exportar(java.awt.Component parent,
@@ -99,7 +99,8 @@ public class ExcelExporter {
                                 List<ErrorEntry>  errores,
                                 ContadorTokens    contador,
                                 Map<Integer, int[]> estadisticasSem,
-                                Map<Integer, List<String>> asignacionesDetalle) {
+                                Map<Integer, List<String>> asignacionesDetalle,
+                                List<String[]> muestreoSem) {
         File destino = elegirDestino(parent);
         if (destino == null) return;
 
@@ -111,6 +112,7 @@ public class ExcelExporter {
             poblarAmbitos(wb, errores);
             poblarTablaSimbolos(wb);
             poblarSemantica1(wb, estadisticasSem, asignacionesDetalle, errores);
+            poblarSemantica2(wb, muestreoSem);
 
             try (FileOutputStream fos = new FileOutputStream(destino)) {
                 wb.write(fos);
@@ -732,6 +734,64 @@ public class ExcelExporter {
     }
 
     // ═══════════════════════════════════════════════════════════════════════
+    // HOJAS 8 y 9 — SEMANTICA 2-BASE y SEMANTICA 2-TOTAL
+    // Salen del muestreo que ya registra sintaxis (MuestreoSemantico): una fila
+    // por ejecución de regla, aceptada o con error. No se vuelve a analizar nada.
+    // ═══════════════════════════════════════════════════════════════════════
+    private static final int[] REGLAS_SEM2 = {
+        1010, 1011, 1012, 1013, 1020, 1021, 1022, 1030, 1040, 1050, 1060, 1061,
+        1070, 1080, 1081, 1082, 1083, 1084, 1090, 1100, 1110, 1120, 1130, 1131,
+        1140, 1150, 1160
+    };
+
+    /** filas = {línea, regla, descripción, situación, lexema, ámbito} (MuestreoSemantico.filas()). */
+    private static void poblarSemantica2(XSSFWorkbook wb, List<String[]> filas) {
+        CellStyle plano = wb.createCellStyle();
+        XSSFSheet base = wb.createSheet("Semantica 2-Base");
+        XSSFSheet total = wb.createSheet("Semantica 2-Total");
+
+        String[] hb = {"Regla", "Tope Pila", "Valor Real", "Linea", "Edo", "Ambito"};
+        XSSFRow rb = base.createRow(0);
+        for (int i = 0; i < hb.length; i++) celda(rb, i, hb[i], plano);
+
+        Map<Integer, int[]> cont = new LinkedHashMap<>(); // regla -> {aceptadas, errores}
+        for (int r : REGLAS_SEM2) cont.put(r, new int[2]);
+
+        int fila = 1, ancho = 14;
+        if (filas != null) {
+            for (String[] f : filas) {
+                int regla = Integer.parseInt(f[1]);
+                boolean error = f[3].startsWith("ERROR");
+                XSSFRow row = base.createRow(fila++);
+                celda(row, 0, regla, plano);
+                celda(row, 1, f.length > 6 ? f[6] : "-", plano); // tope real registrado por el compilador
+                celda(row, 2, f[4], plano);
+                celda(row, 3, Integer.parseInt(f[0]), plano);
+                celda(row, 4, error ? "ERROR" : "Acept", plano);
+                celda(row, 5, Integer.parseInt(f[5]), plano);
+                // una regla que no esté en la lista fija también se cuenta (nunca se pierde una fila de Base)
+                cont.computeIfAbsent(regla, k -> new int[2])[error ? 1 : 0]++;
+                ancho = Math.max(ancho, f[4].length() + 2);
+            }
+        }
+        int[] anchos = {6, 9, ancho, 6, 7, 7};
+        for (int i = 0; i < anchos.length; i++) base.setColumnWidth(i, anchos[i] * 256);
+
+        String[] ht = {"Reglas", "Aparecen", "Aceptada", "Errores"};
+        XSSFRow rt = total.createRow(0);
+        for (int i = 0; i < ht.length; i++) celda(rt, i, ht[i], plano);
+        fila = 1;
+        for (Map.Entry<Integer, int[]> e : cont.entrySet()) {
+            XSSFRow row = total.createRow(fila++);
+            int[] c = e.getValue();
+            celda(row, 0, String.valueOf(e.getKey()), plano);
+            celda(row, 1, c[0] + c[1], plano);
+            celda(row, 2, c[0], plano);
+            celda(row, 3, c[1], plano);
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
     // ESTILOS
     // ═══════════════════════════════════════════════════════════════════════
 
@@ -840,7 +900,7 @@ public class ExcelExporter {
         JFileChooser fc = new JFileChooser();
         fc.setDialogTitle("Guardar análisis léxico como Excel");
         fc.setFileFilter(new FileNameExtensionFilter("Archivo Excel (*.xlsx)", "xlsx"));
-        fc.setSelectedFile(new File("Semantica1-DavidAlatorre.xlsx"));
+        fc.setSelectedFile(new File("Semantica2-AlatorreDavid.xlsx"));
         if (fc.showSaveDialog(parent) != JFileChooser.APPROVE_OPTION) return null;
         File f = fc.getSelectedFile();
         if (!f.getName().toLowerCase().endsWith(".xlsx"))

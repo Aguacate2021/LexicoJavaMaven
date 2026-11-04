@@ -35,15 +35,17 @@ public class MuestreoSemantico {
     private static class Registro {
         final int linea;
         final int regla;
+        final String tope; // elemento en el tope de la pila al activarse la regla
         final String descripcion;
         final String situacion;
         final String lexema;
         final int ambito;
 
-        Registro(int linea, int regla, String descripcion,
+        Registro(int linea, int regla, String tope, String descripcion,
                  String situacion, String lexema, int ambito) {
             this.linea = linea;
             this.regla = regla;
+            this.tope = tope;
             this.descripcion = descripcion;
             this.situacion = situacion;
             this.lexema = lexema;
@@ -75,6 +77,7 @@ public class MuestreoSemantico {
     /**
      * Agrega un renglón de muestreo.
      *
+     * @param tope     elemento que la regla tiene en el tope de la pila (columna "Tope Pila")
      * @param posicion identifica el evento dentro de la línea (columna del
      *                 token que lo originó, y el número de índice cuando
      *                 aplica). Dos eventos distintos con el mismo lexema en
@@ -82,7 +85,7 @@ public class MuestreoSemantico {
      *                 evento procesado dos veces sí.
      * @return true si se agregó, false si era un duplicado
      */
-    public boolean registrar(int linea, int regla, String descripcion,
+    public boolean registrar(int linea, int regla, String tope, String descripcion,
                              String situacion, String lexema,
                              int ambito, int posicion) {
 
@@ -93,8 +96,23 @@ public class MuestreoSemantico {
             return false;
         }
 
-        registros.add(new Registro(linea, regla, descripcion, situacion, lex, ambito));
+        registros.add(new Registro(linea, regla, tope == null || tope.isBlank() ? "-" : tope.trim(),
+                descripcion, situacion, lex, ambito));
         return true;
+    }
+
+    /** Filas registradas, ordenadas por línea: {línea, regla, descripción, situación, lexema, ámbito, tope}. */
+    public List<String[]> filas() {
+        List<Registro> ordenados = new ArrayList<>(registros);
+        ordenados.sort((a, b) -> Integer.compare(a.linea, b.linea));
+        List<String[]> filas = new ArrayList<>();
+        for (Registro r : ordenados) {
+            String[] c = r.columnas();
+            String[] f = java.util.Arrays.copyOf(c, c.length + 1);
+            f[c.length] = r.tope;
+            filas.add(f);
+        }
+        return filas;
     }
 
     /** Tabla de texto con columnas alineadas, ordenada por línea (orden estable). */
