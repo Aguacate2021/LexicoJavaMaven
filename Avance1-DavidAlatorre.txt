@@ -1,98 +1,738 @@
-Linea 19: #Dxms9sdas
+Linea 37: #Da
 
-Linea 31: = ¡xms9sdas true
+Linea 40: #Da
 
-Linea 32: = ¡xms9sdas false
+Linea 43: @a
 
-Linea 34: #DMiLista[4 , 3]
+Linea 46: #Da
 
-Linea 35: #DMiLista[4 , 3 , 7]
+Linea 49: ¡a
 
-Linea 37: #DMiLista[4.5 , "Hola"]
+Linea 52: = #Da + #Da 1
 
-Linea 39: #DMiLista[5 , 4]
+Linea 55: #Da
 
-Linea 41: ¡xms9sdas
+Linea 58: @t
 
-Linea 45: ¡xms9sdas
+Linea 61: #Da
 
-Linea 69: @xms9sd
+Linea 67: #Da
 
-Linea 70: #Bxms9sdas
+Linea 70: = #Da 1
 
-Linea 71: #Dxms9sdas
+Linea 76: #DnoDec
 
-Linea 72: #Oxms9sdas
+Linea 79: #Da
 
-Linea 73: #Xxms9sdas
+Linea 82: #Da
 
-Linea 74: $xms9sdas
+Linea 82: #Da
 
-Linea 75: ¿xms9sdas
+Linea 82: = #Dp 0
 
-Linea 76: ¡xms9sdas
+Linea 82: #Dp
 
-Linea 78: @xms9sd
+Linea 85: #Dlater(#Da)
 
-Linea 79: #Bxms9sdas
+Linea 87: #Da
 
-Linea 80: #Dxms9sdas
+Linea 92: #Dc
 
-Linea 81: #Oxms9sdas
+Linea 92: #Db
 
-Linea 82: #Xxms9sdas
+Linea 92: #Da
 
-Linea 83: $xms9sdas
+Linea 93: #Dn3(#Db)
 
-Linea 84: ¿xms9sdas
+Linea 93: #Dn4(#Db)
 
-Linea 85: ¡xms9sdas
+Linea 94: #Dn2(#Da)
 
-Linea 87: = #Di 0
+Linea 94: #Dn3(#Da)
 
-Linea 87: #Di
+Linea 94: #Dc
 
-Linea 88: #Di
+Linea 99: = #DnoA 1
 
-Linea 88: #Di
+Linea 100: noP(1)
 
-Linea 89: = #Di 0
+Linea 101: = #DnoK[1] 2
 
-Linea 89: #Di
+Linea 102: #DnoL
 
-Linea 90: = #Di 0
+Linea 104: = #DnoB + #DnoC @noD
 
-Linea 90: #Di
+Linea 106: noP2(noP3 ( 1 ) , #DnoE [ 2 ])
 
-Linea 90: #Di
+Linea 108: = #Dx + #DnoF(#DnoG , @noH) #DnoI[#DnoJ]
 
-Linea 91: @xms9sd
+Linea 110: @noM
 
-Linea 92: #Di
+Linea 110: #DnoN
 
-Linea 92: @xms9sd
+Linea 113: = #Dx + #Dx ¡fl
 
-Linea 93: @xms9sd
+Linea 114: = #Dx + #Bb #Dy
 
-Linea 94: #DecimalNoDeclarado
+Linea 115: = #Dx + #Oo #Xh
 
-Linea 94: @CadenaNoDeclarada
+Linea 116: = #Dx + ¡fl ¡fl
 
-Linea 95: = funcion 5
+Linea 117: = #Dx - @cad 1
 
-Linea 96: = #DSuma 10
+Linea 118: = #Dx - - #Dx $rl #Oo
 
-Linea 97: = #Dxms9sdas 10
+Linea 119: = #Dx * @cad 2
 
-Linea 98: = @xms9sd "Cadena"
+Linea 120: = #Dx * #Xh #Oo
 
-Linea 99: = #DMiLista[2 , 1] 10
+Linea 121: = #Dx / #Dx ¡fl
 
-Linea 101: = @CadenaNoDeclarada "No se puede hacer esto"
+Linea 122: = #Dx / #Bb #Dy
 
-Linea 103: = #Dxms9sdas #DSuma(#Dxms9sdas , @xms9sd)
+Linea 123: = #Dx % #Dx @cad
 
-Linea 104: = #Dxms9sdas #DSuma(#Dxms9sdas , @xms9sd , #Dxms9sdas)
+Linea 124: = #Dx << ¡fl 1
 
-Linea 106: = #Dxms9sdas #DSuma(@xms9sd , #Dxms9sdas)
+Linea 125: = ¡fl < #Dx @cad
+
+Linea 126: = ¡fl <= ¡fl ¡fl
+
+Linea 127: = ¡fl == #Dx @cad
+
+Linea 128: = ¡fl && #Dx ¡fl
+
+Linea 129: = ¡fl | @cad @cad
+
+Linea 131: = ¡fl > #Dx #Dy
+
+Linea 132: = #Dx - + #Dx * #Dy #Dx % #Dy 3
+
+Linea 133: = @cad + + + @cad #Dx ¡fl $rl
+
+Linea 134: = $rl #Dx
+
+Linea 135: = ¿ex $rl
+
+Linea 137: = #Dx "a"
+
+Linea 138: = #Dx 2.5
+
+Linea 139: = #Dx true
+
+Linea 140: = #Dx Xb101
+
+Linea 141: = @cad 1
+
+Linea 142: = $rl 365^54
+
+Linea 143: = #Bb 5
+
+Linea 145: = #Bb Xb101
+
+Linea 146: = #Oo Xo17
+
+Linea 147: = #Xh Xl1F
+
+Linea 148: = #Dx 542
+
+Linea 149: = $rl 856.0
+
+Linea 150: = ¿ex 0.78^+5
+
+Linea 151: = ¿ex 253.52^-5
+
+Linea 152: = ¡fl false
+
+Linea 153: = @cad 'hola'
+
+Linea 154: = @cad null
+
+Linea 155: = #Dx null
+
+Linea 157: = #Dx -5
+
+Linea 158: = #Dx +7
+
+Linea 159: = #Dx 5
+
+Linea 161: += #Dx "a"
+
+Linea 162: -= #Dx true
+
+Linea 163: -= @cad "a"
+
+Linea 164: *= @cad 2
+
+Linea 165: /= #Bb 2
+
+Linea 166: += ¡fl true
+
+Linea 168: /= #Dx 2
+
+Linea 170: += #Dx 1
+
+Linea 173: = #Dk 1
+
+Linea 174: = @sk "a"
+
+Linea 175: = $rk 1.5
+
+Linea 176: = ¿ek 365^54
+
+Linea 177: = ¡bk false
+
+Linea 178: = #Bk Xb101
+
+Linea 179: = #Ok Xo17
+
+Linea 180: = #Xk Xl1F
+
+Linea 181: += #Dk 4
+
+Linea 183: = #Df 1
+
+Linea 184: = @g "a"
+
+Linea 185: = $h 1.5
+
+Linea 186: = ¡k true
+
+Linea 187: += #Df 1
+
+Linea 189: = proc 2
+
+Linea 191: = #Dv 3
+
+Linea 192: = @sv "a"
+
+Linea 194: = #Da 5
+
+Linea 195: = @b "x"
+
+Linea 198: = #Dx + #Dv[0] #Dv[4]
+
+Linea 200: = #Dx #Dv[5]
+
+Linea 201: = #Dx #Dm[3 , 1]
+
+Linea 203: = #Dx #Dm[9 , 9]
+
+Linea 205: = #Dx #Dm[1]
+
+Linea 206: = #Dx #Dm[1 , 1 , 1]
+
+Linea 207: = #Dx #Dv[1 , 1 , 1 , 1]
+
+Linea 209: = #Dx #Dv[$rl]
+
+Linea 210: = #Dx #Dv["a"]
+
+Linea 211: = #Dx #Dv[¡fl]
+
+Linea 212: = #Dx #Dv[#Bb]
+
+Linea 213: = #Dx #Dv[Xb1]
+
+Linea 214: = #Dx #Dv[null]
+
+Linea 215: = #Dx #Dv[2.5]
+
+Linea 217: = #Dx #Dv[#DnoI]
+
+Linea 218: = #Dx #Dv[#Dy + ¡fl]
+
+Linea 219: = #Dx #Dv[#Dy + 1.5]
+
+Linea 221: = #Dx #Dv[#Dy + 1]
+
+Linea 223: = #Dx #Dv[$h ( 1 )]
+
+Linea 224: = #Dx #Dv[@g ( "a" , 1 )]
+
+Linea 225: = #Dx #Dv[¡k ( true )]
+
+Linea 226: = #Dx #Dv[proc ( 1 )]
+
+Linea 227: = #Dx #Dv[#Df ( 1 )]
+
+Linea 228: = #Dx #Dv[#DnoFn ( 1 )]
+
+Linea 230: = #Dx #Dv[#Df ( 1 , "a" , 2.5 )]
+
+Linea 231: = #Dx #Dm[#Dv [ 1 ] , #Dv [ #Df ( 1 , "a" , 2.5 ) ]]
+
+Linea 232: = #Dx #Df(#Dv [ 1 ] , @sv [ 1 ] , $rv [ 1 ])
+
+Linea 234: = #Dx #Dv[#Dv [ #Dv [ #Dv [ 9 ] ] ]]
+
+Linea 236: = #Dx #Df(#Dv [ 9 ] , @sv [ 1 , 1 ] , $rv [ 1 ])
+
+Linea 238: = #Dv[1] 5
+
+Linea 239: = @sv[1] "a"
+
+Linea 241: = #Dv[9] 5
+
+Linea 242: = #Dm[1] 5
+
+Linea 243: = @sv[1] 5
+
+Linea 244: += #Dv[1] "a"
+
+Linea 246: = #Dv[#Dv [ 9 ]] #Dm[9 , 1]
+
+Linea 248: = #Dx #Dy[1]
+
+Linea 249: = #Dx #Df[1]
+
+Linea 250: = #Dx #Dk[0]
+
+Linea 251: = #Dy[1] 5
+
+Linea 253: = #Dx #Dv
+
+Linea 254: = #Dx #Dbig[0]
+
+Linea 256: = #Dx #Dzero[0]
+
+Linea 258: = #Dx #Dv[#Dv [ #Dv [ #Dv [ #Dv [ #Dv [ #Dv [ #Dv [ 0 ] ] ] ] ] ] ]]
+
+Linea 261: = #Dx #Df(1 , "a" , 2.5)
+
+Linea 263: = #Dx #Df(1 , "a")
+
+Linea 264: = #Dx #Df(1)
+
+Linea 266: = #Dx #Df(1 , "a" , 2.5 , 4 , 5)
+
+Linea 267: = #Dx #Df(1 , "a" , 2.5 , "x" , ¡fl)
+
+Linea 269: = #Dx #Df("a" , 2 , 3)
+
+Linea 271: = #Dx #Df(@cad , #Dx , ¡fl)
+
+Linea 272: = #Dx #Df(null , null , null)
+
+Linea 274: = #Dx #Df(#DnoP , @noQ , $noR)
+
+Linea 276: = #Dx #Df(1 + ¡fl , "a" , 2.5)
+
+Linea 278: = #Dx #Df(#Df ( 1 , "a" , 2.5 ) , @g ( "a" , 1 ) , $h ( 2 ))
+
+Linea 279: = ¡fl ¡k(¡k ( true ))
+
+Linea 281: = #Dx #Df(@g ( "a" , 1 ) , #Df ( 1 , "a" , 2.5 ) , 3)
+
+Linea 282: = #Dx #Df($h ( 1 ) , ¡k ( true ) , #Dv [ 1 ])
+
+Linea 284: proc(1)
+
+Linea 285: proc2("x")
+
+Linea 287: proc("a")
+
+Linea 288: proc(1 , 2)
+
+Linea 289: proc2(1)
+
+Linea 291: = #Dx proc(1)
+
+Linea 292: = #Dx + 1 proc(1)
+
+Linea 293: = #Dx #Df(proc ( 1 ) , "a" , 2.5)
+
+Linea 295: = @cad @g(#Df ( 1 , "a" , 2.5 ) , 7)
+
+Linea 297: = #Dx #DnoFn2(1 , 2)
+
+Linea 298: = #Dx #Dy(1)
+
+Linea 299: = #Dx #Dv(1)
+
+Linea 300: = #Dx #Dk(1)
+
+Linea 301: noP5(1)
+
+Linea 304: ¡fl
+
+Linea 305: #Dx
+
+Linea 306: ¡k(true)
+
+Linea 308: #Dx
+
+Linea 309: @cad
+
+Linea 310: $rl
+
+Linea 313: #Df(1 , "a" , 2.5)
+
+Linea 315: #DnoQ
+
+Linea 316: #Dx
+
+Linea 316: ¡fl
+
+Linea 318: ¡fl
+
+Linea 318: @cad
+
+Linea 318: ¡fl
+
+Linea 320: #Dx
+
+Linea 320: #Dx
+
+Linea 322: #Dx
+
+Linea 325: #DnoR
+
+Linea 327: #Dx
+
+Linea 329: #DnoS
+
+Linea 331: = #Di 0
+
+Linea 331: #Di
+
+Linea 331: #Di
+
+Linea 332: = #Di 0
+
+Linea 332: #Di
+
+Linea 333: = #Di 0
+
+Linea 333: @cad
+
+Linea 333: #Di
+
+Linea 334: = #Di 0
+
+Linea 334: #DnoT
+
+Linea 334: #Di
+
+Linea 337: #Dx
+
+Linea 338: #Df(1 , "a" , 2.5)
+
+Linea 338: #Dv[1]
+
+Linea 338: #Df(2 , "b" , 3.5)
+
+Linea 340: @cad
+
+Linea 342: $rl
+
+Linea 344: ¡fl
+
+Linea 347: #Bb
+
+Linea 348: proc(1)
+
+Linea 350: #DnoU
+
+Linea 352: #DnoV
+
+Linea 354: #Dx
+
+Linea 356: #Dx
+
+Linea 356: #Dy
+
+Linea 356: @cad
+
+Linea 356: #DnoW
+
+Linea 358: @g("a" , 1)
+
+Linea 358: @sv[1]
+
+Linea 358: #Dv[1]
+
+Linea 360: #Dx
+
+Linea 360: ¡fl
+
+Linea 362: #Dx
+
+Linea 362: @cad
+
+Linea 364: #Dx
+
+Linea 364: = #Dy 1
+
+Linea 364: = #Dz 2
+
+Linea 364: = #Dy 3
+
+Linea 364: = #Dy 4
+
+Linea 383: ¡fl
+
+Linea 384: #Dx
+
+Linea 384: #Dy
+
+Linea 385: ¡k(true)
+
+Linea 387: #Dx
+
+Linea 388: @cad
+
+Linea 390: #Df(1 , "a" , 2.5)
+
+Linea 391: proc(1)
+
+Linea 392: #Dx
+
+Linea 392: ¡fl
+
+Linea 393: #DnoZ
+
+Linea 395: #Dx
+
+Linea 396: #Bb
+
+Linea 397: #Oo
+
+Linea 398: #Xh
+
+Linea 402: $rl
+
+Linea 403: @cad
+
+Linea 404: ¡fl
+
+Linea 405: ¿ex
+
+Linea 408: @g("a" , 1)
+
+Linea 409: #DnoAA
+
+Linea 411: =  ! ¡fl #Dx
+
+Linea 412: =  ~ #Dx @cad
+
+Linea 413: =  ~  ! #Dx ¡fl
+
+Linea 414: =  ! @cad ¡fl
+
+Linea 416: =  !  ! ¡fl ¡fl
+
+Linea 417: =  ~  ~ #Dx #Dy
+
+Linea 420: = #Di 0
+
+Linea 420: #Di
+
+Linea 420: #Di
+
+Linea 421: = #Di 0
+
+Linea 421: #Di
+
+Linea 421: = #Di 0
+
+Linea 421: #Di
+
+Linea 421: #Di
+
+Linea 423: += #Di 0
+
+Linea 423: #Di
+
+Linea 423: #Di
+
+Linea 424: #Di
+
+Linea 424: #Di
+
+Linea 424: #Di
+
+Linea 425: = #Di 0
+
+Linea 425: #Dj
+
+Linea 425: #Di
+
+Linea 425: #Di
+
+Linea 427: = #Di 0
+
+Linea 427: = #Di 1
+
+Linea 427: #Di
+
+Linea 427: #Di
+
+Linea 429: = #Di 0
+
+Linea 429: #Di
+
+Linea 429: += #Di 1
+
+Linea 429: #Di
+
+Linea 430: = #Di 0
+
+Linea 430: #Di
+
+Linea 430: #Di
+
+Linea 431: = #Di 0
+
+Linea 431: #Di
+
+Linea 431: #Dx
+
+Linea 431: #Di
+
+Linea 433: = #Di 0
+
+Linea 433: #Di
+
+Linea 433: #Di
+
+Linea 434: = #Di 0
+
+Linea 434: #Di
+
+Linea 434: #Di
+
+Linea 436: #Dc
+
+Linea 436: @cad
+
+Linea 436: #Dc
+
+Linea 437: #Dc
+
+Linea 437: #Dc
+
+Linea 438: #De
+
+Linea 438: #Dv
+
+Linea 438: #De
+
+Linea 439: @e
+
+Linea 439: @sv
+
+Linea 439: @e
+
+Linea 440: $e
+
+Linea 440: $rv
+
+Linea 440: $e
+
+Linea 441: ¡e
+
+Linea 441: ¡bv
+
+Linea 442: #Be
+
+Linea 442: #Bv
+
+Linea 444: @c1
+
+Linea 444: @cad
+
+Linea 445: $c2
+
+Linea 445: @cad
+
+Linea 446: ¡c3
+
+Linea 446: @cad
+
+Linea 448: #Dc
+
+Linea 448: #Dx
+
+Linea 449: #Dc
+
+Linea 449: $rl
+
+Linea 450: #Dc
+
+Linea 451: #Dc
+
+Linea 452: #De
+
+Linea 452: #Dv[1]
+
+Linea 454: @e
+
+Linea 454: #Dv
+
+Linea 455: #De
+
+Linea 455: @sv
+
+Linea 456: $e
+
+Linea 456: #Dv
+
+Linea 457: #De
+
+Linea 457: $rv
+
+Linea 458: #Be
+
+Linea 458: #Ov
+
+Linea 460: @cad
+
+Linea 461: @cad
+
+Linea 463: #Dc
+
+Linea 463: @noAC
+
+Linea 464: #Dc
+
+Linea 464: #DnoAD
+
+Linea 467: = #Dx #Dy
+
+Linea 469: =  !  !  !  !  !  !  !  ! ¡fl ¡fl
+
+Linea 471: = #Dx + + + + + + + + + + + + + + + + + + + 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1
+
+Linea 473: ¡fl
+
+Linea 473: ¡fl
+
+Linea 473: = #Di 0
+
+Linea 473: #Di
+
+Linea 473: #Dx
+
+Linea 473: ¡fl
+
+Linea 473: ¡fl
+
+Linea 476: = #Dx #Dv[- 1]
+
+Linea 478: = #Dx 5
+
+Linea 480: = #Di #Dv[1]
+
+Linea 480: #Di
+
+Linea 480: #Di
+
+Linea 481: = #Di #Df(1 , "a" , 2.5)
+
+Linea 481: #Di
+
+Linea 481: #Di
+
+Linea 500: #Dx
 

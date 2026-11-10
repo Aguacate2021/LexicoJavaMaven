@@ -101,10 +101,11 @@ public class MuestreoSemantico {
         return true;
     }
 
-    /** Filas registradas, ordenadas por línea: {línea, regla, descripción, situación, lexema, ámbito, tope}. */
+    /** Filas registradas, en el orden en que se ejecutaron las reglas: {línea, regla, descripción, situación, lexema, ámbito, tope}. */
     public List<String[]> filas() {
         List<Registro> ordenados = new ArrayList<>(registros);
-        ordenados.sort((a, b) -> Integer.compare(a.linea, b.linea));
+        // Orden de ejecución (como se activaron las reglas), no por línea: p. ej. el 1140/1130 de una
+        // función se registra al cerrar su cuerpo y conserva la línea de su declaración.
         List<String[]> filas = new ArrayList<>();
         for (Registro r : ordenados) {
             String[] c = r.columnas();
@@ -115,11 +116,12 @@ public class MuestreoSemantico {
         return filas;
     }
 
-    /** Tabla de texto con columnas alineadas, ordenada por línea (orden estable). */
+    /** Tabla de texto con columnas alineadas, en orden de ejecución. */
     public String generarTabla() {
 
         List<Registro> ordenados = new ArrayList<>(registros);
-        ordenados.sort((a, b) -> Integer.compare(a.linea, b.linea));
+        // Orden de ejecución (como se activaron las reglas), no por línea: p. ej. el 1140/1130 de una
+        // función se registra al cerrar su cuerpo y conserva la línea de su declaración.
 
         int[] anchos = new int[ENCABEZADOS.length];
         for (int i = 0; i < anchos.length; i++) {

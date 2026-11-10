@@ -139,6 +139,9 @@ public static boolean tieneTabla(int tipoOperacion) {
 public boolean asignacionCompatible(int tDestino, int tOrigen) {
     if (tDestino == T_VARIANT || tOrigen == T_VARIANT) return true;
     if (tDestino == tOrigen) return true;                       // incluye Boolean = Boolean
+    // Un destino Cadena solo recibe Cadena/Caracter: la suma Cadena+X concatena (resultado Cadena)
+    // pero eso describe la operación, no que un número sea asignable a una cadena.
+    if (tDestino == T_CADENA) return tOrigen == T_CARACTER;
     return ObtenerTipoPorTipos(tDestino, tOrigen, -11) == tDestino;
 }
 /** Código de token -> tipo (1..10). Lo que no está en el mapa es Variant. */
