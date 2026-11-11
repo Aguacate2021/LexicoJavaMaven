@@ -281,6 +281,24 @@ public class sintaxis {
         return muestreo.filas();
     }
 
+    // Semántica 3: reglas 2001-2018 de parámetros y retornos de las funciones nativas.
+    private final SemanticAnalyzerV3 semantica3 = new SemanticAnalyzerV3();
+    private static final String ARCHIVO_SEM3 = "Semantica3-DavidAlatorre.txt";
+
+    /** Tabla Semántica 3: {Regla, Función, Tope Pila, Valor Real, Fila, Edo, Ambito}. */
+    public List<String[]> getFilasSemantica3() {
+        return semantica3.filas();
+    }
+
+    /** Contadores de Semántica 3: {Función, Entradas, Salida, Aceptados, Errores}. */
+    public List<String[]> getContadoresSemantica3() {
+        return semantica3.contadores().filas();
+    }
+
+    public String getLogSemantica3() {
+        return semantica3.generarTabla();
+    }
+
     public Map<Integer, int[]> getEstadisticasSemantica() {
         return estadisticasSemantica;
     }
@@ -306,6 +324,7 @@ public class sintaxis {
         logBuilder.setLength(0);
 
         reiniciarMuestreoSemantica2();
+        semantica3.limpiar();
 
         erroresSintaxis.clear();
         erroresAmbito.clear();
@@ -1114,6 +1133,14 @@ public class sintaxis {
 
         volcarAsignacionesPendientes();
 
+        // Semántica 3: sus errores se suman a la lista (no cuentan para abortar el análisis).
+        erroresSintaxis.addAll(semantica3.errores());
+        String rutaSem3 = semantica3.guardarArchivo(ARCHIVO_SEM3);
+        if (rutaSem3 != null) {
+            System.out.println("[SEM3] Archivo generado: " + rutaSem3
+                    + " (" + semantica3.cantidad() + " registros)");
+        }
+
         // Avance 1 Semántica 2: se escribe el TXT de muestreo
         String rutaMuestreo = muestreo.guardarArchivo(ARCHIVO_MUESTREO_SEM2);
         if (rutaMuestreo != null) {
@@ -1348,6 +1375,10 @@ public class sintaxis {
             case 52 -> iniciarLlamada(t); // ID X1 con '(': llamada a función/procedimiento
             case 92 -> iniciarReturn(t); // STATU -> return OR
             case 48 -> iniciarCapturaParen(CAP_TILDE, t, null);
+            // ---- Semántica 3 (reglas 2001 a 2018): funciones nativas ----
+            case 63 -> validarFuncionNativa(t, new ArrayList<>()); // CLEAR: sin paréntesis ni parámetros
+            case 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80 ->
+                iniciarCapturaParen(CAP_NATIVA, t, null);
             default -> {
             }
         }
@@ -2372,6 +2403,8 @@ public class sintaxis {
             case CAP_NOT, CAP_TILDE -> finalizarUnarioLogico(c);
             case CAP_FOR -> finalizarFor(c);
             case CAP_CALL -> finalizarLlamada(c);
+            case CAP_NATIVA -> validarFuncionNativa(c.origen,
+                    c.toks.isEmpty() ? new ArrayList<>() : separarPorComas(c.toks));
             default -> {
             }
         }
@@ -2856,12 +2889,12 @@ public class sintaxis {
                 }
                 return v;
             }
-            if (c <= -75 && c >= -94) { // funciones predefinidas: resultado Variant
+            if (c <= -75 && c >= -94) { // funciones predefinidas: tipo de retorno (Semántica 3)
                 i++;
                 if (!fin() && tc() == -49) {
                     saltarBalanceado(-50);
                 }
-                return new Val(LeerCSVComparacion.T_VARIANT);
+                return new Val(tipoRetornoNativa(c));
             }
             i++;
             return new Val(LeerCSVComparacion.T_VARIANT);
@@ -3293,6 +3326,92 @@ public class sintaxis {
                 valorSem(arg), pos);
     }
 
+    // =========================================================
+    // SEMÁNTICA 3: REGLAS 2001 A 2018 (funciones nativas)
+    //
+    // Producciones 63..80 (FUNCION -> CLEAR | SQRT(..) | POW(..,..) ...). Al expandirse se
+    // abre una captura de sus paréntesis; al cerrarse, cada argumento se resuelve (si es id,
+    // su tipo sale de la tabla de símbolos) y SemanticAnalyzerV3 aplica las reglas _p1/_p2/_p3
+    // y la de salida. Los errores no detienen el análisis.
+    // =========================================================
+
+    private static final int CAP_NATIVA = 6;
+
+    /** Tipo (1..10) que retorna la función nativa; Variant si no devuelve valor (void). */
+    private static int tipoRetornoNativa(int tokenClass) {
+        FuncionNativa f = FuncionNativa.deToken(tokenClass);
+        if (f == null || f.retorno == SemanticRuleV3.Tipo.VOID) {
+            return LeerCSVComparacion.T_VARIANT;
+        }
+        return f.retorno.codigo;
+    }
+
+    /** validateFunctionCall: aplica las reglas de Semántica 3 a una llamada nativa. */
+    private void validarFuncionNativa(Token nombre, List<List<Token>> argumentos) {
+        FuncionNativa f = FuncionNativa.deToken(nombre.getTokenClass());
+        if (f == null) {
+            f = FuncionNativa.deNombre(nombre.getLexema()); // "char" se identifica como chr
+        }
+        if (f == null) {
+            return;
+        }
+        List<SemanticAnalyzerV3.Argumento> args = new ArrayList<>();
+        for (List<Token> arg : argumentos) {
+            if (arg.isEmpty()) {
+                args.add(new SemanticAnalyzerV3.Argumento("-", SemanticRuleV3.Tipo.VARIANT,
+                        false, false, nombre.getLinea()));
+                continue;
+            }
+            args.add(argumentoNativa(arg));
+        }
+        // Una llamada sin argumentos "f()" llega como una lista con un argumento vacío.
+        if (args.size() == 1 && argumentos.get(0).isEmpty()) {
+            args.clear();
+        }
+        semantica3.validarLlamada(f, args, nombre.getLinea(), obtenerAmbitoActual());
+    }
+
+    /** Resuelve el Valor Real y el tipo de un argumento de una función nativa. */
+    private SemanticAnalyzerV3.Argumento argumentoNativa(List<Token> arg) {
+        Token t0 = arg.get(0);
+        boolean esId = esIdToken(t0.getTokenClass()) && (arg.size() == 1 || esAccesoArregloCompleto(arg));
+        int tipo;
+        boolean declarado = true;
+        if (esId) {
+            // Identificador: su tipo base real sale de la tabla de símbolos (no del lexema).
+            IdInfo inf = idInfos.get(t0);
+            declarado = inf != null && inf.declarado;
+            tipo = declarado ? tipoSemanticoDeSimbolo(inf.tipo) : LeerCSVComparacion.T_VARIANT;
+        } else {
+            tipo = evaluar(arg).tipo;
+        }
+        boolean constante = arg.size() == 1
+                || (arg.size() == 2 && (arg.get(0).getTokenClass() == -11 || arg.get(0).getTokenClass() == -12));
+        String valorReal = (esId || constante) ? valorArg(arg) : tipoCorto(tipo);
+        if (constante && arg.size() == 2) {
+            valorReal = textoDe(arg).replace(" ", "");
+        }
+        return new SemanticAnalyzerV3.Argumento(valorReal, SemanticRuleV3.Tipo.deCodigo(tipo),
+                esId, declarado, t0.getLinea());
+    }
+
+    /** id[..][..] que abarca todo el argumento (elemento de un arreglo). */
+    private static boolean esAccesoArregloCompleto(List<Token> arg) {
+        if (arg.size() < 2 || arg.get(1).getTokenClass() != -47) {
+            return false;
+        }
+        int prof = 0;
+        for (int k = 1; k < arg.size(); k++) {
+            int tc = arg.get(k).getTokenClass();
+            if (prof == 0 && tc != -47) {
+                return false;
+            }
+            if (tc == -47) prof++;
+            else if (tc == -48) prof--;
+        }
+        return prof == 0;
+    }
+
     // Contador de temporales del muestreo, por tipo, en orden de ejecución (TDec1, TDec2, TBoolean1...).
     private final Map<Integer, Integer> contTempSem = new HashMap<>();
     // Expresión (primer token + tamaño) -> temporal ya asignado, para que 1040 y 1050 (o 1150 y 1160)
@@ -3453,6 +3572,8 @@ public class sintaxis {
             if (arreglo) {
                 // el elemento tiene el tipo del arreglo (ya calculado al consumir el id)
                 tipo = tiposOperando.getOrDefault(callee, LeerCSVComparacion.T_VARIANT);
+            } else if (FuncionNativa.deToken(callee.getTokenClass()) != null) {
+                tipo = tipoRetornoNativa(callee.getTokenClass()); // Semántica 3: retorno de la nativa
             } else if (f != null && !f.procedimiento) {
                 tipo = tipoSemanticoDeSimbolo(f.tipo);
             }
@@ -3727,6 +3848,17 @@ public class sintaxis {
                 cerrarLlamadaOperando();
             } else {
                 llamadaOpAcumular(t.getLexema().trim());
+            }
+            return;
+        }
+        // Semántica 3: una función nativa (pow(...), CLEAR...) es UN operando cuyo tipo es su retorno.
+        if (FuncionNativa.deToken(tc) != null) {
+            tiposOperando.put(t, tipoRetornoNativa(tc));
+            operandosPila.push(t);
+            if (tc != -75) { // CLEAR no lleva paréntesis
+                llamadaOpPendiente = true;
+                llamadaOpAbre = -49;
+                llamadaOpCierra = -50;
             }
             return;
         }

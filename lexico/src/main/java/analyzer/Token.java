@@ -32,6 +32,13 @@ public class Token {
         map.put("cos", -85);
         map.put("tan", -86);
         map.put("chr", -87);
+        map.put("char", -87); // Semántica 3: "char" se identifica como la función chr
+        // Semántica 3: las funciones nativas también se reconocen en minúsculas (sqrt, pow...).
+        map.put("clear", -75);
+        map.put("sqrt", -76);
+        map.put("pow", -77);
+        map.put("sqrtv", -78);
+        map.put("strlen", -79);
         map.put("pred", -88);
         map.put("succ", -89);
         map.put("inc", -90);

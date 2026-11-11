@@ -82,7 +82,8 @@ public class Producciones {
         producciones.put(65, Arrays.asList(-77, -49, 35, -7, 35, -50));
         producciones.put(66, Arrays.asList(-78, -49, 35, -7, 35, -50));
         producciones.put(67, Arrays.asList(-79, -49, 35, -50));
-        producciones.put(68, Arrays.asList(-80, -49, 35, -50));
+        // Semántica 3: concat recibe exactamente 2 parámetros (cadena, cadena).
+        producciones.put(68, Arrays.asList(-80, -49, 35, -7, 35, -50));
         producciones.put(69, Arrays.asList(-81, -49, 35, -7, 35, -50));
         producciones.put(70, Arrays.asList(-82, -49, 35, -7, 35, -7, 35, -50));
         producciones.put(71, Arrays.asList(-83, -49, 35, -7, 35, -50));

@@ -101,6 +101,20 @@ public class ExcelExporter {
                                 Map<Integer, int[]> estadisticasSem,
                                 Map<Integer, List<String>> asignacionesDetalle,
                                 List<String[]> muestreoSem) {
+        exportar(parent, tokens, errores, contador, estadisticasSem, asignacionesDetalle,
+                muestreoSem, null, null);
+    }
+
+    /** Igual que el anterior, más las hojas de Semántica 3 (tabla principal y contadores). */
+    public static void exportar(java.awt.Component parent,
+                                List<Token>       tokens,
+                                List<ErrorEntry>  errores,
+                                ContadorTokens    contador,
+                                Map<Integer, int[]> estadisticasSem,
+                                Map<Integer, List<String>> asignacionesDetalle,
+                                List<String[]> muestreoSem,
+                                List<String[]> filasSem3,
+                                List<String[]> contadoresSem3) {
         File destino = elegirDestino(parent);
         if (destino == null) return;
 
@@ -113,6 +127,9 @@ public class ExcelExporter {
             poblarTablaSimbolos(wb);
             poblarSemantica1(wb, estadisticasSem, asignacionesDetalle, errores);
             poblarSemantica2(wb, muestreoSem);
+            if (filasSem3 != null || contadoresSem3 != null) {
+                poblarSemantica3(wb, filasSem3, contadoresSem3);
+            }
 
             try (FileOutputStream fos = new FileOutputStream(destino)) {
                 wb.write(fos);
@@ -789,6 +806,103 @@ public class ExcelExporter {
             celda(row, 2, c[0], plano);
             celda(row, 3, c[1], plano);
         }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // HOJAS 10, 11 y 12 — SEMÁNTICA 3
+    //  T1: Regla | Función | Tope Pila | Valor Real | Fila | Edo | Ambito
+    //  T2 (hoja nueva de contadores): Función | Entradas | Salida | Aceptados | Errores (sin "Uso")
+    //  Reglas: la tabla de reglas 2001-2018 con la columna "Función" agregada
+    // ═══════════════════════════════════════════════════════════════════════
+    public static void poblarSemantica3(XSSFWorkbook wb, List<String[]> filas,
+                                        List<String[]> contadores) {
+        CellStyle plano = wb.createCellStyle();
+
+        XSSFSheet t1 = wb.createSheet("SEMANTICA 3 T1");
+        XSSFRow r0 = t1.createRow(0);
+        String[] h1 = SemanticAnalyzerV3.ENCABEZADOS;
+        for (int i = 0; i < h1.length; i++) celda(r0, i, h1[i], plano);
+        int fila = 1;
+        int[] anchos = new int[h1.length];
+        for (int i = 0; i < h1.length; i++) anchos[i] = h1[i].length() + 2;
+        if (filas != null) {
+            for (String[] f : filas) {
+                XSSFRow row = t1.createRow(fila++);
+                for (int i = 0; i < h1.length; i++) {
+                    boolean numero = i == 0 || i == 4 || i == 6;
+                    if (numero) celda(row, i, Integer.parseInt(f[i]), plano);
+                    else celda(row, i, f[i], plano);
+                    anchos[i] = Math.max(anchos[i], f[i].length() + 2);
+                }
+            }
+        }
+        for (int i = 0; i < anchos.length; i++) t1.setColumnWidth(i, Math.min(anchos[i], 60) * 256);
+
+        XSSFSheet t2 = wb.createSheet("SEMANTICA 3 T2");
+        XSSFRow c0 = t2.createRow(0);
+        String[] h2 = CountersMap.ENCABEZADOS;
+        for (int i = 0; i < h2.length; i++) celda(c0, i, h2[i], plano);
+        fila = 1;
+        List<String[]> cont = contadores != null ? contadores : new CountersMap().filas();
+        for (String[] c : cont) {
+            XSSFRow row = t2.createRow(fila++);
+            celda(row, 0, c[0], plano);
+            for (int i = 1; i < h2.length; i++) celda(row, i, Integer.parseInt(c[i]), plano);
+        }
+        t2.setColumnWidth(0, 14 * 256);
+
+        poblarReglasSemantica3(wb, plano);
+    }
+
+    /** Matriz de reglas 2001-2018 (TABLA_DE_FUNC) con la columna "Función" agregada. */
+    private static void poblarReglasSemantica3(XSSFWorkbook wb, CellStyle plano) {
+        XSSFSheet ws = wb.createSheet("Reglas Semantica 3");
+        String[] h = {"", "Regla", "Bin", "Dec", "Oct", "Hex", "Real", "exp", "Cadena", "Boolean",
+                      "void", "ID CADENA", "id", "Función"};
+        SemanticRuleV3.Tipo[] cols = {
+            SemanticRuleV3.Tipo.BIN, SemanticRuleV3.Tipo.DEC, SemanticRuleV3.Tipo.OCT,
+            SemanticRuleV3.Tipo.HEX, SemanticRuleV3.Tipo.REAL, SemanticRuleV3.Tipo.EXP,
+            SemanticRuleV3.Tipo.CADENA, SemanticRuleV3.Tipo.BOOLEAN, SemanticRuleV3.Tipo.VOID
+        };
+        XSSFRow r0 = ws.createRow(0);
+        for (int i = 0; i < h.length; i++) celda(r0, i, h[i], plano);
+        int fila = 1;
+        for (SemanticRuleV3 r : SemanticRuleV3.values()) {
+            XSSFRow row = ws.createRow(fila++);
+            celda(row, 0, r.salida ? "Salida" : "Entrada", plano);
+            celda(row, 1, r.codigo, plano);
+            for (int i = 0; i < cols.length; i++) {
+                if (!r.tipos.contains(cols[i])) continue;
+                boolean idCadena = r.soloId && cols[i] == SemanticRuleV3.Tipo.CADENA;
+                if (idCadena) continue; // va en la columna ID CADENA
+                celda(row, 2 + i, r.soloId ? "solo id" : "*", plano);
+            }
+            if (r.soloId && r.tipos.contains(SemanticRuleV3.Tipo.CADENA)) celda(row, 11, "*", plano);
+            if (r.aceptaId && !r.soloId) celda(row, 12, "*", plano);
+            celda(row, 13, funcionesDeRegla(r), plano);
+        }
+        ws.setColumnWidth(13, 50 * 256);
+    }
+
+    private static String funcionesDeRegla(SemanticRuleV3 r) {
+        StringBuilder sb = new StringBuilder();
+        for (FuncionNativa f : FuncionNativa.values()) {
+            if (r.salida) {
+                if (f.reglaSalida == r) agregar(sb, f.nombre);
+            } else if (f.parametros.length == 0) {
+                if (r == FuncionNativa.REGLA_SIN_PARAMETROS) agregar(sb, f.nombre);
+            } else {
+                for (int i = 0; i < f.parametros.length; i++) {
+                    if (f.parametros[i] == r) agregar(sb, f.nombreParametro(i + 1));
+                }
+            }
+        }
+        return sb.toString();
+    }
+
+    private static void agregar(StringBuilder sb, String s) {
+        if (sb.length() > 0) sb.append(", ");
+        sb.append(s);
     }
 
     // ═══════════════════════════════════════════════════════════════════════

@@ -371,6 +371,7 @@ public class AnalyzerIDE extends JFrame {
     int errAmbito = 0;
     int errSemantica = 0;
     int errSemantica2 = 0;
+    int errSemantica3 = 0;
 
     for (ErrorEntry e : errores) {
         if (e.getTipo() == ErrorEntry.Tipo.LEXICO) {
@@ -383,6 +384,8 @@ public class AnalyzerIDE extends JFrame {
             // Semántica 2 registra sus errores con código "Semántica 2"; el resto es Semántica 1
             if ("Semántica 2".equals(e.getCodigo())) {
                 errSemantica2++;
+            } else if (SemanticAnalyzerV3.CODIGO_ERROR.equals(e.getCodigo())) {
+                errSemantica3++;
             } else {
                 errSemantica++;
             }
@@ -401,7 +404,8 @@ public class AnalyzerIDE extends JFrame {
             errSintacticos,
             errAmbito,
             errSemantica,
-            errSemantica2
+            errSemantica2,
+            errSemantica3
     );
 
     // =====================================================
@@ -424,13 +428,14 @@ public class AnalyzerIDE extends JFrame {
     // =====================================================
 
     statusLabel.setText(String.format(
-            "Compilado  |  %d tokens  |  Léxico: %d  |  Sintáctico: %d  |  Ámbito: %d  |  Semántica 1: %d  |  Semántica 2: %d  |  Total: %d  |  ManuelCode 2026",
+            "Compilado  |  %d tokens  |  Léxico: %d  |  Sintáctico: %d  |  Ámbito: %d  |  Semántica 1: %d  |  Semántica 2: %d  |  Semántica 3: %d  |  Total: %d  |  ManuelCode 2026",
             tokens.size(),
             errLexicos,
             errSintacticos,
             errAmbito,
             errSemantica,
             errSemantica2,
+            errSemantica3,
             errores.size()
     ));
 }
@@ -446,7 +451,9 @@ public class AnalyzerIDE extends JFrame {
         ExcelExporter.exportar(this, tokens, errores, ct,
                 parserLexer.getEstadisticasSemantica(),
                 parserLexer.getAsignacionesDetalle(),
-                parserLexer.getFilasMuestreoSemantica2());
+                parserLexer.getFilasMuestreoSemantica2(),
+                parserLexer.getFilasSemantica3(),
+                parserLexer.getContadoresSemantica3());
     }
     // ════════════════════════════════════════════════════════════════════════
     // Abrir archivo .txt 

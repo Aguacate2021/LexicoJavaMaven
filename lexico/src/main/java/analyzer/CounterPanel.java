@@ -59,7 +59,7 @@ public class CounterPanel extends JPanel {
     // valores en actualizar(...) sigue exactamente este orden.
     private static final Object[][] CATS = {
         { "ERRORES", CAT_ERR,
-          new String[]{"Léxicos","Sintácticos","Ámbito","Semántica 1","Semántica 2","Total"} },
+          new String[]{"Léxicos","Sintácticos","Ámbito","Semántica 1","Semántica 2","Semántica 3","Total"} },
         { "IDENTIFICADORES", CAT_ID,
           new String[]{"Cadena","Binario","Decimal","Octal","Hex","Real","Exp","Bool","Registro"} },
         { "COMENTARIOS", CAT_COM,
@@ -73,7 +73,8 @@ public class CounterPanel extends JPanel {
                        "Turno","Relac.","Igualdad","Lógicos","Ternario","Asignac.","Agrupam."} },
     };
     private static final int IDX_SEM2  = 4;  // posición de "Semántica 2" dentro de ERRORES
-    private static final int IDX_TOTAL = 5;  // posición de "Total" dentro de ERRORES
+    private static final int IDX_SEM3  = 5;  // posición de "Semántica 3" dentro de ERRORES
+    private static final int IDX_TOTAL = 6;  // posición de "Total" dentro de ERRORES
     private static final int TOTAL_COLS;
 
     static {
@@ -212,7 +213,7 @@ public class CounterPanel extends JPanel {
             if (col < errCount) {
                 l.setForeground(cero ? TEXT_ZERO
                         : col == IDX_TOTAL ? TEXT_TOTAL
-                        : col == IDX_SEM2  ? TEXT_SEM2
+                        : col == IDX_SEM2 || col == IDX_SEM3 ? TEXT_SEM2
                                            : TEXT_ERR);
             } else {
                 l.setForeground(cero ? TEXT_ZERO : TEXT_NUMBER);
@@ -248,10 +249,21 @@ public class CounterPanel extends JPanel {
                                    int errLexicos,   int errSintacticos,
                                    int errAmbito,    int errSemantica,
                                    int errSemantica2) {
-        int errTotal = errLexicos + errSintacticos + errAmbito + errSemantica + errSemantica2;
+        actualizar(c, comentLinea, comentMulti, errLexicos, errSintacticos,
+                errAmbito, errSemantica, errSemantica2, 0);
+    }
+
+    /** errSemantica3 = errores de Semántica 3 (reglas 2001-2018 de funciones nativas). */
+    public static void actualizar(ContadorTokens c,
+                                   int comentLinea,  int comentMulti,
+                                   int errLexicos,   int errSintacticos,
+                                   int errAmbito,    int errSemantica,
+                                   int errSemantica2, int errSemantica3) {
+        int errTotal = errLexicos + errSintacticos + errAmbito + errSemantica + errSemantica2
+                + errSemantica3;
         int[] vals = {
-            // ERRORES (6)
-            errLexicos, errSintacticos, errAmbito, errSemantica, errSemantica2, errTotal,
+            // ERRORES (7)
+            errLexicos, errSintacticos, errAmbito, errSemantica, errSemantica2, errSemantica3, errTotal,
             // IDENTIFICADORES (9)
             c.idCadena, c.idBinario, c.idDecimal, c.idOctal,
             c.idHex,    c.idReal,    c.idExp,     c.idBool,
