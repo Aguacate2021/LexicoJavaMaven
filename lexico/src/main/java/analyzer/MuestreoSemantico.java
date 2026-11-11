@@ -40,6 +40,7 @@ public class MuestreoSemantico {
         final String situacion;
         final String lexema;
         final int ambito;
+        long orden; // posición en el orden de ejecución compartido con Semántica 3 (exportación)
 
         Registro(int linea, int regla, String tope, String descripcion,
                  String situacion, String lexema, int ambito) {
@@ -62,12 +63,22 @@ public class MuestreoSemantico {
 
     private final List<Registro> registros = new ArrayList<>();
 
+    // Secuencia compartida con Semántica 3 para exportar ambas etapas intercaladas en el
+    // orden en que se ejecutaron (hoja Semantica 2-Base). Solo afecta el orden de exportación.
+    private java.util.function.LongSupplier secuencia = null;
+    private long ordenPropio = 0;
+
+    public void setSecuencia(java.util.function.LongSupplier secuencia) {
+        this.secuencia = secuencia;
+    }
+
     // Evita registrar dos veces el mismo evento del análisis.
     private final Set<String> clavesRegistradas = new HashSet<>();
 
     public void limpiar() {
         registros.clear();
         clavesRegistradas.clear();
+        ordenPropio = 0;
     }
 
     public int cantidad() {
@@ -96,8 +107,10 @@ public class MuestreoSemantico {
             return false;
         }
 
-        registros.add(new Registro(linea, regla, tope == null || tope.isBlank() ? "-" : tope.trim(),
-                descripcion, situacion, lex, ambito));
+        Registro r = new Registro(linea, regla, tope == null || tope.isBlank() ? "-" : tope.trim(),
+                descripcion, situacion, lex, ambito);
+        r.orden = secuencia != null ? secuencia.getAsLong() : ++ordenPropio;
+        registros.add(r);
         return true;
     }
 
@@ -109,8 +122,9 @@ public class MuestreoSemantico {
         List<String[]> filas = new ArrayList<>();
         for (Registro r : ordenados) {
             String[] c = r.columnas();
-            String[] f = java.util.Arrays.copyOf(c, c.length + 1);
+            String[] f = java.util.Arrays.copyOf(c, c.length + 2);
             f[c.length] = r.tope;
+            f[c.length + 1] = String.valueOf(r.orden); // orden de ejecución (solo para exportar)
             filas.add(f);
         }
         return filas;

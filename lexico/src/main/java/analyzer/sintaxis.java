@@ -285,6 +285,12 @@ public class sintaxis {
 
     // Semántica 3: reglas 2001-2018 de parámetros y retornos de las funciones nativas.
     private final SemanticAnalyzerV3 semantica3 = new SemanticAnalyzerV3();
+    // Orden de ejecución compartido por las filas de Semántica 2 y 3 (solo para exportarlas intercaladas).
+    private final java.util.concurrent.atomic.AtomicLong secuenciaFilas = new java.util.concurrent.atomic.AtomicLong();
+    {
+        muestreo.setSecuencia(secuenciaFilas::incrementAndGet);
+        semantica3.setSecuencia(secuenciaFilas::incrementAndGet);
+    }
     private static final String ARCHIVO_SEM3 = "Semantica3-DavidAlatorre.txt";
 
     /** Tabla Semántica 3: {Regla, Función, Tope Pila, Valor Real, Fila, Edo, Ambito}. */
@@ -351,6 +357,7 @@ public class sintaxis {
 
         reiniciarMuestreoSemantica2();
         semantica3.limpiar();
+        secuenciaFilas.set(0);
 
         erroresSintaxis.clear();
         erroresAmbito.clear();

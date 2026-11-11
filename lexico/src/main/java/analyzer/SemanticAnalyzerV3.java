@@ -53,12 +53,21 @@ public class SemanticAnalyzerV3 {
     }
 
     private final List<String[]> filas = new ArrayList<>();
+
+    // Secuencia compartida con Semántica 2 (orden de ejecución para la hoja Semantica 2-Base).
+    private java.util.function.LongSupplier secuencia = null;
+    private long ordenPropio = 0;
+
+    public void setSecuencia(java.util.function.LongSupplier secuencia) {
+        this.secuencia = secuencia;
+    }
     private final List<ErrorEntry> errores = new ArrayList<>();
     private final CountersMap contadores = new CountersMap();
 
     public void limpiar() {
         filas.clear();
         errores.clear();
+        ordenPropio = 0;
         contadores.limpiar();
     }
 
@@ -160,9 +169,11 @@ public class SemanticAnalyzerV3 {
 
     private void registrar(SemanticRuleV3 regla, String funcion, String valorReal, int linea,
             boolean ok, int ambito, String motivo) {
+        long orden = secuencia != null ? secuencia.getAsLong() : ++ordenPropio;
         filas.add(new String[] {
             String.valueOf(regla.codigo), funcion, regla.topePila, valorReal,
-            String.valueOf(linea), ok ? ACEPTADO : ERROR, String.valueOf(ambito)
+            String.valueOf(linea), ok ? ACEPTADO : ERROR, String.valueOf(ambito),
+            String.valueOf(orden) // orden de ejecución (solo para exportar; no es columna de la tabla)
         });
         if (!ok) {
             errores.add(new ErrorEntry(CODIGO_ERROR,
@@ -208,7 +219,8 @@ public class SemanticAnalyzerV3 {
             for (int i = 0; i < enc.length; i++) ancho[i] = Math.max(ancho[i], f[i].length());
         }
         linea(sb, enc, ancho);
-        for (String[] f : datos) linea(sb, f, ancho);
+        // solo las columnas de la tabla (las filas llevan además su orden de ejecución, que no se imprime)
+        for (String[] f : datos) linea(sb, java.util.Arrays.copyOf(f, enc.length), ancho);
     }
 
     private static void linea(StringBuilder sb, String[] cols, int[] ancho) {

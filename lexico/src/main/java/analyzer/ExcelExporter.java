@@ -8,6 +8,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -174,9 +175,9 @@ public class ExcelExporter {
             poblarAmbitos(wb, errores);
             poblarTablaSimbolos(wb);
             poblarSemantica1(wb, estadisticasSem, asignacionesDetalle, errores);
-            poblarSemantica2(wb, muestreoSem);
+            poblarSemantica2(wb, muestreoSem, filasSem3); // Semántica 2 + filas de Semántica 3 (con "Función")
             if (filasSem3 != null || contadoresSem3 != null) {
-                poblarSemantica3(wb, filasSem3, contadoresSem3);
+                poblarSemantica3(wb, contadoresSem3);           // solo SEMANTICA 3 T2
             }
 
             try (FileOutputStream fos = new FileOutputStream(destino)) {
@@ -804,37 +805,91 @@ public class ExcelExporter {
         1140, 1150, 1160
     };
 
-    /** filas = {línea, regla, descripción, situación, lexema, ámbito} (MuestreoSemantico.filas()). */
-    private static void poblarSemantica2(XSSFWorkbook wb, List<String[]> filas) {
+    /** Una fila de la hoja Semantica 2-Base: Semántica 2 o Semántica 3, con su orden de ejecución. */
+    private static final class FilaBase {
+        final long orden;
+        final int regla;
+        final String funcion, tope, valor, edo;
+        final int linea, ambito;
+        final boolean semantica3;
+
+        FilaBase(long orden, int regla, String funcion, String tope, String valor, int linea,
+                 String edo, int ambito, boolean semantica3) {
+            this.orden = orden; this.regla = regla; this.funcion = funcion; this.tope = tope;
+            this.valor = valor; this.linea = linea; this.edo = edo; this.ambito = ambito;
+            this.semantica3 = semantica3;
+        }
+    }
+
+    private static long orden(String[] f, int i, long porDefecto) {
+        try {
+            return f.length > i ? Long.parseLong(f[i]) : porDefecto;
+        } catch (NumberFormatException e) {
+            return porDefecto;
+        }
+    }
+
+    /**
+     * Hoja Semantica 2-Base (como la referencia): las filas de Semántica 2 y las de Semántica 3
+     * (antes hoja SEMANTICA 3 T1) en una sola tabla, intercaladas en el orden en que se
+     * ejecutaron las reglas, con la columna "Función" ("-" en las reglas de Semántica 2).
+     * Semantica 2-Total sigue contando solo las reglas de Semántica 2.
+     *
+     * @param filas    MuestreoSemantico.filas(): {línea, regla, descripción, situación, lexema, ámbito, tope, orden}
+     * @param filasSem3 SemanticAnalyzerV3.filas(): {regla, función, tope, valor, fila, edo, ámbito, orden}
+     */
+    private static void poblarSemantica2(XSSFWorkbook wb, List<String[]> filas, List<String[]> filasSem3) {
         CellStyle plano = estiloPlano(wb);
         XSSFSheet base = wb.createSheet("Semantica 2-Base");
         XSSFSheet total = wb.createSheet("Semantica 2-Total");
 
-        String[] hb = {"Regla", "Tope Pila", "Valor Real", "Linea", "Edo", "Ambito"};
+        String[] hb = {"Regla", "Función", "Tope Pila", "Valor Real", "Linea", "Edo", "Ambito"};
         XSSFRow rb = base.createRow(0);
         for (int i = 0; i < hb.length; i++) celda(rb, i, hb[i], plano);
 
-        Map<Integer, int[]> cont = new LinkedHashMap<>(); // regla -> {aceptadas, errores}
+        Map<Integer, int[]> cont = new LinkedHashMap<>(); // regla -> {aceptadas, errores} (solo Semántica 2)
         for (int r : REGLAS_SEM2) cont.put(r, new int[2]);
 
-        int fila = 1, ancho = 14;
+        List<FilaBase> todas = new ArrayList<>();
+        long n = 0;
         if (filas != null) {
             for (String[] f : filas) {
                 int regla = Integer.parseInt(f[1]);
                 boolean error = f[3].startsWith("ERROR");
-                XSSFRow row = base.createRow(fila++);
-                celda(row, 0, regla, plano);
-                celda(row, 1, f.length > 6 ? f[6] : "-", plano); // tope real registrado por el compilador
-                celda(row, 2, f[4], plano);
-                celda(row, 3, Integer.parseInt(f[0]), plano);
-                celda(row, 4, error ? "ERROR" : "Acept", plano);
-                celda(row, 5, Integer.parseInt(f[5]), plano);
+                todas.add(new FilaBase(orden(f, 7, ++n), regla, "-",
+                        f.length > 6 ? f[6] : "-", // tope real registrado por el compilador
+                        f[4], Integer.parseInt(f[0]), error ? "ERROR" : "Acept",
+                        Integer.parseInt(f[5]), false));
                 // una regla que no esté en la lista fija también se cuenta (nunca se pierde una fila de Base)
                 cont.computeIfAbsent(regla, k -> new int[2])[error ? 1 : 0]++;
-                ancho = Math.max(ancho, f[4].length() + 2);
             }
         }
-        int[] anchos = {6, 9, ancho, 6, 7, 7};
+        if (filasSem3 != null) {
+            for (String[] f : filasSem3) {
+                boolean error = SemanticAnalyzerV3.ERROR.equals(f[5]);
+                todas.add(new FilaBase(orden(f, 7, ++n), Integer.parseInt(f[0]), f[1], f[2], f[3],
+                        Integer.parseInt(f[4]), error ? "ERROR" : "Acept",
+                        Integer.parseInt(f[6]), true));
+            }
+        }
+        todas.sort(java.util.Comparator.comparingLong(x -> x.orden)); // orden de ejecución (estable)
+
+        int fila = 1, ancho = 14, anchoFun = 9, anchoTope = 9;
+        for (FilaBase x : todas) {
+            XSSFRow row = base.createRow(fila++);
+            celda(row, 0, x.regla, plano);
+            celda(row, 1, x.funcion, plano);
+            celda(row, 2, x.tope, plano);
+            celda(row, 3, x.valor, plano);
+            celda(row, 4, x.linea, plano);
+            // ERROR de Semántica 3: mismo color celeste que en el resto del proyecto
+            celda(row, 5, x.edo, x.semantica3 && "ERROR".equals(x.edo) ? estiloErrorSem3(wb) : plano);
+            celda(row, 6, x.ambito, plano);
+            ancho = Math.max(ancho, x.valor.length() + 2);
+            anchoFun = Math.max(anchoFun, x.funcion.length() + 2);
+            anchoTope = Math.max(anchoTope, x.tope.length() + 2);
+        }
+        int[] anchos = {6, anchoFun, Math.min(anchoTope, 40), Math.min(ancho, 60), 6, 7, 7};
         for (int i = 0; i < anchos.length; i++) base.setColumnWidth(i, anchos[i] * 256);
 
         String[] ht = {"Reglas", "Aparecen", "Aceptada", "Errores"};
@@ -852,42 +907,17 @@ public class ExcelExporter {
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // HOJAS 10, 11 y 12 — SEMÁNTICA 3
-    //  T1: Regla | Función | Tope Pila | Valor Real | Fila | Edo | Ambito
-    //  T2 (hoja nueva de contadores): Función | Entradas | Salida | Aceptados | Errores (sin "Uso")
-    //  Reglas: la tabla de reglas 2001-2018 con la columna "Función" agregada
+    // HOJA — SEMANTICA 3 T2 (contadores: Función | Entradas | Salida | Aceptados | Errores, sin "Uso")
+    // Las filas de la tabla de Semántica 3 (antes SEMANTICA 3 T1) se exportan dentro de
+    // Semantica 2-Base, como en la referencia.
     // ═══════════════════════════════════════════════════════════════════════
-    public static void poblarSemantica3(XSSFWorkbook wb, List<String[]> filas,
-                                        List<String[]> contadores) {
+    public static void poblarSemantica3(XSSFWorkbook wb, List<String[]> contadores) {
         CellStyle plano = estiloPlano(wb);
-
-        XSSFSheet t1 = wb.createSheet("SEMANTICA 3 T1");
-        XSSFRow r0 = t1.createRow(0);
-        String[] h1 = SemanticAnalyzerV3.ENCABEZADOS;
-        for (int i = 0; i < h1.length; i++) celda(r0, i, h1[i], plano);
-        int fila = 1;
-        int[] anchos = new int[h1.length];
-        for (int i = 0; i < h1.length; i++) anchos[i] = h1[i].length() + 2;
-        if (filas != null) {
-            for (String[] f : filas) {
-                XSSFRow row = t1.createRow(fila++);
-                for (int i = 0; i < h1.length; i++) {
-                    boolean numero = i == 0 || i == 4 || i == 6;
-                    CellStyle st = (i == 5 && SemanticAnalyzerV3.ERROR.equals(f[i]))
-                            ? estiloErrorSem3(wb) : plano;
-                    if (numero) celda(row, i, Integer.parseInt(f[i]), st);
-                    else celda(row, i, f[i], st);
-                    anchos[i] = Math.max(anchos[i], f[i].length() + 2);
-                }
-            }
-        }
-        for (int i = 0; i < anchos.length; i++) t1.setColumnWidth(i, Math.min(anchos[i], 60) * 256);
-
         XSSFSheet t2 = wb.createSheet("SEMANTICA 3 T2");
         XSSFRow c0 = t2.createRow(0);
         String[] h2 = CountersMap.ENCABEZADOS;
         for (int i = 0; i < h2.length; i++) celda(c0, i, h2[i], plano);
-        fila = 1;
+        int fila = 1;
         List<String[]> cont = contadores != null ? contadores : new CountersMap().filas();
         for (String[] c : cont) {
             XSSFRow row = t2.createRow(fila++);
@@ -895,59 +925,6 @@ public class ExcelExporter {
             for (int i = 1; i < h2.length; i++) celda(row, i, Integer.parseInt(c[i]), plano);
         }
         t2.setColumnWidth(0, 14 * 256);
-
-        poblarReglasSemantica3(wb, plano);
-    }
-
-    /** Matriz de reglas 2001-2018 (TABLA_DE_FUNC) con la columna "Función" agregada. */
-    private static void poblarReglasSemantica3(XSSFWorkbook wb, CellStyle plano) {
-        XSSFSheet ws = wb.createSheet("Reglas Semantica 3");
-        String[] h = {"", "Regla", "Bin", "Dec", "Oct", "Hex", "Real", "exp", "Cadena", "Boolean",
-                      "void", "ID CADENA", "id", "Función"};
-        SemanticRuleV3.Tipo[] cols = {
-            SemanticRuleV3.Tipo.BIN, SemanticRuleV3.Tipo.DEC, SemanticRuleV3.Tipo.OCT,
-            SemanticRuleV3.Tipo.HEX, SemanticRuleV3.Tipo.REAL, SemanticRuleV3.Tipo.EXP,
-            SemanticRuleV3.Tipo.CADENA, SemanticRuleV3.Tipo.BOOLEAN, SemanticRuleV3.Tipo.VOID
-        };
-        XSSFRow r0 = ws.createRow(0);
-        for (int i = 0; i < h.length; i++) celda(r0, i, h[i], plano);
-        int fila = 1;
-        for (SemanticRuleV3 r : SemanticRuleV3.values()) {
-            XSSFRow row = ws.createRow(fila++);
-            celda(row, 0, r.salida ? "Salida" : "Entrada", plano);
-            celda(row, 1, r.codigo, plano);
-            for (int i = 0; i < cols.length; i++) {
-                if (!r.tipos.contains(cols[i])) continue;
-                boolean idCadena = r.soloId && cols[i] == SemanticRuleV3.Tipo.CADENA;
-                if (idCadena) continue; // va en la columna ID CADENA
-                celda(row, 2 + i, r.soloId ? "solo id" : "*", plano);
-            }
-            if (r.soloId && r.tipos.contains(SemanticRuleV3.Tipo.CADENA)) celda(row, 11, "*", plano);
-            if (r.aceptaId && !r.soloId) celda(row, 12, "*", plano);
-            celda(row, 13, funcionesDeRegla(r), plano);
-        }
-        ws.setColumnWidth(13, 50 * 256);
-    }
-
-    private static String funcionesDeRegla(SemanticRuleV3 r) {
-        StringBuilder sb = new StringBuilder();
-        for (FuncionNativa f : FuncionNativa.values()) {
-            if (r.salida) {
-                if (f.reglaSalida == r) agregar(sb, f.nombre);
-            } else if (f.parametros.length == 0) {
-                if (r == FuncionNativa.REGLA_SIN_PARAMETROS) agregar(sb, f.nombre);
-            } else {
-                for (int i = 0; i < f.parametros.length; i++) {
-                    if (f.parametros[i] == r) agregar(sb, f.nombreParametro(i + 1));
-                }
-            }
-        }
-        return sb.toString();
-    }
-
-    private static void agregar(StringBuilder sb, String s) {
-        if (sb.length() > 0) sb.append(", ");
-        sb.append(s);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -1012,7 +989,7 @@ public class ExcelExporter {
         return estilo(wb, "plano", wb::createCellStyle);
     }
 
-    /** Celda "ERROR" de la hoja SEMANTICA 3 T1: fondo celeste de Semántica 3, texto oscuro. */
+    /** Celda "ERROR" de una fila de Semántica 3 (hoja Semantica 2-Base): fondo celeste de Semántica 3, texto oscuro. */
     private static XSSFCellStyle estiloErrorSem3(XSSFWorkbook wb) {
         return estilo(wb, "errorSem3", () -> {
             XSSFCellStyle s = wb.createCellStyle();
