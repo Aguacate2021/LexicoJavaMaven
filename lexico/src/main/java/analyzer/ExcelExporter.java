@@ -8,9 +8,12 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.WeakHashMap;
+import java.util.function.Supplier;
 
 import javax.swing.JFileChooser;
 import javax.swing.JOptionPane;
@@ -50,6 +53,20 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
  */
 public class ExcelExporter {
 
+    /** Nombre predeterminado del archivo que propone el diálogo de guardado. */
+    public static final String NOMBRE_ARCHIVO = "Semantica3-AlatorreDavid.xlsx";
+
+    // Apache POI usa log4j-api; sin una implementación en el classpath, log4j imprime
+    // "ERROR StatusLogger Log4j2 could not find a logging implementation" (solo es un aviso,
+    // no impide exportar). Se usa el SimpleLogger que ya trae log4j-api, sin agregar
+    // dependencias. Va antes que cualquier otra inicialización estática de la clase.
+    static {
+        if (System.getProperty("log4j2.loggerContextFactory") == null) {
+            System.setProperty("log4j2.loggerContextFactory",
+                    "org.apache.logging.log4j.simple.SimpleLoggerContextFactory");
+        }
+    }
+
     // ── Paleta ────────────────────────────────────────────────────────────
     private static final XSSFColor COLOR_HDR_BG   = rgb(0x2D, 0x2D, 0x2D);
     private static final XSSFColor COLOR_HDR_FG   = rgb(0xD4, 0xD4, 0xD4);
@@ -58,6 +75,9 @@ public class ExcelExporter {
     private static final XSSFColor COLOR_KEYWORD  = rgb(0x56, 0x9C, 0xD6);
     private static final XSSFColor COLOR_ERROR    = rgb(0xF4, 0x47, 0x47);
     private static final XSSFColor COLOR_WARN     = rgb(0xE5, 0xC0, 0x7B);
+    // Semántica 3: azul celeste, el mismo de la tabla de errores y el contador de la IDE.
+    private static final XSSFColor COLOR_SEM3     = rgb(0x4F, 0xC1, 0xFF);
+    private static final XSSFColor COLOR_TEXTO_OSCURO = rgb(0x1E, 0x1E, 0x1E);
     private static final XSSFColor COLOR_COUNT_V  = rgb(0xB5, 0xCE, 0xA8);
     private static final XSSFColor COLOR_COUNT_H  = rgb(0x3A, 0x3A, 0x3A);
 
@@ -118,7 +138,35 @@ public class ExcelExporter {
         File destino = elegirDestino(parent);
         if (destino == null) return;
 
-        try (XSSFWorkbook wb = new XSSFWorkbook()) {
+        try {
+            exportarArchivo(destino, tokens, errores, contador, estadisticasSem,
+                    asignacionesDetalle, muestreoSem, filasSem3, contadoresSem3);
+            JOptionPane.showMessageDialog(parent,
+                    "Exportado correctamente:\n" + destino.getAbsolutePath(),
+                    "Excel exportado", JOptionPane.INFORMATION_MESSAGE);
+        } catch (IOException | RuntimeException ex) {
+            JOptionPane.showMessageDialog(parent,
+                    "Error al exportar:\n" + ex.getMessage(),
+                    "Error", JOptionPane.ERROR_MESSAGE);
+            ex.printStackTrace();
+        }
+    }
+
+    /**
+     * Genera el libro completo y lo escribe en {@code destino} (sin diálogos).
+     * Los estilos se crean una sola vez por libro (ver {@link #estilo}).
+     */
+    public static void exportarArchivo(File destino,
+                                       List<Token>       tokens,
+                                       List<ErrorEntry>  errores,
+                                       ContadorTokens    contador,
+                                       Map<Integer, int[]> estadisticasSem,
+                                       Map<Integer, List<String>> asignacionesDetalle,
+                                       List<String[]> muestreoSem,
+                                       List<String[]> filasSem3,
+                                       List<String[]> contadoresSem3) throws IOException {
+        XSSFWorkbook wb = new XSSFWorkbook();
+        try {
             poblarTokens(wb, tokens);
             poblarErrores(wb, errores);
             poblarContadores(wb, errores.size(), contador);
@@ -134,14 +182,9 @@ public class ExcelExporter {
             try (FileOutputStream fos = new FileOutputStream(destino)) {
                 wb.write(fos);
             }
-            JOptionPane.showMessageDialog(parent,
-                    "Exportado correctamente:\n" + destino.getAbsolutePath(),
-                    "Excel exportado", JOptionPane.INFORMATION_MESSAGE);
-        } catch (IOException ex) {
-            JOptionPane.showMessageDialog(parent,
-                    "Error al exportar:\n" + ex.getMessage(),
-                    "Error", JOptionPane.ERROR_MESSAGE);
-            ex.printStackTrace();
+        } finally {
+            liberarEstilos(wb);
+            wb.close();
         }
     }
 
@@ -211,7 +254,7 @@ public class ExcelExporter {
             boolean par    = (fila % 2 == 0);
             boolean esWarn = e.getTipo() == ErrorEntry.Tipo.SINTAXIS;
             String  codigo = esWarn ? e.getCodigo().replace("ERR", "WARN") : e.getCodigo();
-            XSSFColor colorErr = esWarn ? COLOR_WARN : COLOR_ERROR;
+            XSSFColor colorErr = esSemantica3(e) ? COLOR_SEM3 : esWarn ? COLOR_WARN : COLOR_ERROR;
 
             celda(row, 0, codigo,             estiloDato(wb, par, colorErr));
             celda(row, 1, e.getDescripcion(), estiloDato(wb, par, colorErr));
@@ -763,7 +806,7 @@ public class ExcelExporter {
 
     /** filas = {línea, regla, descripción, situación, lexema, ámbito} (MuestreoSemantico.filas()). */
     private static void poblarSemantica2(XSSFWorkbook wb, List<String[]> filas) {
-        CellStyle plano = wb.createCellStyle();
+        CellStyle plano = estiloPlano(wb);
         XSSFSheet base = wb.createSheet("Semantica 2-Base");
         XSSFSheet total = wb.createSheet("Semantica 2-Total");
 
@@ -816,7 +859,7 @@ public class ExcelExporter {
     // ═══════════════════════════════════════════════════════════════════════
     public static void poblarSemantica3(XSSFWorkbook wb, List<String[]> filas,
                                         List<String[]> contadores) {
-        CellStyle plano = wb.createCellStyle();
+        CellStyle plano = estiloPlano(wb);
 
         XSSFSheet t1 = wb.createSheet("SEMANTICA 3 T1");
         XSSFRow r0 = t1.createRow(0);
@@ -830,8 +873,10 @@ public class ExcelExporter {
                 XSSFRow row = t1.createRow(fila++);
                 for (int i = 0; i < h1.length; i++) {
                     boolean numero = i == 0 || i == 4 || i == 6;
-                    if (numero) celda(row, i, Integer.parseInt(f[i]), plano);
-                    else celda(row, i, f[i], plano);
+                    CellStyle st = (i == 5 && SemanticAnalyzerV3.ERROR.equals(f[i]))
+                            ? estiloErrorSem3(wb) : plano;
+                    if (numero) celda(row, i, Integer.parseInt(f[i]), st);
+                    else celda(row, i, f[i], st);
                     anchos[i] = Math.max(anchos[i], f[i].length() + 2);
                 }
             }
@@ -909,7 +954,69 @@ public class ExcelExporter {
     // ESTILOS
     // ═══════════════════════════════════════════════════════════════════════
 
+    // Causa del error "The maximum number of Cell Styles was exceeded": cada llamada a
+    // estiloDato/estiloDatoNum/... hacía wb.createCellStyle() + wb.createFont(), y se
+    // llamaban por CELDA (3 estilos por token, 5 por error). Con ~21,000 tokens se
+    // superaba el límite de 64,000 estilos de un .xlsx. Ahora cada combinación
+    // (tipo de estilo + fila par/impar + color) se crea UNA sola vez por libro y se
+    // reutiliza: un libro usa unas decenas de estilos sin importar cuántas filas tenga.
+
+    /** Estilos ya creados, por libro (débil: se libera junto con el libro). */
+    private static final Map<XSSFWorkbook, Map<String, XSSFCellStyle>> CACHE_ESTILOS =
+            new WeakHashMap<>();
+
+    /** Devuelve el estilo {@code clave} del libro; lo crea solo la primera vez. */
+    private static XSSFCellStyle estilo(XSSFWorkbook wb, String clave, Supplier<XSSFCellStyle> crear) {
+        synchronized (CACHE_ESTILOS) {
+            Map<String, XSSFCellStyle> porLibro = CACHE_ESTILOS.computeIfAbsent(wb, k -> new HashMap<>());
+            XSSFCellStyle s = porLibro.get(clave);
+            if (s == null) {
+                s = crear.get();
+                porLibro.put(clave, s);
+            }
+            return s;
+        }
+    }
+
+    private static void liberarEstilos(XSSFWorkbook wb) {
+        synchronized (CACHE_ESTILOS) {
+            CACHE_ESTILOS.remove(wb);
+        }
+    }
+
+    private static String claveColor(XSSFColor c) {
+        return c == null ? "-" : c.getARGBHex();
+    }
+
+    /** Errores de Semántica 3: mismo criterio que la IDE (código del ErrorEntry). */
+    static boolean esSemantica3(ErrorEntry e) {
+        return SemanticAnalyzerV3.CODIGO_ERROR.equals(e.getCodigo());
+    }
+
+    /** Estilo sin formato (el que usaban las hojas de Semántica 2 y 3), uno por libro. */
+    private static XSSFCellStyle estiloPlano(XSSFWorkbook wb) {
+        return estilo(wb, "plano", wb::createCellStyle);
+    }
+
+    /** Celda "ERROR" de la hoja SEMANTICA 3 T1: fondo celeste de Semántica 3, texto oscuro. */
+    private static XSSFCellStyle estiloErrorSem3(XSSFWorkbook wb) {
+        return estilo(wb, "errorSem3", () -> {
+            XSSFCellStyle s = wb.createCellStyle();
+            s.setFillForegroundColor(COLOR_SEM3);
+            s.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+            XSSFFont f = wb.createFont();
+            f.setBold(true);
+            f.setColor(COLOR_TEXTO_OSCURO);
+            s.setFont(f);
+            return s;
+        });
+    }
+
     private static XSSFCellStyle estiloEncabezado(XSSFWorkbook wb) {
+        return estilo(wb, "encabezado", () -> crearEncabezado(wb));
+    }
+
+    private static XSSFCellStyle crearEncabezado(XSSFWorkbook wb) {
         XSSFCellStyle s = wb.createCellStyle();
         s.setFillForegroundColor(COLOR_HDR_BG);
         s.setFillPattern(FillPatternType.SOLID_FOREGROUND);
@@ -927,6 +1034,10 @@ public class ExcelExporter {
     }
 
     private static XSSFCellStyle estiloDato(XSSFWorkbook wb, boolean par, XSSFColor fg) {
+        return estilo(wb, "dato|" + par + "|" + claveColor(fg), () -> crearDato(wb, par, fg));
+    }
+
+    private static XSSFCellStyle crearDato(XSSFWorkbook wb, boolean par, XSSFColor fg) {
         XSSFCellStyle s = wb.createCellStyle();
         s.setFillForegroundColor(par ? COLOR_ROW_EVEN : COLOR_ROW_ODD);
         s.setFillPattern(FillPatternType.SOLID_FOREGROUND);
@@ -941,12 +1052,19 @@ public class ExcelExporter {
     }
 
     private static XSSFCellStyle estiloDatoNum(XSSFWorkbook wb, boolean par) {
-        XSSFCellStyle s = estiloDato(wb, par, null);
-        s.setAlignment(HorizontalAlignment.RIGHT);
-        return s;
+        // Estilo propio (no se modifica el de estiloDato, que está compartido en la caché).
+        return estilo(wb, "datoNum|" + par, () -> {
+            XSSFCellStyle s = crearDato(wb, par, null);
+            s.setAlignment(HorizontalAlignment.RIGHT);
+            return s;
+        });
     }
 
     private static XSSFCellStyle estiloCategoria(XSSFWorkbook wb, XSSFColor bgColor) {
+        return estilo(wb, "categoria|" + claveColor(bgColor), () -> crearCategoria(wb, bgColor));
+    }
+
+    private static XSSFCellStyle crearCategoria(XSSFWorkbook wb, XSSFColor bgColor) {
         XSSFCellStyle s = wb.createCellStyle();
         s.setFillForegroundColor(bgColor != null ? bgColor : COLOR_COUNT_H);
         s.setFillPattern(FillPatternType.SOLID_FOREGROUND);
@@ -967,6 +1085,10 @@ public class ExcelExporter {
     }
 
     private static XSSFCellStyle estiloSubcat(XSSFWorkbook wb, XSSFColor catColor) {
+        return estilo(wb, "subcat|" + claveColor(catColor), () -> crearSubcat(wb, catColor));
+    }
+
+    private static XSSFCellStyle crearSubcat(XSSFWorkbook wb, XSSFColor catColor) {
         XSSFCellStyle s = wb.createCellStyle();
         // Usar una variante más oscura del color de categoría
         s.setFillForegroundColor(catColor != null ? catColor : COLOR_HDR_BG);
@@ -988,6 +1110,10 @@ public class ExcelExporter {
     }
 
     private static XSSFCellStyle estiloValor(XSSFWorkbook wb) {
+        return estilo(wb, "valor", () -> crearValor(wb));
+    }
+
+    private static XSSFCellStyle crearValor(XSSFWorkbook wb) {
         XSSFCellStyle s = wb.createCellStyle();
         s.setFillForegroundColor(COLOR_ROW_EVEN);
         s.setFillPattern(FillPatternType.SOLID_FOREGROUND);
@@ -1014,7 +1140,7 @@ public class ExcelExporter {
         JFileChooser fc = new JFileChooser();
         fc.setDialogTitle("Guardar análisis léxico como Excel");
         fc.setFileFilter(new FileNameExtensionFilter("Archivo Excel (*.xlsx)", "xlsx"));
-        fc.setSelectedFile(new File("Semantica2-AlatorreDavid.xlsx"));
+        fc.setSelectedFile(new File(NOMBRE_ARCHIVO));
         if (fc.showSaveDialog(parent) != JFileChooser.APPROVE_OPTION) return null;
         File f = fc.getSelectedFile();
         if (!f.getName().toLowerCase().endsWith(".xlsx"))
