@@ -40,6 +40,7 @@ public class TokenTablePanel extends JPanel {
     static final Color ERR_RED      = new Color(0xF4, 0x47, 0x47);
     static final Color ERR_ORANGE   = new Color(0xCE, 0x91, 0x78);
     static final Color WARN_YELLOW  = new Color(0xE5, 0xC0, 0x7B);
+    static final Color SEM3_CELESTE = new Color(0x4F, 0xC1, 0xFF); // errores de Semántica 3
 
     // ── Fuentes ──────────────────────────────────────────────────────────────
     static final Font TABLE_FONT = new Font("Consolas", Font.PLAIN, 13);
@@ -205,14 +206,17 @@ public class TokenTablePanel extends JPanel {
                 String desc = descObj != null ? descObj.toString() : "";
                 boolean esWarn = cod.startsWith("W");
                 boolean esSem2 = cod.startsWith("Semántica 2");
+                // Semántica 3 se revisa antes que el criterio genérico de "Semántica" (que la
+                // pintaría con el color de Semántica 1).
+                boolean esSem3 = cod.equals(SemanticAnalyzerV3.CODIGO_ERROR);
                 boolean esSemantica = cod.contains("SEM") || cod.startsWith("Semántica") || desc.contains("Semántica 1")
                         || desc.contains("incompatibilidad") || desc.contains("incompatibles");
 
                 Color semColor = new Color(0xC5, 0x86, 0xC0); // Púrpura/Magenta distintivo para Semántica 1
                 Color sem2Color = new Color(0xFF, 0xA0, 0x40); // mismo naranja del contador de Semántica 2
                 setForeground(switch (col) {
-                    case 1  -> esSem2 ? sem2Color : esSemantica ? semColor : (esWarn ? WARN_YELLOW : ERR_RED);
-                    case 2  -> esSem2 ? sem2Color : esSemantica ? semColor : (esWarn ? WARN_YELLOW : ERR_ORANGE);
+                    case 1  -> esSem3 ? SEM3_CELESTE : esSem2 ? sem2Color : esSemantica ? semColor : (esWarn ? WARN_YELLOW : ERR_RED);
+                    case 2  -> esSem3 ? SEM3_CELESTE : esSem2 ? sem2Color : esSemantica ? semColor : (esWarn ? WARN_YELLOW : ERR_ORANGE);
                     case 0  -> TEXT_DIM;
                     default -> TEXT_MAIN;
                 });

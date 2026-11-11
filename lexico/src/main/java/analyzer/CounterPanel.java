@@ -39,6 +39,7 @@ public class CounterPanel extends JPanel {
     private static final Color TEXT_WARN   = new Color(0xE5, 0xC0, 0x7B);
     private static final Color TEXT_TOTAL  = new Color(0xFF, 0x60, 0x60);
     private static final Color TEXT_SEM2   = new Color(0xFF, 0xA0, 0x40); // errores de Semántica 2: distinto al rojo del resto
+    private static final Color TEXT_SEM3   = new Color(0x4F, 0xC1, 0xFF); // errores de Semántica 3: azul celeste
 
     // Colores de categoría
     private static final Color CAT_ID  = new Color(0x1E, 0x3A, 0x5F);
@@ -202,7 +203,7 @@ public class CounterPanel extends JPanel {
         return card;
     }
 
-    /** Escribe los valores y los colorea (errores en rojo, Semántica 2 en naranja). */
+    /** Escribe los valores y los colorea (errores en rojo, Semántica 2 en naranja, Semántica 3 en celeste). */
     private static void pintarValores(String[] txt) {
         int errCount = ((String[]) CATS[0][2]).length;
         for (int col = 0; col < TOTAL_COLS; col++) {
@@ -213,7 +214,8 @@ public class CounterPanel extends JPanel {
             if (col < errCount) {
                 l.setForeground(cero ? TEXT_ZERO
                         : col == IDX_TOTAL ? TEXT_TOTAL
-                        : col == IDX_SEM2 || col == IDX_SEM3 ? TEXT_SEM2
+                        : col == IDX_SEM2  ? TEXT_SEM2
+                        : col == IDX_SEM3  ? TEXT_SEM3
                                            : TEXT_ERR);
             } else {
                 l.setForeground(cero ? TEXT_ZERO : TEXT_NUMBER);
