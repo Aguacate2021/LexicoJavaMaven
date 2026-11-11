@@ -17,8 +17,10 @@ import analyzer.SemanticRuleV3.Tipo;
  * sintaxis.java detecta cada llamada nativa, resuelve el tipo real de cada argumento
  * (si es un id, desde la tabla de símbolos) y llama a {@link #validarLlamada}. Esta clase:
  *  1. evalúa cada parámetro contra su regla (_p1, _p2, _p3) -> fila A / ERROR + contador Entradas;
- *  2. evalúa la salida con su regla (2011-2018) -> fila + contador Salida. Si algún
- *     parámetro falló, la salida también queda en ERROR (no hay rechazo parcial);
+ *  2. registra la salida con su regla (2011-2018) y el tipo que retorna ESTA llamada
+ *     (pow(#Dx,2) -> Dec, pred($r) -> Real; el máximo si p1 es inválido) -> fila +
+ *     contador Salida. La salida siempre se registra con su tipo aunque un parámetro
+ *     haya fallado: el error queda en la fila del parámetro (como la referencia y la prueba);
  *  3. nunca detiene el análisis: los errores solo se registran.
  *
  * Tabla principal: Regla | Función | Tope Pila | Valor Real | Fila | Edo | Ambito
@@ -60,62 +62,88 @@ public class SemanticAnalyzerV3 {
         contadores.limpiar();
     }
 
+    /** Igual que {@link #validarLlamada(FuncionNativa, List, Tipo, int, int)} con el retorno máximo. */
+    public boolean validarLlamada(FuncionNativa f, List<Argumento> args, int linea, int ambito) {
+        return validarLlamada(f, args, f.retorno, linea, ambito);
+    }
+
     /**
      * Valida una llamada a función nativa.
      *
-     * @return true si todos los parámetros y la salida quedaron aceptados
+     * @param retorno tipo que retorna esta llamada (depende de p1 en pow, pred, succ, inc, dec)
+     * @return true si todos los parámetros quedaron aceptados
      */
-    public boolean validarLlamada(FuncionNativa f, List<Argumento> args, int linea, int ambito) {
+    public boolean validarLlamada(FuncionNativa f, List<Argumento> args, Tipo retorno, int linea, int ambito) {
         boolean todosOk = true;
-
         if (f.parametros.length == 0) {
-            // 2001: CLEAR no recibe parámetros (void).
-            boolean ok = args == null || args.isEmpty();
-            registrar(FuncionNativa.REGLA_SIN_PARAMETROS, f.nombre,
-                    ok ? Tipo.VOID.nombre : args.get(0).valorReal, linea, ok, ambito,
-                    f.nombre + " no recibe parámetros");
-            contadores.contarEntrada(f.nombre, ok);
-            todosOk = ok;
+            todosOk = validarSinParametros(f, args, linea, ambito);
         } else {
-            int n = Math.max(f.parametros.length, args == null ? 0 : args.size());
-            for (int i = 0; i < n; i++) {
-                Argumento a = (args != null && i < args.size()) ? args.get(i) : null;
-                int lineaArg = a != null ? a.linea : linea;
-                if (i >= f.parametros.length) {
-                    // argumento sobrante: no hay regla para él (la sintaxis ya lo rechaza)
-                    String clave = f.nombreParametro(i + 1);
-                    SemanticRuleV3 ultima = f.parametros[f.parametros.length - 1];
-                    registrar(ultima, clave, a.valorReal, lineaArg, false, ambito,
-                            f.nombre + " solo recibe " + f.parametros.length + " parámetro(s)");
-                    contadores.contarEntrada(clave, false);
-                    todosOk = false;
-                    continue;
-                }
-                SemanticRuleV3 regla = f.parametros[i];
-                String clave = f.nombreParametro(i + 1);
-                boolean ok;
-                String motivo;
-                if (a == null) {
-                    ok = false;
-                    motivo = "falta el parámetro " + (i + 1) + " de " + f.nombre;
-                } else {
-                    ok = regla.acepta(a.tipo, a.esId, a.declarado);
-                    motivo = motivoRechazo(regla, a);
-                }
-                registrar(regla, clave, a == null ? "-" : a.valorReal, lineaArg, ok, ambito,
-                        clave + ": " + motivo);
-                contadores.contarEntrada(clave, ok);
-                todosOk &= ok;
+            int recibidos = args == null ? 0 : args.size();
+            for (int i = 0; i < recibidos; i++) {
+                todosOk &= validarParametro(f, i, args.get(i), linea, ambito);
             }
+            todosOk &= validarFaltantes(f, recibidos, linea, ambito);
         }
+        registrarSalida(f, retorno, linea, ambito);
+        return todosOk;
+    }
 
-        // Salida: tipo máximo de retorno; si algún parámetro falló, la función completa falla.
+    /** 2001: CLEAR no recibe parámetros. En los contadores CLEAR solo cuenta su salida. */
+    public boolean validarSinParametros(FuncionNativa f, List<Argumento> args, int linea, int ambito) {
+        boolean ok = args == null || args.isEmpty();
+        registrar(FuncionNativa.REGLA_SIN_PARAMETROS, f.nombre,
+                ok ? "-" : args.get(0).valorReal, linea, ok, ambito,
+                f.nombre + " no recibe parámetros");
+        if (!ok) {
+            contadores.contarEntrada(f.nombre, false);
+        }
+        return ok;
+    }
+
+    /**
+     * Parámetro i (desde 0) de la llamada: fila de su regla (_p1, _p2...) + contador Entradas.
+     * Se llama en cuanto el argumento se completa (en su coma), en el orden del código fuente.
+     */
+    public boolean validarParametro(FuncionNativa f, int i, Argumento a, int linea, int ambito) {
+        int lineaArg = a != null ? a.linea : linea;
+        String clave = f.nombreParametro(i + 1);        // contadores T2: pow_p1
+        String fila = f.nombre + "_P" + (i + 1);          // tabla T1: pow_P1 (como la plantilla del profesor)
+        if (i >= f.parametros.length) {
+            // argumento sobrante: no hay regla para él (la sintaxis ya lo rechaza)
+            SemanticRuleV3 ultima = f.parametros[f.parametros.length - 1];
+            registrar(ultima, fila, a == null ? "-" : a.valorReal, lineaArg, false, ambito,
+                    f.nombre + " solo recibe " + f.parametros.length + " parámetro(s)");
+            contadores.contarEntrada(clave, false);
+            return false;
+        }
+        SemanticRuleV3 regla = f.parametros[i];
+        boolean ok = a != null && regla.acepta(a.tipo, a.esId, a.declarado);
+        String motivo = a == null ? "falta el parámetro " + (i + 1) + " de " + f.nombre : motivoRechazo(regla, a);
+        registrar(regla, fila, a == null ? "-" : a.valorReal, lineaArg, ok, ambito, clave + ": " + motivo);
+        contadores.contarEntrada(clave, ok);
+        return ok;
+    }
+
+    /** Parámetros declarados que no recibieron argumento (la sintaxis normalmente lo impide). */
+    public boolean validarFaltantes(FuncionNativa f, int recibidos, int linea, int ambito) {
+        boolean ok = true;
+        for (int i = recibidos; i < f.parametros.length; i++) {
+            ok &= validarParametro(f, i, null, linea, ambito);
+        }
+        return ok;
+    }
+
+    /**
+     * Salida: siempre se registra con el tipo que retorna la llamada, aunque un parámetro haya
+     * fallado. Solo falla si ese tipo no está en la tabla de su regla (no ocurre con el catálogo).
+     */
+    public void registrarSalida(FuncionNativa f, Tipo retorno, int linea, int ambito) {
         SemanticRuleV3 rs = f.reglaSalida;
-        boolean okSalida = todosOk && rs.tipos.contains(f.retorno);
-        registrar(rs, f.nombre, f.retorno.nombre, linea, okSalida, ambito,
-                f.nombre + ": la función se rechaza porque uno de sus parámetros no es válido");
+        Tipo tipoSalida = retorno != null ? retorno : f.retorno;
+        boolean okSalida = rs.tipos.contains(tipoSalida);
+        registrar(rs, f.nombre, tipoSalida.nombre, linea, okSalida, ambito,
+                f.nombre + ": el tipo de retorno " + tipoSalida.nombre + " no está en la regla " + rs.codigo);
         contadores.contarSalida(f.nombre, okSalida);
-        return okSalida;
     }
 
     private static String motivoRechazo(SemanticRuleV3 regla, Argumento a) {

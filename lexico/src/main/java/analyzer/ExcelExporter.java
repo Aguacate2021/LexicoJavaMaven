@@ -169,7 +169,7 @@ public class ExcelExporter {
         try {
             poblarTokens(wb, tokens);
             poblarErrores(wb, errores);
-            poblarContadores(wb, errores.size(), contador);
+            poblarContadores(wb, contarLexicos(errores), contador); // hoja léxica: solo errores léxicos
             poblarContadoresSintaxis(wb);
             poblarAmbitos(wb, errores);
             poblarTablaSimbolos(wb);
@@ -743,7 +743,7 @@ public class ExcelExporter {
         Map<Integer, Integer> erroresPorLinea = new LinkedHashMap<>();
         if (errores != null) {
             for (ErrorEntry e : errores) {
-                if (e.getTipo() == ErrorEntry.Tipo.SEMANTICA) {
+                if (esSemantica1(e)) { // solo Semántica 1 (no Semántica 2 ni 3)
                     erroresPorLinea.merge(e.getLinea(), 1, Integer::sum);
                 }
             }
@@ -988,6 +988,20 @@ public class ExcelExporter {
         return c == null ? "-" : c.getARGBHex();
     }
 
+    /** Errores de Semántica 1: tipo SEMANTICA que no son de Semántica 2 ni de Semántica 3. */
+    static boolean esSemantica1(ErrorEntry e) {
+        return e.getTipo() == ErrorEntry.Tipo.SEMANTICA
+                && !"Semántica 2".equals(e.getCodigo()) && !esSemantica3(e);
+    }
+
+    private static int contarLexicos(List<ErrorEntry> errores) {
+        int n = 0;
+        for (ErrorEntry e : errores) {
+            if (e.getTipo() == ErrorEntry.Tipo.LEXICO) n++;
+        }
+        return n;
+    }
+
     /** Errores de Semántica 3: mismo criterio que la IDE (código del ErrorEntry). */
     static boolean esSemantica3(ErrorEntry e) {
         return SemanticAnalyzerV3.CODIGO_ERROR.equals(e.getCodigo());
@@ -1193,7 +1207,7 @@ private static void poblarContadoresSintaxis(XSSFWorkbook wb) {
     };
 
     int[] valores = {
-        ContadorCiclos.ERRORES,
+        ContadorCiclos.ERRORES_SINTAXIS, // solo errores sintácticos (no ámbito ni semántica)
         ContadorCiclos.PROGRAMA,
         ContadorCiclos.LISTA_DE_PARAMETROS,
         ContadorCiclos.EXP_PAS,

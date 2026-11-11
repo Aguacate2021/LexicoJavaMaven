@@ -49,6 +49,28 @@ public enum FuncionNativa {
         this.parametros = parametros;
     }
 
+    /**
+     * Tipo que retorna la llamada según su primer parámetro (el segundo no influye):
+     *  - pow: Bin/Dec/Oct/Hex conservan su tipo; Real y Exp dan Exp.
+     *  - pred, succ: Real -> Real, Exp -> Exp.
+     *  - inc, dec: conservan el tipo entero (Bin/Dec/Oct/Hex).
+     * Si p1 es inválido el tipo es dudoso y se usa el máximo ({@link #retorno}: Exp o Dec).
+     * Las demás funciones tienen un retorno fijo.
+     */
+    public Tipo retornoPara(Tipo tipoP1, boolean p1Valido) {
+        if (!p1Valido || tipoP1 == null) {
+            return retorno;
+        }
+        switch (this) {
+            case POW:
+                return (tipoP1 == Tipo.REAL || tipoP1 == Tipo.EXP) ? Tipo.EXP : tipoP1;
+            case PRED, SUCC, INC, DEC:
+                return tipoP1;
+            default:
+                return retorno;
+        }
+    }
+
     /** pow_p1, pow_p2... (i empieza en 1). */
     public String nombreParametro(int i) {
         return nombre + "_p" + i;

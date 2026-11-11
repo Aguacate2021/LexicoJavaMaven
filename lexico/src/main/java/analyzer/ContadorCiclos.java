@@ -2,7 +2,10 @@ package analyzer;
 
 public class ContadorCiclos {
 
+    // Todos los errores del análisis (límite MAX_ERRORES y numeración de los códigos ERR-SYN/ERR-AMB).
     public static int ERRORES             = 0;
+    // Solo errores sintácticos: es lo que muestra la hoja CONT_SINTAXIS.
+    public static int ERRORES_SINTAXIS    = 0;
     public static int PROGRAMA            = 0;
     public static int LISTA_DE_PARAMETROS = 0;
     public static int EXP_PAS             = 0;
@@ -43,6 +46,7 @@ public class ContadorCiclos {
 
     public static void resetearContadores() {
         ERRORES              = 0;
+        ERRORES_SINTAXIS     = 0;
         PROGRAMA             = 0;
         LISTA_DE_PARAMETROS  = 0;
         EXP_PAS              = 0;

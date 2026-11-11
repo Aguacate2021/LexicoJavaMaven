@@ -350,8 +350,12 @@ public class AnalyzerIDE extends JFrame {
     // =====================================================
 
     TablaSimbolosDAO tabla = new TablaSimbolosDAO();
-    tabla.limpiarTablaSimbolos();
-    
+    try {
+        tabla.limpiarTablaSimbolos();
+    } catch (ConexionBD.FalloBaseDatos e) {
+        // parsear() vuelve a intentarlo y, si la base sigue caída, lo reporta como un solo error
+    }
+
     parserLexer.parsear(tokens);
 
     // =====================================================

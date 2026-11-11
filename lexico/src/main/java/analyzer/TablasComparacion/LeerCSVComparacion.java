@@ -172,7 +172,7 @@ public static String prefijoTemporal(int tipo) {
         case T_OCT: return "TOct";
         case T_HEX: return "THex";
         case T_REAL: return "TReal";
-        case T_EXP: return "TExp";
+        case T_EXP: return "Texp"; // nombre de temporal (Texp1), como el encabezado Texp de Semántica 1; el tipo en Tope Pila sigue siendo TExp
         case T_CADENA: return "TCadena";
         case T_CARACTER: return "TCaracter";
         case T_BOOLEAN: return "TBoolean";

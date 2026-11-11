@@ -20,14 +20,14 @@ import analyzer.TablasComparacion.LeerCSVComparacion;
 public enum SemanticRuleV3 {
 
     // ---------------- ENTRADAS ----------------
-    R2001(2001, false, "Void", false, false),                                      // CLEAR
+    R2001(2001, false, "Sin parámetros", false, false),                            // CLEAR
     R2002(2002, false, "Dec/Real/Exp/Id", true, false, Tipo.DEC, Tipo.REAL, Tipo.EXP),
     R2003(2003, false, "Bin/Dec/Oct/Hex/Real/Exp/Id", true, false,
             Tipo.BIN, Tipo.DEC, Tipo.OCT, Tipo.HEX, Tipo.REAL, Tipo.EXP),
     R2004(2004, false, "Dec/Id", true, false, Tipo.DEC),
     R2005(2005, false, "Cadena/Id", true, false, Tipo.CADENA),
     R2006(2006, false, "Id Cadena", true, true, Tipo.CADENA),
-    R2007(2007, false, "Id Bin/Dec/Oct/Hex", true, true, Tipo.BIN, Tipo.DEC, Tipo.OCT, Tipo.HEX),
+    R2007(2007, false, "Solo Id Bin/Dec/Oct/Hex", true, true, Tipo.BIN, Tipo.DEC, Tipo.OCT, Tipo.HEX),
     R2008(2008, false, "Bin/Dec/Oct/Hex/Real/Exp/Boolean/Id", true, false,
             Tipo.BIN, Tipo.DEC, Tipo.OCT, Tipo.HEX, Tipo.REAL, Tipo.EXP, Tipo.BOOLEAN),
     R2009(2009, false, "Bin/Dec/Oct/Hex/Id", true, false, Tipo.BIN, Tipo.DEC, Tipo.OCT, Tipo.HEX),

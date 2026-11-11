@@ -34,6 +34,7 @@ public class TablaSimbolosDAO {
             }
 
         } catch (SQLException e) {
+            ConexionBD.verificarFallo(e, "idExiste");
 
             System.err.println(
                     "Error al verificar identificador: " + id
@@ -66,6 +67,7 @@ public class TablaSimbolosDAO {
             }
 
         } catch (SQLException e) {
+            ConexionBD.verificarFallo(e, "obtenerTipo");
             System.err.println("Error al obtener tipo del identificador: " + id);
             e.printStackTrace();
         }
@@ -95,6 +97,7 @@ public class TablaSimbolosDAO {
             }
 
         } catch (SQLException e) {
+            ConexionBD.verificarFallo(e, "obtenerClase");
             System.err.println("Error al obtener clase del identificador: " + id);
             e.printStackTrace();
         }
@@ -125,6 +128,7 @@ public class TablaSimbolosDAO {
             }
 
         } catch (SQLException e) {
+            ConexionBD.verificarFallo(e, "obtenerNumParametros");
             System.err.println("Error al obtener nopar del identificador: " + id);
             e.printStackTrace();
         }
@@ -154,6 +158,7 @@ public class TablaSimbolosDAO {
             }
 
         } catch (SQLException e) {
+            ConexionBD.verificarFallo(e, "obtenerDatosArreglo");
             System.err.println("Error al obtener datos de arreglo: " + id);
             e.printStackTrace();
         }
@@ -213,6 +218,7 @@ public class TablaSimbolosDAO {
             }
 
         } catch (SQLException e) {
+            ConexionBD.verificarFallo(e, "insertar");
 
             System.err.println(
                     "[BD] No se pudo insertar el identificador: "
@@ -276,6 +282,7 @@ public class TablaSimbolosDAO {
             return false;
 
         } catch (SQLException e) {
+            ConexionBD.verificarFallo(e, "actualizarArreglo");
 
             System.err.println(
                     "Error al actualizar arreglo: "
@@ -336,6 +343,7 @@ public class TablaSimbolosDAO {
             return false;
 
         } catch (SQLException e) {
+            ConexionBD.verificarFallo(e, "actualizarTParFuncion");
 
             System.err.println(
                     "Error al actualizar tpar de función: "
@@ -392,6 +400,7 @@ public class TablaSimbolosDAO {
             return false;
 
         } catch (SQLException e) {
+            ConexionBD.verificarFallo(e, "actualizarFuncion");
 
             System.err.println(
                     "Error al actualizar función: "
@@ -425,6 +434,7 @@ public class TablaSimbolosDAO {
             return true;
 
         } catch (SQLException e) {
+            ConexionBD.verificarFallo(e, "limpiarTablaSimbolos");
 
             System.err.println(
                 "[BD] Error al limpiar la tabla de símbolos."
@@ -467,6 +477,7 @@ public class TablaSimbolosDAO {
             );
 
         } catch (SQLException e) {
+            ConexionBD.verificarFallo(e, "probarInsercion");
 
             System.err.println(
                 "[BD] Error en INSERT de prueba."

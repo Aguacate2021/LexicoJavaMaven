@@ -108,6 +108,8 @@ public class sintaxis {
     // Tipo semántico (1..10, los de LeerCSVComparacion) de cada operando
     // original de la operación en curso. Un ID no declarado vale Variant.
     private final Map<Token, Integer> tiposOperando = new IdentityHashMap<>();
+    // Operando que es una llamada nativa -> temporal donde quedó su resultado.
+    private final Map<Token, String> temporalOperando = new IdentityHashMap<>();
 
     // temporal -> tipo (TVariant1 -> 10, TDec1 -> 2, ...). Nunca se deduce del
     // texto.
@@ -315,7 +317,31 @@ public class sintaxis {
     // PARSER
     // =========================================================
 
+    /**
+     * Analiza los tokens. Si la base de datos de la tabla de símbolos deja de responder,
+     * el análisis se detiene con UN error explícito: seguir sin tabla de símbolos solo
+     * produciría errores falsos de "identificador no declarado".
+     */
     public void parsear(List<Token> tokens) {
+        try {
+            parsear0(tokens);
+        } catch (ConexionBD.FalloBaseDatos e) {
+            ContadorCiclos.ERRORES++;
+            erroresSintaxis.add(new ErrorEntry(
+                    "ERR-BD",
+                    "Análisis detenido: " + e.getMessage(),
+                    lineaFalloBD,
+                    "parser",
+                    ErrorEntry.Tipo.AMBITO,
+                    "-",
+                    ErrorEntry.AMBITO_DESCONOCIDO));
+            System.err.println("[BD] " + e.getMessage());
+        }
+    }
+
+    private int lineaFalloBD = 0; // última línea procesada (para ubicar un fallo de BD)
+
+    private void parsear0(List<Token> tokens) {
 
         // -----------------------------------------------------
         // LIMPIAR ESTADO DEL ANÁLISIS
@@ -347,6 +373,12 @@ public class sintaxis {
 
         // Avance 2: temporales y tablas de compatibilidad (nueva compilación)
         tiposOperando.clear();
+        temporalOperando.clear();
+        retornoNativa.clear();
+        pendientesConsole.clear();
+        temporalExpresion.clear();
+        temporalNativa.clear();
+        cuadruplasNativas.setLength(0);
         tipoDeTemporal.clear();
         contadorTemporales.clear();
         contTempSem.clear();
@@ -419,6 +451,7 @@ public class sintaxis {
                 break;
             }
             tokenActual = lt.getFirst();
+            lineaFalloBD = tokenActual.getLinea();
             int cima = ps.peek();
             log(
                     "Cima: " + cima +
@@ -643,22 +676,32 @@ public class sintaxis {
                         int ambitoEncontrado = -1;
 
                         // Encabezado de un FOR: la gramática (marcador 801) abre
-                        // un área de declaración para la primera expresión. Un
-                        // identificador que ya existe en un ámbito accesible se
-                        // reutiliza; si no existe, se declara en el ámbito del FOR.
+                        // un área de declaración para la primera expresión. La
+                        // variable de control se declara en el ámbito propio del FOR
+                        // (aunque exista afuera, como en la referencia); solo se
+                        // reutiliza si ya está declarada en ese mismo ámbito.
                         boolean encabezadoFor = (AreaDeDeclaraciones
                                 && enEncabezadoFor
                                 && produccionActual == 44)
                                 || (forEnCurso() != null && idTrasComaEnInitFor(forEnCurso()));
 
                         if (encabezadoFor) {
-                            encontrado = false;
-                            for (int i = AmbitoActual.size() - 1; i >= 0; i--) {
-                                int amb = AmbitoActual.get(i);
-                                if (tabla.idExiste(id, amb)) {
-                                    encontrado = true;
-                                    ambitoEncontrado = amb;
-                                    break;
+                            if (esPrimerIdDelFor()) {
+                                // variable de control: solo cuenta el ámbito del propio FOR
+                                encontrado = tabla.idExiste(id, AmbitoActual.peek());
+                                if (encontrado) {
+                                    ambitoEncontrado = AmbitoActual.peek();
+                                }
+                            } else {
+                                // otros ids de la inicialización (for (#Dk = inc(#Dx); ...)): son usos
+                                encontrado = false;
+                                for (int i = AmbitoActual.size() - 1; i >= 0; i--) {
+                                    int amb = AmbitoActual.get(i);
+                                    if (tabla.idExiste(id, amb)) {
+                                        encontrado = true;
+                                        ambitoEncontrado = amb;
+                                        break;
+                                    }
                                 }
                             }
                             if (!encontrado) {
@@ -785,6 +828,8 @@ public class sintaxis {
                                 else if (produccionActual == 35 ||
                                         produccionActual == 36) {
 
+                                    // NoPar de un parámetro = su posición (1, 2, 3...) en la
+                                    // lista; NumParametros ya se incrementó al obtener su clase.
                                     insertado = tabla.insertar(
                                             id,
                                             tipo,
@@ -792,7 +837,7 @@ public class sintaxis {
                                             ambito,
                                             null,
                                             null,
-                                            null,
+                                            NumParametros,
                                             idFuncion);
 
                                     if (insertado && !funcStack.isEmpty()) {
@@ -1225,6 +1270,7 @@ public class sintaxis {
 
         } else if (numError == -2000) {
 
+            ContadorCiclos.ERRORES_SINTAXIS++;
             erroresSintaxis.add(
                     new ErrorEntry(
                             codigo,
@@ -1245,6 +1291,7 @@ public class sintaxis {
 
         } else {
 
+            ContadorCiclos.ERRORES_SINTAXIS++;
             codigo = String.format(
                     "ERR-SYN-%d",
                     numError);
@@ -1379,6 +1426,7 @@ public class sintaxis {
             case 63 -> validarFuncionNativa(t, new ArrayList<>()); // CLEAR: sin paréntesis ni parámetros
             case 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80 ->
                 iniciarCapturaParen(CAP_NATIVA, t, null);
+            case 86 -> iniciarCapturaParen(CAP_CONSOLE, t, null); // Console.log ( EXP )
             default -> {
             }
         }
@@ -1460,13 +1508,26 @@ public class sintaxis {
                     valorRhs(op, valor, p.lexema),
                     p.ambito, p.posicion);
         }
-        if (!ok) {
+        if (!ok && opTabla != 0) {
+            // Asignación compuesta (+= -= *= /=): es la regla 1021/1022 de Semántica 2, así
+            // que su error se clasifica en Semántica 2 (como la referencia), no en Semántica 1.
+            int regla = p != null ? p.regla : 1022;
+            ContadorCiclos.ERRORES++;
+            String motivo = "Tipos de datos incompatibles en la operación de asignación compuesta ("
+                    + op.getLexema().trim() + ")";
+            erroresSintaxis.add(new ErrorEntry(
+                    "Semántica 2",
+                    "Semántica 2 (" + regla + "): " + motivo,
+                    linea,
+                    "parser",
+                    ErrorEntry.Tipo.SEMANTICA,
+                    destino.texto + " " + op.getLexema().trim() + " " + valor.texto,
+                    obtenerAmbitoActual()));
+            System.out.println("[SEM2-ERR] ln=" + linea + " | " + regla + " | " + motivo);
+        } else if (!ok) {
             registrarErrorSemantico(linea,
                     destino.texto + " " + op.getLexema().trim() + " " + valor.texto,
-                    opTabla != 0
-                            ? "Tipos de datos incompatibles en la operación de asignación compuesta ("
-                                    + op.getLexema().trim() + ")"
-                            : "Tipos de datos incompatibles en la operación de asignación");
+                    "Tipos de datos incompatibles en la operación de asignación");
         }
     }
 
@@ -1513,6 +1574,7 @@ public class sintaxis {
             if (condProf == 0) {
                 // La condición debe ser lógica (Booleanas). Variant (id no declarado) se acepta:
                 // su error ya lo da la regla 1100.
+                contarTemporalesExpresion(condToks, condLinea);
                 Val v = evaluar(condToks);
                 boolean esNullCond = condToks.size() == 1 && condToks.get(0).getTokenClass() == -74;
                 boolean ok = !esNullCond && (v.tipo == LeerCSVComparacion.T_BOOLEAN
@@ -1728,6 +1790,7 @@ public class sintaxis {
                 "dimensión " + (k + 1) + " de " + declaradas, null, a.id, pos);
 
         List<Token> toks = a.idxToks.get(k);
+        contarTemporalesExpresion(toks, a.linea); // Semántica 1: operaciones del índice
         String textoIdx = valorSem(toks);
 
         // Regla 4 (1040): el índice debe ser Decimal. Variant (no declarado / sin tipo
@@ -1924,6 +1987,7 @@ public class sintaxis {
         int emitidos = 0;       // argumentos ya revisados (llamadas)
         boolean fallo1150 = false;
         int sec = 0;            // ";" ya procesados en un for (1080 al 1.º, 1081 al 2.º)
+        final List<SemanticAnalyzerV3.Argumento> nativaArgs = new ArrayList<>(); // parámetros ya validados (nativas)
         int ultimoSep = -1;
 
         CapParen(int clase, Token origen, SwitchCtx sw) {
@@ -2313,9 +2377,16 @@ public class sintaxis {
                     c.sec++;
                     c.ultimoSep = c.toks.size();
                 }
+                if (c.clase == CAP_NATIVA && tc == -7 && c.par == 1 && c.brk == 0) {
+                    // Semántica 3: el parámetro se valida en cuanto se completa (orden del código)
+                    parametroNativa(c, new ArrayList<>(c.toks.subList(Math.min(c.argIni, c.toks.size()), c.toks.size())));
+                    c.argIni = c.toks.size() + 1;
+                }
                 if (c.clase == CAP_CALL) {
                     if (tc == -7 && c.par == 1 && c.brk == 0) { // coma que cierra un argumento
-                        revisarArgumento(c, new ArrayList<>(c.toks.subList(Math.min(c.argIni, c.toks.size()), c.toks.size())));
+                        List<Token> argCerrado = new ArrayList<>(c.toks.subList(Math.min(c.argIni, c.toks.size()), c.toks.size()));
+                        contarTemporalesExpresion(argCerrado, c.origen.getLinea()); // Semántica 1
+                        revisarArgumento(c, argCerrado);
                         c.argIni = c.toks.size() + 1;
                     }
                 }
@@ -2402,9 +2473,14 @@ public class sintaxis {
             case CAP_SWITCH -> finalizarSwitch(c);
             case CAP_NOT, CAP_TILDE -> finalizarUnarioLogico(c);
             case CAP_FOR -> finalizarFor(c);
-            case CAP_CALL -> finalizarLlamada(c);
-            case CAP_NATIVA -> validarFuncionNativa(c.origen,
-                    c.toks.isEmpty() ? new ArrayList<>() : separarPorComas(c.toks));
+            case CAP_CALL -> {
+                // Semántica 1: operaciones del último argumento (los anteriores se contaron en su coma)
+                contarTemporalesExpresion(new ArrayList<>(c.toks.subList(Math.min(c.argIni, c.toks.size()),
+                        c.toks.size())), c.origen.getLinea());
+                finalizarLlamada(c);
+            }
+            case CAP_CONSOLE -> finalizarConsole(c);
+            case CAP_NATIVA -> finalizarNativa(c);
             default -> {
             }
         }
@@ -2566,6 +2642,7 @@ public class sintaxis {
         if (cond.isEmpty()) {
             return;
         }
+        contarTemporalesExpresion(cond, cond.get(0).getLinea());
         Val v = evaluar(cond);
         boolean esNullC = cond.size() == 1 && cond.get(0).getTokenClass() == -74;
         boolean ok = !esNullC && (v.tipo == LeerCSVComparacion.T_BOOLEAN
@@ -2889,12 +2966,15 @@ public class sintaxis {
                 }
                 return v;
             }
-            if (c <= -75 && c >= -94) { // funciones predefinidas: tipo de retorno (Semántica 3)
+            if (c <= -75 && c >= -94) { // funciones predefinidas: tipo de retorno de la llamada (Semántica 3)
                 i++;
+                List<Token> interior = null;
                 if (!fin() && tc() == -49) {
+                    int ini = i;
                     saltarBalanceado(-50);
+                    interior = t.subList(ini + 1, Math.max(ini + 1, i - 1));
                 }
-                return new Val(tipoRetornoNativa(c));
+                return new Val(tipoRetornoNativa(tok, interior));
             }
             i++;
             return new Val(LeerCSVComparacion.T_VARIANT);
@@ -3116,6 +3196,7 @@ public class sintaxis {
     }
 
     private void finalizarReturn0(CapReturn k) {
+        contarTemporalesExpresion(k.toks, k.origen.getLinea());
         if (k.f.procedimiento) {
             // Regla 14 (1140): un procedimiento no debe tener return.
             filaConError(k.origen.getLinea(), 1140, "TVoid", false,
@@ -3336,8 +3417,93 @@ public class sintaxis {
     // =========================================================
 
     private static final int CAP_NATIVA = 6;
+    private static final int CAP_CONSOLE = 7; // argumento de Console.log (para sus temporales)
 
-    /** Tipo (1..10) que retorna la función nativa; Variant si no devuelve valor (void). */
+    /** Temporal de una nativa que espera a saber si es el argumento completo de un Console.log. */
+    private static class TemporalPendiente {
+        final Token llamada; final FuncionNativa f; final SemanticRuleV3.Tipo tipo; final List<List<Token>> args;
+        TemporalPendiente(Token llamada, FuncionNativa f, SemanticRuleV3.Tipo tipo, List<List<Token>> args) {
+            this.llamada = llamada; this.f = f; this.tipo = tipo; this.args = args;
+        }
+    }
+    private final Map<CapParen, TemporalPendiente> pendientesConsole = new IdentityHashMap<>();
+
+    /**
+     * Cierra el argumento de Console.log: si era una sola llamada nativa, su resultado se
+     * imprime directo y no genera temporal (igual que la referencia); si la nativa formaba
+     * parte de una expresión, su temporal se registra ahora.
+     */
+    private void finalizarConsole(CapParen c) {
+        TemporalPendiente p = pendientesConsole.remove(c);
+        if (p != null && !(c.toks.get(0) == p.llamada && abarcaLlamada(c.toks))) {
+            registrarTemporalNativa0(p.llamada, p.f, p.tipo, p.args);
+        }
+    }
+
+    // Retorno calculado de cada llamada nativa (token de la función -> tipo 1..10) y el
+    // temporal que la llamada produce (token -> TDec3...). Se llenan al validar la llamada.
+    private final Map<Token, Integer> retornoNativa = new IdentityHashMap<>();
+    private final Map<Token, String> temporalNativa = new IdentityHashMap<>();
+    // Expresión (primer token + tamaño) -> temporal de Semántica 1 con su resultado.
+    private final Map<Token, Object[]> temporalExpresion = new IdentityHashMap<>();
+
+    /**
+     * Temporal de Semántica 1 que ya guarda el resultado de la expresión (una nativa o una
+     * expresión con operaciones), o null. Semántica 2 lo usa como Valor Real para que la
+     * numeración sea la misma en ambas etapas (como la referencia).
+     */
+    private String temporalSemantica1(List<Token> toks) {
+        if (toks == null || toks.isEmpty()) {
+            return null;
+        }
+        Object[] m = temporalExpresion.get(toks.get(0));
+        if (m != null && (Integer) m[0] == toks.size()) {
+            return (String) m[1];
+        }
+        Token t0 = toks.get(0);
+        if (FuncionNativa.deToken(t0.getTokenClass()) != null && temporalNativa.containsKey(t0)
+                && abarcaLlamada(toks)) {
+            return temporalNativa.get(t0);
+        }
+        return null;
+    }
+    // Cuádruplas de las nativas de la operación en curso (se escriben antes de la asignación).
+    private final StringBuilder cuadruplasNativas = new StringBuilder();
+
+    /**
+     * Semántica 1: temporales de las operaciones de una expresión que NO es una asignación
+     * (condición, return, argumento de una nativa o de una def). Cada operación binaria deja
+     * un temporal del tipo de su resultado, igual que en generarOperaciones. Las llamadas que
+     * contiene no se recorren aquí: cada nativa cuenta su propio temporal al validarse y los
+     * argumentos de una def se cuentan al cerrar su llamada.
+     */
+    /** @return el último temporal creado (el resultado de la expresión), o null si no hubo operaciones */
+    private String contarTemporalesExpresion(List<Token> toks, int linea) {
+        if (toks == null || toks.isEmpty()) {
+            return null;
+        }
+        EvalExpr ev = new EvalExpr(toks);
+        ev.temps = new ArrayList<>();
+        ev.expr(1);
+        String ultimo = null;
+        for (Object[] e : ev.temps) {
+            if (e[1] != null) {
+                continue; // id sin declarar (no es una operación)
+            }
+            int tipo = (Integer) e[0];
+            ultimo = nuevoTemporal(tipo);
+            int col = columnaEstadistica(tipo);
+            if (col >= 0) {
+                estadisticasSemantica.computeIfAbsent(linea, k -> new int[10])[col]++;
+            }
+        }
+        if (ultimo != null) {
+            temporalExpresion.put(toks.get(0), new Object[] { toks.size(), ultimo });
+        }
+        return ultimo;
+    }
+
+    /** Tipo (1..10) máximo de la función nativa; Variant si no devuelve valor (void). */
     private static int tipoRetornoNativa(int tokenClass) {
         FuncionNativa f = FuncionNativa.deToken(tokenClass);
         if (f == null || f.retorno == SemanticRuleV3.Tipo.VOID) {
@@ -3346,7 +3512,125 @@ public class sintaxis {
         return f.retorno.codigo;
     }
 
-    /** validateFunctionCall: aplica las reglas de Semántica 3 a una llamada nativa. */
+    /** Tipo (1..10) que retorna esta llamada: el ya calculado al validarla o, si aún no se validó, el de su p1. */
+    private int tipoRetornoNativa(Token llamada, List<Token> interior) {
+        Integer t = retornoNativa.get(llamada);
+        if (t != null) {
+            return t;
+        }
+        FuncionNativa f = FuncionNativa.deToken(llamada.getTokenClass());
+        if (f == null) {
+            return LeerCSVComparacion.T_VARIANT;
+        }
+        List<Token> p1 = (interior == null || interior.isEmpty()) ? null : separarPorComas(interior).get(0);
+        SemanticRuleV3.Tipo r = retornoDeLlamada(f, (p1 == null || p1.isEmpty()) ? null : argumentoNativa(p1));
+        return r == SemanticRuleV3.Tipo.VOID ? LeerCSVComparacion.T_VARIANT : r.codigo;
+    }
+
+    /** Retorno de la llamada según su primer argumento (máximo si es inválido o falta). */
+    private static SemanticRuleV3.Tipo retornoDeLlamada(FuncionNativa f, SemanticAnalyzerV3.Argumento p1) {
+        if (f.parametros.length == 0 || p1 == null) {
+            return f.retorno;
+        }
+        boolean valido = f.parametros[0].acepta(p1.tipo, p1.esId, p1.declarado);
+        return f.retornoPara(p1.tipo, valido);
+    }
+
+    /**
+     * Semántica 1: cada llamada nativa que devuelve valor produce un temporal de su tipo de
+     * retorno (TDec, TExp...), contado en la línea de la llamada.
+     */
+    private void registrarTemporalNativa(Token llamada, FuncionNativa f, SemanticRuleV3.Tipo tipo,
+            List<List<Token>> argumentos) {
+        if (tipo == SemanticRuleV3.Tipo.VOID) {
+            return;
+        }
+        // Inicialización del for (for (#Dk = inc(#Dx); ...)): igual que la referencia, no es
+        // una operación de Semántica 1 (tampoco cuenta como asignación).
+        if (enInicializacionDelFor()) {
+            return;
+        }
+        // Primera llamada dentro de un Console.log: se decide al cerrar el Console.log.
+        if (!capsParen.isEmpty()) {
+            CapParen c = capsParen.get(capsParen.size() - 1);
+            if (c.clase == CAP_CONSOLE && c.par == 1 && !c.toks.isEmpty() && c.toks.get(0) == llamada) {
+                pendientesConsole.put(c, new TemporalPendiente(llamada, f, tipo, argumentos));
+                return;
+            }
+        }
+        registrarTemporalNativa0(llamada, f, tipo, argumentos);
+    }
+
+    private void registrarTemporalNativa0(Token llamada, FuncionNativa f, SemanticRuleV3.Tipo tipo,
+            List<List<Token>> argumentos) {
+        String tmp = nuevoTemporal(tipo.codigo);
+        temporalNativa.put(llamada, tmp);
+        int col = columnaEstadistica(tipo.codigo);
+        if (col >= 0) {
+            estadisticasSemantica.computeIfAbsent(llamada.getLinea(), k -> new int[10])[col]++;
+        }
+        StringBuilder args = new StringBuilder();
+        for (List<Token> a : argumentos) {
+            if (args.length() > 0) args.append(' ');
+            String v = a.isEmpty() ? "-" : valorArgNativa(a);
+            args.append(v != null ? v : textoDe(a).replace(" ", ""));
+        }
+        String cuadrupla = f.nombre + "," + args + "," + tmp + "\n";
+        if (EstadoDeOperacion) {
+            cuadruplasNativas.append(cuadrupla); // se escribe junto con la operación que la contiene
+        } else {
+            logOperaciones.append("Linea ").append(llamada.getLinea()).append(":\n\n")
+                    .append(cuadrupla).append("\n");
+        }
+    }
+
+    private FuncionNativa nativaDe(Token nombre) {
+        FuncionNativa f = FuncionNativa.deToken(nombre.getTokenClass());
+        return f != null ? f : FuncionNativa.deNombre(nombre.getLexema()); // "char" se identifica como chr
+    }
+
+    /** Un parámetro de una llamada nativa que acaba de completarse (en su coma o en el ")"). */
+    private void parametroNativa(CapParen c, List<Token> arg) {
+        FuncionNativa f = nativaDe(c.origen);
+        if (f == null) {
+            return;
+        }
+        SemanticAnalyzerV3.Argumento a;
+        if (arg.isEmpty()) {
+            a = new SemanticAnalyzerV3.Argumento("-", SemanticRuleV3.Tipo.VARIANT, false, false,
+                    c.origen.getLinea());
+        } else {
+            // Semántica 1: las operaciones del argumento dejan su temporal; ese temporal es
+            // el Valor Real del parámetro (#Dx * 2 + #Dy -> TDec114).
+            a = argumentoNativa(arg, contarTemporalesExpresion(arg, c.origen.getLinea()));
+        }
+        int i = c.nativaArgs.size();
+        c.nativaArgs.add(a);
+        semantica3.validarParametro(f, i, a, c.origen.getLinea(), obtenerAmbitoActual());
+    }
+
+    /** ")" de una llamada nativa: último parámetro, parámetros faltantes, salida y temporal. */
+    private void finalizarNativa(CapParen c) {
+        Token nombre = c.origen;
+        FuncionNativa f = nativaDe(nombre);
+        if (f == null) {
+            return;
+        }
+        List<Token> ultimo = new ArrayList<>(c.toks.subList(Math.min(c.argIni, c.toks.size()), c.toks.size()));
+        if (!(ultimo.isEmpty() && c.nativaArgs.isEmpty())) { // "f()" no tiene argumentos
+            parametroNativa(c, ultimo);
+        }
+        int ambito = obtenerAmbitoActual();
+        semantica3.validarFaltantes(f, c.nativaArgs.size(), nombre.getLinea(), ambito);
+        SemanticRuleV3.Tipo retorno = retornoDeLlamada(f, c.nativaArgs.isEmpty() ? null : c.nativaArgs.get(0));
+        retornoNativa.put(nombre, retorno == SemanticRuleV3.Tipo.VOID
+                ? LeerCSVComparacion.T_VARIANT : retorno.codigo);
+        semantica3.registrarSalida(f, retorno, nombre.getLinea(), ambito);
+        registrarTemporalNativa(nombre, f, retorno,
+                c.toks.isEmpty() ? new ArrayList<>() : separarPorComas(c.toks));
+    }
+
+    /** validateFunctionCall: aplica las reglas de Semántica 3 a una llamada nativa (CLEAR, sin paréntesis). */
     private void validarFuncionNativa(Token nombre, List<List<Token>> argumentos) {
         FuncionNativa f = FuncionNativa.deToken(nombre.getTokenClass());
         if (f == null) {
@@ -3362,17 +3646,60 @@ public class sintaxis {
                         false, false, nombre.getLinea()));
                 continue;
             }
-            args.add(argumentoNativa(arg));
+            // Semántica 1: las operaciones del argumento dejan su temporal; ese temporal es
+            // el Valor Real del parámetro (#Dx * 2 + #Dy -> TDec114).
+            String tmpExpr = contarTemporalesExpresion(arg, nombre.getLinea());
+            args.add(argumentoNativa(arg, tmpExpr));
         }
         // Una llamada sin argumentos "f()" llega como una lista con un argumento vacío.
         if (args.size() == 1 && argumentos.get(0).isEmpty()) {
             args.clear();
         }
-        semantica3.validarLlamada(f, args, nombre.getLinea(), obtenerAmbitoActual());
+        SemanticRuleV3.Tipo retorno = retornoDeLlamada(f, args.isEmpty() ? null : args.get(0));
+        retornoNativa.put(nombre, retorno == SemanticRuleV3.Tipo.VOID
+                ? LeerCSVComparacion.T_VARIANT : retorno.codigo);
+        semantica3.validarLlamada(f, args, retorno, nombre.getLinea(), obtenerAmbitoActual());
+        registrarTemporalNativa(nombre, f, retorno, argumentos);
+    }
+
+    /**
+     * Valor Real de un argumento de una nativa: la constante o el id; si es una llamada a
+     * def o un acceso a arreglo, su id; si es otra nativa, el temporal que produjo; si es
+     * una expresión, el tipo del temporal.
+     */
+    private String valorArgNativa(List<Token> arg) {
+        Token t0 = arg.get(0);
+        if (FuncionNativa.deToken(t0.getTokenClass()) != null && temporalNativa.containsKey(t0)
+                && abarcaLlamada(arg)) {
+            return temporalNativa.get(t0);
+        }
+        return null;
+    }
+
+    /** f( ... ) que abarca todo el argumento. */
+    private static boolean abarcaLlamada(List<Token> arg) {
+        if (arg.size() < 3 || arg.get(1).getTokenClass() != -49) {
+            return arg.size() == 1;
+        }
+        int prof = 0;
+        for (int k = 1; k < arg.size(); k++) {
+            int tc = arg.get(k).getTokenClass();
+            if (tc == -49) prof++;
+            else if (tc == -50) {
+                prof--;
+                if (prof == 0) return k == arg.size() - 1;
+            }
+        }
+        return false;
     }
 
     /** Resuelve el Valor Real y el tipo de un argumento de una función nativa. */
     private SemanticAnalyzerV3.Argumento argumentoNativa(List<Token> arg) {
+        return argumentoNativa(arg, null);
+    }
+
+    /** @param tmpExpr temporal donde quedó el resultado si el argumento es una expresión con operaciones */
+    private SemanticAnalyzerV3.Argumento argumentoNativa(List<Token> arg, String tmpExpr) {
         Token t0 = arg.get(0);
         boolean esId = esIdToken(t0.getTokenClass()) && (arg.size() == 1 || esAccesoArregloCompleto(arg));
         int tipo;
@@ -3387,9 +3714,17 @@ public class sintaxis {
         }
         boolean constante = arg.size() == 1
                 || (arg.size() == 2 && (arg.get(0).getTokenClass() == -11 || arg.get(0).getTokenClass() == -12));
-        String valorReal = (esId || constante) ? valorArg(arg) : tipoCorto(tipo);
+        boolean llamadaDef = esIdToken(t0.getTokenClass()) && abarcaLlamada(arg); // #DUd(1): se muestra el id
+        String valorReal = (esId || constante || llamadaDef) ? valorArg(arg)
+                : (tmpExpr != null ? tmpExpr : tipoCorto(tipo));
         if (constante && arg.size() == 2) {
             valorReal = textoDe(arg).replace(" ", "");
+        }
+        String tmpNativa = valorArgNativa(arg); // otra nativa: su temporal
+        if (tmpNativa != null) {
+            valorReal = tmpNativa;
+        } else if (FuncionNativa.deToken(t0.getTokenClass()) != null && abarcaLlamada(arg)) {
+            valorReal = t0.getLexema().trim(); // nativa sin valor (copy, val, CLEAR): su nombre
         }
         return new SemanticAnalyzerV3.Argumento(valorReal, SemanticRuleV3.Tipo.deCodigo(tipo),
                 esId, declarado, t0.getLinea());
@@ -3428,9 +3763,17 @@ public class sintaxis {
         if (toks == null || toks.isEmpty()) {
             return "-";
         }
+        String t1 = temporalSemantica1(toks);
+        if (t1 != null) {
+            return t1;
+        }
         List<Token> x = sinUnarios(toks);
         if (x.isEmpty()) {
             return "-";
+        }
+        t1 = temporalSemantica1(x);
+        if (t1 != null) {
+            return t1;
         }
         Object[] m = memoTempSem.get(x.get(0));
         if (m != null && (Integer) m[0] == x.size()) {
@@ -3493,6 +3836,9 @@ public class sintaxis {
 
     /** Valor Real del 1020: el lado derecho (tokens que siguen al operador de la asignación). */
     private String valorRhs(Token op, Operando valor, String porDefecto) {
+        if (valor != null && tipoDeTemporal.containsKey(valor.texto)) {
+            return valor.texto; // el resultado ya está en un temporal de Semántica 1 (TDec3, TExp1...)
+        }
         int ix = -1;
         for (int k = 0; k < infijoToks.size(); k++) {
             if (infijoToks.get(k) == op) {
@@ -3573,7 +3919,11 @@ public class sintaxis {
                 // el elemento tiene el tipo del arreglo (ya calculado al consumir el id)
                 tipo = tiposOperando.getOrDefault(callee, LeerCSVComparacion.T_VARIANT);
             } else if (FuncionNativa.deToken(callee.getTokenClass()) != null) {
-                tipo = tipoRetornoNativa(callee.getTokenClass()); // Semántica 3: retorno de la nativa
+                tipo = tipoRetornoNativa(callee, null); // Semántica 3: retorno calculado de esta llamada
+                String tmp = temporalNativa.get(callee);
+                if (tmp != null) {
+                    temporalOperando.put(unico, tmp);
+                }
             } else if (f != null && !f.procedimiento) {
                 tipo = tipoSemanticoDeSimbolo(f.tipo);
             }
@@ -3853,7 +4203,7 @@ public class sintaxis {
         }
         // Semántica 3: una función nativa (pow(...), CLEAR...) es UN operando cuyo tipo es su retorno.
         if (FuncionNativa.deToken(tc) != null) {
-            tiposOperando.put(t, tipoRetornoNativa(tc));
+            tiposOperando.put(t, tipoRetornoNativa(t, null));
             operandosPila.push(t);
             if (tc != -75) { // CLEAR no lleva paréntesis
                 llamadaOpPendiente = true;
@@ -4022,6 +4372,7 @@ public class sintaxis {
         infijoActual.setLength(0);
         infijoToks.clear();
         tiposOperando.clear();
+        temporalOperando.clear();
         llamadaOpPendiente = false;
         llamadaOpProf = 0;
         llamadaOpCallee = null;
@@ -4146,6 +4497,7 @@ public class sintaxis {
         StringBuilder bloque = new StringBuilder();
         int[] stats = new int[10];
         estadisticaLineaActual = stats;
+        boolean initFor = enInicializacionDelFor();
         for (Token t : postfijo) {
 
             int tc = t.getTokenClass();
@@ -4173,15 +4525,19 @@ public class sintaxis {
             }
             // asignación: no genera temporal
             else if (esAsignacion(tc)) {
-                stats[9]++; // asignación (no genera temporal)
                 Operando valor = sacar(pila);
                 Operando destino = sacar(pila);
                 bloque.append(lex).append(",").append(destino.texto).append(",")
                         .append(valor.texto).append("\n");
 
-                // Formato exacto de asignación: #DX -> TBoolean3
-                String formatoAsig = destino.texto + " -> " + valor.texto;
-                asignacionesDetalle.computeIfAbsent(linea, k -> new ArrayList<>()).add(formatoAsig);
+                // La inicialización del encabezado de un for (for (#Di = 0; ...)) no se cuenta
+                // como asignación de Semántica 1; su compatibilidad de tipos sí se verifica.
+                if (!initFor) {
+                    stats[9]++; // asignación (no genera temporal)
+                    // Formato exacto de asignación: #DX -> TBoolean3
+                    String formatoAsig = destino.texto + " -> " + valor.texto;
+                    asignacionesDetalle.computeIfAbsent(linea, k -> new ArrayList<>()).add(formatoAsig);
+                }
 
                 // Compatibilidad destino <- valor con los tipos de los propios operandos
                 // (destino.tipo ya se calculó con el ámbito real del identificador).
@@ -4226,7 +4582,11 @@ public class sintaxis {
             // operando (ID o constante)
             else {
                 int tipo = tiposOperando.getOrDefault(t, LeerCSVComparacion.tipoDeToken(tc));
-                Operando opd = new Operando(lex, tipo);
+                String tmpNat = temporalOperando.get(t); // llamada nativa: su resultado ya está en un temporal
+                Operando opd = new Operando(tmpNat != null ? tmpNat : lex, tipo);
+                if (tmpNat != null) {
+                    opd.vis = lex;
+                }
                 IdInfo inf = idInfos.get(t);
                 opd.proc = tokensProc.contains(t) || (inf != null && "Procedimiento".equals(inf.clase));
                 pila.push(opd);
@@ -4235,6 +4595,10 @@ public class sintaxis {
 
         estadisticaLineaActual = null;
 
+        if (cuadruplasNativas.length() > 0) { // las nativas de la operación se calculan antes que ella
+            bloque.insert(0, cuadruplasNativas);
+            cuadruplasNativas.setLength(0);
+        }
         if (bloque.length() > 0) {
             // Varias operaciones en la misma línea se acumulan en una sola fila.
             int[] acumulado = estadisticasSemantica.computeIfAbsent(linea, k -> new int[10]);
