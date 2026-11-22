@@ -64,6 +64,8 @@ public class AnalyzerIDE extends JFrame {
     // ── Lógica ───────────────────────────────────────────────────────────────
     private final Lexer lexer = new Lexer();
     private final sintaxis parserLexer = new sintaxis();
+    // Etapa final: cuádruplos de la última compilación
+    private final GeneradorCuadruplos cuadruplos = new GeneradorCuadruplos();
     private boolean highlightLock = false;
 
     // ════════════════════════════════════════════════════════════════════════
@@ -364,7 +366,20 @@ public class AnalyzerIDE extends JFrame {
 
     errores.addAll(parserLexer.getErroresSintaxis());
 
-    tablePanel.setErrors(errores);
+    // =====================================================
+    // CUÁDRUPLOS (fail-fast: solo hasta la línea del primer error)
+    // =====================================================
+
+    cuadruplos.generar(tokens, errores);
+    System.out.println(cuadruplos.comoTexto());
+
+    // El aviso de detención se muestra una sola vez en la lista de errores,
+    // pero no se suma a los contadores de errores léxicos/sintácticos/semánticos.
+    List<ErrorEntry> erroresVisibles = new ArrayList<>(errores);
+    if (cuadruplos.seDetuvo()) {
+        erroresVisibles.add(cuadruplos.avisoDetencion());
+    }
+    tablePanel.setErrors(erroresVisibles);
 
     // =====================================================
     // CONTAR ERRORES POR CATEGORÍA
@@ -432,7 +447,7 @@ public class AnalyzerIDE extends JFrame {
     // =====================================================
 
     statusLabel.setText(String.format(
-            "Compilado  |  %d tokens  |  Léxico: %d  |  Sintáctico: %d  |  Ámbito: %d  |  Semántica 1: %d  |  Semántica 2: %d  |  Semántica 3: %d  |  Total: %d  |  ManuelCode 2026",
+            "Compilado  |  %d tokens  |  Léxico: %d  |  Sintáctico: %d  |  Ámbito: %d  |  Semántica 1: %d  |  Semántica 2: %d  |  Semántica 3: %d  |  Total: %d  |  Cuádruplos: %d%s  |  ManuelCode 2026",
             tokens.size(),
             errLexicos,
             errSintacticos,
@@ -440,7 +455,9 @@ public class AnalyzerIDE extends JFrame {
             errSemantica,
             errSemantica2,
             errSemantica3,
-            errores.size()
+            errores.size(),
+            cuadruplos.getCuadruplos().size(),
+            cuadruplos.seDetuvo() ? " (detenido en línea " + cuadruplos.getLineaDetencion() + ")" : ""
     ));
 }
     // ════════════════════════════════════════════════════════════════════════
@@ -457,7 +474,8 @@ public class AnalyzerIDE extends JFrame {
                 parserLexer.getAsignacionesDetalle(),
                 parserLexer.getFilasMuestreoSemantica2(),
                 parserLexer.getFilasSemantica3(),
-                parserLexer.getContadoresSemantica3());
+                parserLexer.getContadoresSemantica3(),
+                cuadruplos);
     }
     // ════════════════════════════════════════════════════════════════════════
     // Abrir archivo .txt 

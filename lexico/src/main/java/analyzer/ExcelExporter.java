@@ -136,12 +136,27 @@ public class ExcelExporter {
                                 List<String[]> muestreoSem,
                                 List<String[]> filasSem3,
                                 List<String[]> contadoresSem3) {
+        exportar(parent, tokens, errores, contador, estadisticasSem, asignacionesDetalle,
+                muestreoSem, filasSem3, contadoresSem3, null);
+    }
+
+    /** Igual que el anterior, más las hojas CUADRUPLOS y Cont-CI (etapa final). */
+    public static void exportar(java.awt.Component parent,
+                                List<Token>       tokens,
+                                List<ErrorEntry>  errores,
+                                ContadorTokens    contador,
+                                Map<Integer, int[]> estadisticasSem,
+                                Map<Integer, List<String>> asignacionesDetalle,
+                                List<String[]> muestreoSem,
+                                List<String[]> filasSem3,
+                                List<String[]> contadoresSem3,
+                                GeneradorCuadruplos cuadruplos) {
         File destino = elegirDestino(parent);
         if (destino == null) return;
 
         try {
             exportarArchivo(destino, tokens, errores, contador, estadisticasSem,
-                    asignacionesDetalle, muestreoSem, filasSem3, contadoresSem3);
+                    asignacionesDetalle, muestreoSem, filasSem3, contadoresSem3, cuadruplos);
             JOptionPane.showMessageDialog(parent,
                     "Exportado correctamente:\n" + destino.getAbsolutePath(),
                     "Excel exportado", JOptionPane.INFORMATION_MESSAGE);
@@ -166,6 +181,21 @@ public class ExcelExporter {
                                        List<String[]> muestreoSem,
                                        List<String[]> filasSem3,
                                        List<String[]> contadoresSem3) throws IOException {
+        exportarArchivo(destino, tokens, errores, contador, estadisticasSem, asignacionesDetalle,
+                muestreoSem, filasSem3, contadoresSem3, null);
+    }
+
+    /** Libro completo, incluyendo CUADRUPLOS y Cont-CI si se da el generador. */
+    public static void exportarArchivo(File destino,
+                                       List<Token>       tokens,
+                                       List<ErrorEntry>  errores,
+                                       ContadorTokens    contador,
+                                       Map<Integer, int[]> estadisticasSem,
+                                       Map<Integer, List<String>> asignacionesDetalle,
+                                       List<String[]> muestreoSem,
+                                       List<String[]> filasSem3,
+                                       List<String[]> contadoresSem3,
+                                       GeneradorCuadruplos cuadruplos) throws IOException {
         XSSFWorkbook wb = new XSSFWorkbook();
         try {
             poblarTokens(wb, tokens);
@@ -178,6 +208,10 @@ public class ExcelExporter {
             poblarSemantica2(wb, muestreoSem, filasSem3); // Semántica 2 + filas de Semántica 3 (con "Función")
             if (filasSem3 != null || contadoresSem3 != null) {
                 poblarSemantica3(wb, contadoresSem3);           // solo SEMANTICA 3 T2
+            }
+            if (cuadruplos != null) {
+                poblarCuadruplos(wb, cuadruplos);
+                poblarContCI(wb, cuadruplos);
             }
 
             try (FileOutputStream fos = new FileOutputStream(destino)) {
@@ -1121,6 +1155,121 @@ public class ExcelExporter {
         f.setFontName("Consolas");
         s.setFont(f);
         return s;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // CUÁDRUPLOS — exactamente 5 columnas: E | A | V1 | V2 | R
+    // Las filas de etiqueta (solo E) van resaltadas en verde en toda la fila.
+    // ═══════════════════════════════════════════════════════════════════════
+    public static final String HOJA_CUADRUPLOS = "CUADRUPLOS";
+    public static final String HOJA_CONT_CI = "Cont-CI";
+    private static final XSSFColor COLOR_ETIQUETA = rgb(0x7E, 0xD3, 0x21);
+
+    public static void poblarCuadruplos(XSSFWorkbook wb, GeneradorCuadruplos gen) {
+        XSSFSheet ws = wb.createSheet(HOJA_CUADRUPLOS);
+        String[] encabezados = { "E", "A", "V1", "V2", "R" };
+        int[] anchos = { 14, 14, 18, 18, 18 };
+        XSSFRow enc = ws.createRow(0);
+        enc.setHeightInPoints(18);
+        for (int i = 0; i < encabezados.length; i++) {
+            ws.setColumnWidth(i, anchos[i] * 256);
+            celda(enc, i, encabezados[i], estiloEncabezado(wb));
+        }
+        int fila = 1;
+        for (Cuadruplo c : gen.getCuadruplos()) {
+            XSSFRow row = ws.createRow(fila);
+            row.setHeightInPoints(16);
+            CellStyle st = c.esEtiqueta() ? estiloEtiquetaCuadruplo(wb) : estiloDato(wb, fila % 2 == 0, null);
+            String[] v = c.comoFila();
+            for (int i = 0; i < v.length; i++) {
+                celda(row, i, v[i], st);
+            }
+            fila++;
+        }
+        ws.createFreezePane(0, 1);
+    }
+
+    /**
+     * Cont-CI: temporales por tipo y operadores por categoría (Op-Rel, Ope-Log,
+     * Oper-Arit, op-turno) por línea, totales y el desglose por operador.
+     */
+    public static void poblarContCI(XSSFWorkbook wb, GeneradorCuadruplos gen) {
+        XSSFSheet ws = wb.createSheet(HOJA_CONT_CI);
+        ContadorCuadruplos cc = gen.getContador();
+        ContadorCuadruplos.Categoria[] cats = ContadorCuadruplos.Categoria.values();
+
+        List<String> enc = new ArrayList<>();
+        enc.add("Linea");
+        enc.addAll(List.of(ContadorCuadruplos.COLUMNAS_TEMPORALES));
+        for (ContadorCuadruplos.Categoria c : cats) enc.add(c.titulo);
+        for (int i = 0; i < enc.size(); i++) ws.setColumnWidth(i, 12 * 256);
+
+        XSSFRow r0 = ws.createRow(0);
+        r0.setHeightInPoints(18);
+        for (int i = 0; i < enc.size(); i++) celda(r0, i, enc.get(i), estiloEncabezado(wb));
+
+        int fila = 1;
+        for (Map.Entry<Integer, int[]> e : cc.getPorLinea().entrySet()) {
+            XSSFRow row = ws.createRow(fila);
+            CellStyle sn = estiloDatoNum(wb, fila % 2 == 0);
+            celda(row, 0, e.getKey(), sn);
+            int[] v = e.getValue();
+            for (int i = 0; i < v.length; i++) celda(row, i + 1, v[i], sn);
+            fila++;
+        }
+        XSSFRow tot = ws.createRow(fila++);
+        celda(tot, 0, "Totales", estiloValor(wb));
+        int[] t = cc.totales();
+        for (int i = 0; i < t.length; i++) celda(tot, i + 1, t[i], estiloValor(wb));
+
+        // ── Desglose por operador, agrupado en las 4 categorías ─────────────
+        fila += 2;
+        XSSFRow h = ws.createRow(fila++);
+        for (int c = 0; c < cats.length; c++) {
+            celda(h, c * 2, cats[c].titulo, estiloCategoria(wb, CAT_OP));
+            celda(h, c * 2 + 1, "Cant.", estiloCategoria(wb, CAT_OP));
+        }
+        int max = 0;
+        for (ContadorCuadruplos.Categoria c : cats) max = Math.max(max, c.simbolos.length);
+        for (int k = 0; k < max; k++) {
+            XSSFRow row = ws.createRow(fila++);
+            for (int c = 0; c < cats.length; c++) {
+                if (k >= cats[c].simbolos.length) continue;
+                String s = cats[c].simbolos[k];
+                celda(row, c * 2, s, estiloDato(wb, k % 2 == 0, null));
+                celda(row, c * 2 + 1, cc.getPorOperador().get(cats[c]).get(s), estiloDatoNum(wb, k % 2 == 0));
+            }
+        }
+
+        // ── Detención (fail-fast) ────────────────────────────────────────────
+        fila++;
+        XSSFRow nota = ws.createRow(fila++);
+        String txt = gen.seDetuvo()
+                ? "Generación detenida en la línea " + gen.getLineaDetencion() + ": " + gen.getMotivoDetencion()
+                : "Cuádruplos generados completos (" + gen.getCuadruplos().size() + " renglones).";
+        celda(nota, 0, txt, estiloDato(wb, true, gen.seDetuvo() ? COLOR_ERROR : null));
+        if (gen.seDetuvo() && !gen.getEstructurasAbiertas().isEmpty()) {
+            XSSFRow ab = ws.createRow(fila);
+            celda(ab, 0, "Estructuras abiertas: " + String.join(" > ", gen.getEstructurasAbiertas()),
+                    estiloDato(wb, true, COLOR_WARN));
+        }
+        ws.createFreezePane(0, 1);
+    }
+
+    private static XSSFCellStyle estiloEtiquetaCuadruplo(XSSFWorkbook wb) {
+        return estilo(wb, "etiquetaCuadruplo", () -> {
+            XSSFCellStyle s = wb.createCellStyle();
+            s.setFillForegroundColor(COLOR_ETIQUETA);
+            s.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+            s.setVerticalAlignment(VerticalAlignment.CENTER);
+            XSSFFont f = wb.createFont();
+            f.setBold(true);
+            f.setColor(COLOR_TEXTO_OSCURO);
+            f.setFontName("Consolas");
+            f.setFontHeightInPoints((short) 10);
+            s.setFont(f);
+            return s;
+        });
     }
 
     // ═══════════════════════════════════════════════════════════════════════

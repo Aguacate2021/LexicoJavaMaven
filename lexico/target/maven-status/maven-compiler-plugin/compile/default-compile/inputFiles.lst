@@ -1,12 +1,15 @@
 /home/user/LexicoJavaMaven/lexico/src/main/java/analyzer/AnalyzerIDE.java
 /home/user/LexicoJavaMaven/lexico/src/main/java/analyzer/ConexionBD.java
 /home/user/LexicoJavaMaven/lexico/src/main/java/analyzer/ContadorCiclos.java
+/home/user/LexicoJavaMaven/lexico/src/main/java/analyzer/ContadorCuadruplos.java
 /home/user/LexicoJavaMaven/lexico/src/main/java/analyzer/ContadorTokens.java
 /home/user/LexicoJavaMaven/lexico/src/main/java/analyzer/CounterPanel.java
 /home/user/LexicoJavaMaven/lexico/src/main/java/analyzer/CountersMap.java
+/home/user/LexicoJavaMaven/lexico/src/main/java/analyzer/Cuadruplo.java
 /home/user/LexicoJavaMaven/lexico/src/main/java/analyzer/ErrorEntry.java
 /home/user/LexicoJavaMaven/lexico/src/main/java/analyzer/ExcelExporter.java
 /home/user/LexicoJavaMaven/lexico/src/main/java/analyzer/FuncionNativa.java
+/home/user/LexicoJavaMaven/lexico/src/main/java/analyzer/GeneradorCuadruplos.java
 /home/user/LexicoJavaMaven/lexico/src/main/java/analyzer/LeerCSV.java
 /home/user/LexicoJavaMaven/lexico/src/main/java/analyzer/LeerCSV2.java
 /home/user/LexicoJavaMaven/lexico/src/main/java/analyzer/Lexer.java

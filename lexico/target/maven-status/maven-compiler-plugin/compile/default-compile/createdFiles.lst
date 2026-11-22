@@ -1,1 +1,10 @@
 analyzer/ExcelExporter$FilaBase.class
+analyzer/GeneradorCuadruplos$Operando.class
+analyzer/GeneradorCuadruplos$Detencion.class
+analyzer/GeneradorCuadruplos.class
+analyzer/ContadorCuadruplos$Categoria.class
+analyzer/Cuadruplo$Etiqueta.class
+analyzer/GeneradorCuadruplos$Estructura.class
+analyzer/Cuadruplo.class
+analyzer/GeneradorCuadruplos$Clase.class
+analyzer/ContadorCuadruplos.class
