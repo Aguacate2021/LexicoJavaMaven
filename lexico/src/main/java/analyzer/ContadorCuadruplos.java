@@ -9,14 +9,15 @@ import java.util.TreeMap;
 import analyzer.TablasComparacion.LeerCSVComparacion;
 
 /**
- * Tabla de contadores de los cuádruplos (hoja "Cont-CI").
+ * Tabla de contadores de los cuádruplos (hoja "Cont-CI"), una fila por ÁMBITO
+ * (0 = global / main principal; def y for abren uno nuevo, igual que en sintaxis).
  *
- * Por línea de código cuenta:
- *  - los temporales creados, en la columna de su tipo (TBin ... TVariant);
- *    el temporal de retorno de una función (TD#Dsuma) cuenta 1 en la columna
- *    del tipo de la función, una sola vez;
- *  - los operadores que aparecen en la columna A, agrupados en EXACTAMENTE
- *    las 4 categorías: Op-Rel, Ope-Log, Oper-Arit y op-turno.
+ * Columnas:
+ *  - Temporales: TBin TDec TOct THex TReal Texp TCadena TBoolean. El temporal de
+ *    retorno de una función (TD#Dsuma) cuenta 1 en la columna de su tipo.
+ *  - Acciones: Arr, call, =, Op-Rel, Ope-Log, Oper-Arit, op-turno, JF, JMP (JT cuenta como salto en JMP).
+ *  - Etiquetas: if-E, For-E, do-E, Whi-E, Switch-E (cada etiqueta una vez, por su fila en E).
+ *  - DEF (1 por función declarada) y main (1 por método abierto, incluido el principal).
  */
 public class ContadorCuadruplos {
 
@@ -52,17 +53,27 @@ public class ContadorCuadruplos {
         }
     }
 
-    /** Encabezados de las columnas de temporales (los mismos de SEMANTICA 1). */
     public static final String[] COLUMNAS_TEMPORALES = {
-        "TBin", "TDec", "TOct", "THex", "TReal", "Texp", "TCadena", "TBoolean", "TVariant"
+        "TBin", "TDec", "TOct", "THex", "TReal", "Texp", "TCadena", "TBoolean"
     };
+    public static final String[] COLUMNAS_ACCIONES = {
+        "Arr", "call", "=", "Op-Rel", "Ope-Log", "Oper-Arit", "op-turno", "JF", "JMP"
+    };
+    /** Prefijos de etiqueta (los del generador) y su encabezado. */
+    public static final String[] PREFIJOS_ETIQUETA = { "if", "For", "do", "Whi", "Switch" };
+    public static final String[] COLUMNAS_ETIQUETAS = { "if-E", "For-E", "do-E", "Whi-E", "Switch-E" };
+    public static final String[] COLUMNAS_FINALES = { "DEF", "main" };
 
-    /** Índice de cada categoría dentro del arreglo por línea (después de los 9 temporales). */
-    private static final int BASE_CATEGORIAS = COLUMNAS_TEMPORALES.length;
-    public static final int COLUMNAS = BASE_CATEGORIAS + Categoria.values().length;
+    private static final int BASE_ACC = COLUMNAS_TEMPORALES.length;
+    private static final int COL_ARR = BASE_ACC, COL_CALL = BASE_ACC + 1, COL_IGUAL = BASE_ACC + 2;
+    private static final int BASE_CAT = BASE_ACC + 3;
+    private static final int COL_JF = BASE_ACC + 7, COL_JMP = BASE_ACC + 8;
+    private static final int BASE_ET = BASE_ACC + COLUMNAS_ACCIONES.length;
+    private static final int COL_DEF = BASE_ET + COLUMNAS_ETIQUETAS.length, COL_MAIN = COL_DEF + 1;
+    public static final int COLUMNAS = COL_MAIN + 1;
 
-    // línea -> [9 temporales][4 categorías]
-    private final Map<Integer, int[]> porLinea = new TreeMap<>();
+    // ámbito -> contadores
+    private final Map<Integer, int[]> porAmbito = new TreeMap<>();
     // categoría -> símbolo -> cantidad (todos los símbolos aparecen, aunque valgan 0)
     private final Map<Categoria, Map<String, Integer>> porOperador = new EnumMap<>(Categoria.class);
 
@@ -71,7 +82,7 @@ public class ContadorCuadruplos {
     }
 
     public final void reiniciar() {
-        porLinea.clear();
+        porAmbito.clear();
         porOperador.clear();
         for (Categoria c : Categoria.values()) {
             Map<String, Integer> m = new LinkedHashMap<>();
@@ -82,29 +93,62 @@ public class ContadorCuadruplos {
         }
     }
 
+    /** Asegura la fila del ámbito (aunque quede en ceros). */
+    void ambito(int ambito) {
+        fila(ambito);
+    }
+
     /** Un temporal nuevo del tipo indicado (1..10 de LeerCSVComparacion). */
-    void temporal(int linea, int tipo) {
+    void temporal(int ambito, int tipo) {
         int col = columnaTemporal(tipo);
         if (col >= 0) {
-            fila(linea)[col]++;
+            fila(ambito)[col]++;
         }
     }
 
-    /** Un operador en la columna A; los que no son de las 4 categorías se ignoran. */
-    void operador(int linea, String simbolo) {
-        Categoria c = Categoria.de(simbolo);
-        if (c == null) {
+    /** Una función declarada (def). */
+    void definicion(int ambito) {
+        fila(ambito)[COL_DEF]++;
+    }
+
+    /** Cuenta la acción, el operador o la etiqueta de un renglón. */
+    void cuadruplo(Cuadruplo c) {
+        int[] f = fila(c.getAmbito());
+        if (c.esEtiqueta()) {
+            String e = c.getE();
+            int guion = e.lastIndexOf("-E");
+            String prefijo = guion > 0 ? e.substring(0, guion) : e;
+            for (int i = 0; i < PREFIJOS_ETIQUETA.length; i++) {
+                if (PREFIJOS_ETIQUETA[i].equals(prefijo)) {
+                    f[BASE_ET + i]++;
+                }
+            }
             return;
         }
-        fila(linea)[BASE_CATEGORIAS + c.ordinal()]++;
-        porOperador.get(c).merge(simbolo.trim(), 1, Integer::sum);
+        String a = c.getA();
+        switch (a) {
+            case "ARR" -> f[COL_ARR]++;
+            case "CALL" -> f[COL_CALL]++;
+            case "=" -> f[COL_IGUAL]++;
+            case "JF" -> f[COL_JF]++;
+            case "JMP", "JT" -> f[COL_JMP]++;
+            case "Metodo" -> f[COL_MAIN]++;
+            default -> {
+                String simbolo = "inc".equals(a) ? "++" : "dec".equals(a) ? "--" : a; // inc/dec = ++/--
+                Categoria cat = Categoria.de(simbolo);
+                if (cat != null) {
+                    f[BASE_CAT + cat.ordinal()]++;
+                    porOperador.get(cat).merge(simbolo.trim(), 1, Integer::sum);
+                }
+            }
+        }
     }
 
-    private int[] fila(int linea) {
-        return porLinea.computeIfAbsent(linea, k -> new int[COLUMNAS]);
+    private int[] fila(int ambito) {
+        return porAmbito.computeIfAbsent(ambito, k -> new int[COLUMNAS]);
     }
 
-    /** tipo 1..10 -> columna 0..8 (Carácter se cuenta como Cadena). */
+    /** tipo 1..10 -> columna 0..7 (Carácter se cuenta como Cadena; Variant no tiene columna). */
     static int columnaTemporal(int tipo) {
         switch (tipo) {
             case LeerCSVComparacion.T_BIN: return 0;
@@ -116,14 +160,13 @@ public class ContadorCuadruplos {
             case LeerCSVComparacion.T_CADENA:
             case LeerCSVComparacion.T_CARACTER: return 6;
             case LeerCSVComparacion.T_BOOLEAN: return 7;
-            case LeerCSVComparacion.T_VARIANT: return 8;
             default: return -1;
         }
     }
 
-    /** línea -> {TBin..TVariant, Op-Rel, Ope-Log, Oper-Arit, op-turno}. */
-    public Map<Integer, int[]> getPorLinea() {
-        return Collections.unmodifiableMap(porLinea);
+    /** ámbito -> {temporales, acciones, etiquetas, DEF, main}. */
+    public Map<Integer, int[]> getPorAmbito() {
+        return Collections.unmodifiableMap(porAmbito);
     }
 
     public Map<Categoria, Map<String, Integer>> getPorOperador() {
@@ -132,7 +175,7 @@ public class ContadorCuadruplos {
 
     public int[] totales() {
         int[] t = new int[COLUMNAS];
-        for (int[] f : porLinea.values()) {
+        for (int[] f : porAmbito.values()) {
             for (int i = 0; i < COLUMNAS; i++) {
                 t[i] += f[i];
             }

@@ -1191,25 +1191,38 @@ public class ExcelExporter {
 
     /**
      * Cont-CI: temporales por tipo y operadores por categoría (Op-Rel, Ope-Log,
-     * Oper-Arit, op-turno) por línea, totales y el desglose por operador.
+     * Oper-Arit, op-turno) por ámbito (más Arr, call, =, JF, JMP, etiquetas, DEF y main), totales y el desglose por operador.
      */
     public static void poblarContCI(XSSFWorkbook wb, GeneradorCuadruplos gen) {
         XSSFSheet ws = wb.createSheet(HOJA_CONT_CI);
         ContadorCuadruplos cc = gen.getContador();
         ContadorCuadruplos.Categoria[] cats = ContadorCuadruplos.Categoria.values();
 
+        // Fila 0: grupos (Temporales / Acciones / Etiquetas); fila 1: encabezados
         List<String> enc = new ArrayList<>();
-        enc.add("Linea");
+        enc.add("Ambitos");
         enc.addAll(List.of(ContadorCuadruplos.COLUMNAS_TEMPORALES));
-        for (ContadorCuadruplos.Categoria c : cats) enc.add(c.titulo);
-        for (int i = 0; i < enc.size(); i++) ws.setColumnWidth(i, 12 * 256);
+        enc.addAll(List.of(ContadorCuadruplos.COLUMNAS_ACCIONES));
+        enc.addAll(List.of(ContadorCuadruplos.COLUMNAS_ETIQUETAS));
+        enc.addAll(List.of(ContadorCuadruplos.COLUMNAS_FINALES));
+        for (int i = 0; i < enc.size(); i++) ws.setColumnWidth(i, 11 * 256);
 
-        XSSFRow r0 = ws.createRow(0);
+        int iAcc = 1 + ContadorCuadruplos.COLUMNAS_TEMPORALES.length;
+        int iEt = iAcc + ContadorCuadruplos.COLUMNAS_ACCIONES.length;
+        XSSFRow g = ws.createRow(0);
+        celda(g, 1, "Temporales", estiloCategoria(wb, CAT_ID));
+        celda(g, iAcc, "Acciones", estiloCategoria(wb, CAT_OP));
+        celda(g, iEt, "Etiquetas", estiloCategoria(wb, CAT_KW));
+        ws.addMergedRegion(new CellRangeAddress(0, 0, 1, iAcc - 1));
+        ws.addMergedRegion(new CellRangeAddress(0, 0, iAcc, iEt - 1));
+        ws.addMergedRegion(new CellRangeAddress(0, 0, iEt, iEt + ContadorCuadruplos.COLUMNAS_ETIQUETAS.length - 1));
+
+        XSSFRow r0 = ws.createRow(1);
         r0.setHeightInPoints(18);
         for (int i = 0; i < enc.size(); i++) celda(r0, i, enc.get(i), estiloEncabezado(wb));
 
-        int fila = 1;
-        for (Map.Entry<Integer, int[]> e : cc.getPorLinea().entrySet()) {
+        int fila = 2;
+        for (Map.Entry<Integer, int[]> e : cc.getPorAmbito().entrySet()) {
             XSSFRow row = ws.createRow(fila);
             CellStyle sn = estiloDatoNum(wb, fila % 2 == 0);
             celda(row, 0, e.getKey(), sn);
@@ -1218,7 +1231,7 @@ public class ExcelExporter {
             fila++;
         }
         XSSFRow tot = ws.createRow(fila++);
-        celda(tot, 0, "Totales", estiloValor(wb));
+        celda(tot, 0, "totales", estiloValor(wb));
         int[] t = cc.totales();
         for (int i = 0; i < t.length; i++) celda(tot, i + 1, t[i], estiloValor(wb));
 
@@ -1253,7 +1266,7 @@ public class ExcelExporter {
             celda(ab, 0, "Estructuras abiertas: " + String.join(" > ", gen.getEstructurasAbiertas()),
                     estiloDato(wb, true, COLOR_WARN));
         }
-        ws.createFreezePane(0, 1);
+        ws.createFreezePane(0, 2);
     }
 
     private static XSSFCellStyle estiloEtiquetaCuadruplo(XSSFWorkbook wb) {

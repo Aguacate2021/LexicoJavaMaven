@@ -58,8 +58,8 @@ public class GeneradorCuadruplos {
     private static final int T_FIN = Integer.MIN_VALUE; // centinela de fin de tokens
 
     /** Prefijos de etiqueta por estructura. */
-    private static final String ET_IF = "if", ET_WHILE = "Wil", ET_DO = "Do", ET_FOR = "For",
-            ET_SWITCH = "Sw", ET_TERNARIO = "Ter";
+    private static final String ET_IF = "if", ET_WHILE = "Whi", ET_DO = "do", ET_FOR = "For",
+            ET_SWITCH = "Switch", ET_TERNARIO = "Ter";
 
     /** Valor que se compara cuando la condición es una variable o constante sola. */
     private static final String VERDADERO = "true";
@@ -87,6 +87,9 @@ public class GeneradorCuadruplos {
     private final Deque<Estructura> pilaEstructuras = new ArrayDeque<>();
     /** Destino de los return del método en curso: TD de la función o void. */
     private final Deque<String> pilaRetorno = new ArrayDeque<>();
+    /** Ámbitos abiertos: 0 = global; def y for abren uno nuevo (marcadores 802/803). */
+    private final Deque<Integer> pilaAmbitos = new ArrayDeque<>();
+    private int contadorAmbitos = 0;
     private final LeerCSVComparacion comparacion = new LeerCSVComparacion();
 
     /** Elemento de la pila de estructuras. */
@@ -200,7 +203,7 @@ public class GeneradorCuadruplos {
         }
         nombrarEtiquetas();
         for (Cuadruplo c : cuadruplos) {
-            contador.operador(c.getLinea(), c.getA());
+            contador.cuadruplo(c);
         }
     }
 
@@ -268,6 +271,11 @@ public class GeneradorCuadruplos {
         temporalDeFuncion.clear();
         pilaEstructuras.clear();
         pilaRetorno.clear();
+        reservadas.clear();
+        pilaAmbitos.clear();
+        pilaAmbitos.push(0);
+        contadorAmbitos = 0;
+        contador.ambito(0);
     }
 
     // =========================================================
@@ -291,7 +299,7 @@ public class GeneradorCuadruplos {
         sentencias();
         esperar(T_LLAVE_CIERRA, "}");
         pilaRetorno.pop();
-        emitir("fin Metodo", nombreMetodo, "", "");
+        emitir("FINMET", nombreMetodo, "", "");
         cerrar(met);
     }
 
@@ -329,11 +337,13 @@ public class GeneradorCuadruplos {
             throw inesperado(nombre);
         }
         String id = lex(nombre);
+        abrirAmbito(); // 802: después del nombre de la función
+        contador.definicion(ambitoActual());
         String destino = VOID;
         if (nombre.getTokenClass() != T_ID_PROCEDIMIENTO) {
             // Un único temporal de retorno por función; cuenta 1 en la columna de su tipo.
             destino = temporalDeFuncion.computeIfAbsent(id, k -> {
-                contador.temporal(nombre.getLinea(), LeerCSVComparacion.tipoDeToken(nombre.getTokenClass()));
+                contador.temporal(ambitoActual(), LeerCSVComparacion.tipoDeToken(nombre.getTokenClass()));
                 return "TD" + k;
             });
         }
@@ -341,6 +351,7 @@ public class GeneradorCuadruplos {
         saltarHasta(T_PAR_CIERRA); // los parámetros ya se verificaron en semántica
         avanzar();
         programa(id, destino, false);
+        cerrarAmbito(); // 803
         esperar(T_PUNTO_COMA, ";");
     }
 
@@ -481,6 +492,7 @@ public class GeneradorCuadruplos {
      */
     private void sentenciaFor() {
         Token t = avanzar();
+        abrirAmbito(); // 802: el for abre ámbito
         esperar(T_PAR_ABRE, "(");
         Estructura est = abrir("for", "", t.getLinea());
         Operando primero = expresion();
@@ -496,6 +508,7 @@ public class GeneradorCuadruplos {
             forClasico();
         }
         cerrar(est);
+        cerrarAmbito(); // 803
     }
 
     /**
@@ -551,7 +564,7 @@ public class GeneradorCuadruplos {
         agregar(Cuadruplo.salto("JF", b, fin, lineaActual));
         saltoIncondicional(cuerpo);
         ponerEtiqueta(inc);
-        emitir("++", i, "", "1");
+        emitir("inc", i, "", "1");
         saltoIncondicional(cond);
         ponerEtiqueta(cuerpo);
         String elemento = nuevoTemporal(arreglo.tipo);
@@ -575,6 +588,7 @@ public class GeneradorCuadruplos {
         esperar(T_PAR_CIERRA, ")");
         esperar(T_LLAVE_ABRE, "{");
         Etiqueta salida = new Etiqueta(ET_SWITCH);
+        reservarNombre(salida); // la salida del switch toma el primer número
         while (true) {
             esperar(T_CASE, "case");
             Operando v = expresion();
@@ -753,7 +767,7 @@ public class GeneradorCuadruplos {
                 throw inesperado(id);
             }
             Operando v = factorId(id);
-            emitir(lex(op), v.texto, "", "1");
+            emitir(tc == T_MAS_MAS ? "inc" : "dec", v.texto, "", "1");
             return new Operando(v.texto, v.tipo, Clase.VARIABLE);
         }
         if (tc == T_NOT || tc == T_NOT_BIT) {
@@ -801,6 +815,9 @@ public class GeneradorCuadruplos {
             String r = nuevoTemporal(tipo);
             llamada("ARR", nombre, indices, r);
             destino = new Operando(r, tipo, Clase.VARIABLE);
+            if (!esAsignacion(tcActual())) {
+                return new Operando(r, tipo, Clase.LLAMADA); // valor ya en temporal: directo al JF
+            }
         }
         if (esAsignacion(tcActual())) {
             return asignacion(destino);
@@ -918,11 +935,11 @@ public class GeneradorCuadruplos {
      *   | arg3 |      | resultado (el resultado va en el último renglón)
      */
     private void llamada(String accion, String nombre, List<String> args, String resultado) {
-        emitir(accion, nombre, "", "");
         if (args.isEmpty()) {
-            emitir("", "", "", resultado);
+            emitir(accion, nombre, "", resultado); // sin argumentos: el resultado va en el renglón del CALL
             return;
         }
+        emitir(accion, nombre, "", "");
         for (int i = 0; i < args.size(); i += 2) {
             String a1 = args.get(i);
             String a2 = i + 1 < args.size() ? args.get(i + 1) : "";
@@ -938,7 +955,7 @@ public class GeneradorCuadruplos {
     /** Temporal nuevo con secuencia única por tipo: TDec1, TDec2, TBoolean1... */
     private String nuevoTemporal(int tipo) {
         int n = contadorTemporales.merge(tipo, 1, Integer::sum);
-        contador.temporal(lineaActual, tipo);
+        contador.temporal(ambitoActual(), tipo);
         return LeerCSVComparacion.prefijoTemporal(tipo) + n;
     }
 
@@ -1036,12 +1053,33 @@ public class GeneradorCuadruplos {
     // EMISIÓN Y NOMBRES DE ETIQUETAS
     // =========================================================
 
+    /** Etiquetas que se numeran al llegar a cierto renglón aunque aún no aparezcan. */
+    private final Map<Integer, List<Etiqueta>> reservadas = new HashMap<>();
+
+    private void reservarNombre(Etiqueta e) {
+        reservadas.computeIfAbsent(cuadruplos.size(), k -> new ArrayList<>()).add(e);
+    }
+
     private void emitir(String a, String v1, String v2, String r) {
         agregar(Cuadruplo.operacion(a, v1, v2, r, lineaActual));
     }
 
     private void agregar(Cuadruplo c) {
+        c.setAmbito(ambitoActual());
         cuadruplos.add(c);
+    }
+
+    private void abrirAmbito() {
+        pilaAmbitos.push(++contadorAmbitos);
+        contador.ambito(contadorAmbitos);
+    }
+
+    private void cerrarAmbito() {
+        pilaAmbitos.pop();
+    }
+
+    private int ambitoActual() {
+        return pilaAmbitos.isEmpty() ? 0 : pilaAmbitos.peek();
     }
 
     /**
@@ -1051,8 +1089,12 @@ public class GeneradorCuadruplos {
      */
     private void nombrarEtiquetas() {
         Map<String, Integer> siguiente = new HashMap<>();
-        for (Cuadruplo c : cuadruplos) {
-            for (Etiqueta e : new Etiqueta[] { c.getEtiquetaE(), c.getEtiquetaR() }) {
+        for (int i = 0; i < cuadruplos.size(); i++) {
+            Cuadruplo c = cuadruplos.get(i);
+            List<Etiqueta> orden = new ArrayList<>(reservadas.getOrDefault(i, List.of()));
+            orden.add(c.getEtiquetaE());
+            orden.add(c.getEtiquetaR());
+            for (Etiqueta e : orden) {
                 if (e != null && e.nombre() == null) {
                     int n = siguiente.merge(e.raiz().prefijo, 1, Integer::sum);
                     e.ponerNombre(e.raiz().prefijo + "-E" + n);

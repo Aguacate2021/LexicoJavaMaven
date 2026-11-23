@@ -58,6 +58,7 @@ public class Cuadruplo {
     private final Etiqueta etiquetaE;   // etiqueta sola en su fila (columna E)
     private final Etiqueta etiquetaR;   // destino de JF / JT / JMP (columna R)
     private final int linea;            // línea del código fuente que lo generó
+    private int ambito;                 // ámbito (0 = global; def y for abren uno nuevo)
 
     private Cuadruplo(Etiqueta etiquetaE, String accion, String v1, String v2,
                       String resultado, Etiqueta etiquetaR, int linea) {
@@ -127,6 +128,14 @@ public class Cuadruplo {
 
     public int getLinea() {
         return linea;
+    }
+
+    public int getAmbito() {
+        return ambito;
+    }
+
+    void setAmbito(int ambito) {
+        this.ambito = ambito;
     }
 
     /** {E, A, V1, V2, R}. */
