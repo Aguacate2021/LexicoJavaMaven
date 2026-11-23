@@ -13,10 +13,10 @@ import analyzer.TablasComparacion.LeerCSVComparacion;
  * (0 = global / main principal; def y for abren uno nuevo, igual que en sintaxis).
  *
  * Columnas:
- *  - Temporales: TBin TDec TOct THex TReal Texp TCadena TBoolean. El temporal de
+ *  - Temporales: TBin TDec TOct THex TReal Texp TCadena TBoolean TVariant. El temporal de
  *    retorno de una función (TD#Dsuma) cuenta 1 en la columna de su tipo.
  *  - Acciones: Arr, call, =, Op-Rel, Ope-Log, Oper-Arit, op-turno, JF, JMP (JT cuenta como salto en JMP).
- *  - Etiquetas: if-E, For-E, do-E, Whi-E, Switch-E (cada etiqueta una vez, por su fila en E).
+ *  - Etiquetas: if-E, For-E, do-E, Whi-E, Switch-E, Ter-E (cada etiqueta una vez, por su fila en E).
  *  - DEF (1 por función declarada) y main (1 por método abierto, incluido el principal).
  */
 public class ContadorCuadruplos {
@@ -54,14 +54,14 @@ public class ContadorCuadruplos {
     }
 
     public static final String[] COLUMNAS_TEMPORALES = {
-        "TBin", "TDec", "TOct", "THex", "TReal", "Texp", "TCadena", "TBoolean"
+        "TBin", "TDec", "TOct", "THex", "TReal", "Texp", "TCadena", "TBoolean", "TVariant"
     };
     public static final String[] COLUMNAS_ACCIONES = {
-        "Arr", "call", "=", "Op-Rel", "Ope-Log", "Oper-Arit", "op-turno", "JF", "JMP"
+        "Arr", "call", "=", "Op-Rel", "Ope-Log", "Oper-Arit", "op-turno", "JF", "JMP/JT"
     };
     /** Prefijos de etiqueta (los del generador) y su encabezado. */
-    public static final String[] PREFIJOS_ETIQUETA = { "if", "For", "do", "Whi", "Switch" };
-    public static final String[] COLUMNAS_ETIQUETAS = { "if-E", "For-E", "do-E", "Whi-E", "Switch-E" };
+    public static final String[] PREFIJOS_ETIQUETA = { "if", "For", "do", "Whi", "Switch", "Ter" };
+    public static final String[] COLUMNAS_ETIQUETAS = { "if-E", "For-E", "do-E", "Whi-E", "Switch-E", "Ter-E" };
     public static final String[] COLUMNAS_FINALES = { "DEF", "main" };
 
     private static final int BASE_ACC = COLUMNAS_TEMPORALES.length;
@@ -148,7 +148,7 @@ public class ContadorCuadruplos {
         return porAmbito.computeIfAbsent(ambito, k -> new int[COLUMNAS]);
     }
 
-    /** tipo 1..10 -> columna 0..7 (Carácter se cuenta como Cadena; Variant no tiene columna). */
+    /** tipo 1..10 -> columna 0..8 (Carácter se cuenta como Cadena). */
     static int columnaTemporal(int tipo) {
         switch (tipo) {
             case LeerCSVComparacion.T_BIN: return 0;
@@ -160,6 +160,7 @@ public class ContadorCuadruplos {
             case LeerCSVComparacion.T_CADENA:
             case LeerCSVComparacion.T_CARACTER: return 6;
             case LeerCSVComparacion.T_BOOLEAN: return 7;
+            case LeerCSVComparacion.T_VARIANT: return 8;
             default: return -1;
         }
     }

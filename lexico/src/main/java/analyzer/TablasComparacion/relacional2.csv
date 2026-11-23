@@ -6,5 +6,5 @@ Hexa;Error;Error;Error;Boolean;Error;Error;Error;Error;Boolean
 Real;Error;Boolean;Error;Error;Boolean;Boolean;Error;Error;Boolean
 exp;Error;Boolean;Error;Error;Boolean;Boolean;Error;Error;Boolean
 Cadena;Error;Error;Error;Error;Error;Error;Error;Error;Boolean
-Boolean;Error;Error;Error;Error;Error;Error;Error;Error;Error
-Variant;Boolean;Boolean;Boolean;Boolean;Boolean;Boolean;Boolean;Error;Boolean
+Boolean;Error;Error;Error;Error;Error;Error;Error;Boolean;Boolean
+Variant;Boolean;Boolean;Boolean;Boolean;Boolean;Boolean;Boolean;Boolean;Boolean

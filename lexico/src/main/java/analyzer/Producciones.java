@@ -121,7 +121,7 @@ public class Producciones {
         producciones.put(110, Arrays.asList(30));
         producciones.put(111, Arrays.asList(33));
         producciones.put(113, Arrays.asList(-103, -10, 24, 34));
-        producciones.put(114, Arrays.asList(-9, 24));
+        producciones.put(114, Arrays.asList(-9, 24, 34)); // default: varias sentencias (W -> ; STATU W)
         producciones.put(116, Arrays.asList(37, 36));
         producciones.put(118, Arrays.asList(-31, 37, 36));
         producciones.put(119, Arrays.asList(-4, 37, 36));

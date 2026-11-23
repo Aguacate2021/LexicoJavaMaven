@@ -1842,15 +1842,17 @@ public class sintaxis {
     }
 
     /**
-     * Valor de una expresión formada solo por constantes Decimal con + - * y
-     * paréntesis (ej. "3+6", "4+70"); null si no es una constante calculable.
+     * Valor del índice cuando es una constante Decimal literal (con signo opcional,
+     * ej. "3", "-1", "(2)"); null en otro caso. Un índice escrito como expresión
+     * ("4+3", "16*16") no se verifica en compilación (regla 1050), igual que un
+     * índice con variables: su rango se conoce hasta la ejecución.
      */
     private static Long valorConstanteEntero(List<Token> toks) {
         if (toks == null || toks.isEmpty()) {
             return null;
         }
         int[] pos = { 0 };
-        Long v = constExpr(toks, pos);
+        Long v = constFactor(toks, pos);
         return (v != null && pos[0] == toks.size()) ? v : null;
     }
 
@@ -1993,6 +1995,7 @@ public class sintaxis {
         int argIni = 0;         // índice en toks donde empieza el argumento en curso (llamadas)
         int emitidos = 0;       // argumentos ya revisados (llamadas)
         boolean fallo1150 = false;
+        boolean sentencia = false; // ! ( ) / ~ ( ) usado como sentencia: nadie más cuenta sus operaciones
         int sec = 0;            // ";" ya procesados en un for (1080 al 1.º, 1081 al 2.º)
         final List<SemanticAnalyzerV3.Argumento> nativaArgs = new ArrayList<>(); // parámetros ya validados (nativas)
         int ultimoSep = -1;
@@ -2295,7 +2298,12 @@ public class sintaxis {
         if (clase == CAP_FOR) {
             enEncabezadoFor = true;
         }
-        capsParen.add(new CapParen(clase, origen, sw));
+        CapParen c = new CapParen(clase, origen, sw);
+        c.sentencia = (clase == CAP_NOT || clase == CAP_TILDE) && profundidadOperacion == 0
+                && condClave == 0 && capCase == null && capReturn == null && accesosArreglo.isEmpty()
+                // Console.log no cuenta las operaciones de su argumento: el ! ( ) / ~ ( ) cuenta las suyas
+                && capsParen.stream().allMatch(k -> k.clase == CAP_CONSOLE);
+        capsParen.add(c);
     }
 
     /** Punto único por el que pasa cada terminal consumido (ID o no). */
@@ -2496,6 +2504,7 @@ public class sintaxis {
     // ---------- Regla 6: SWITCH (1060) y CASE (1061) ----------
 
     private void finalizarSwitch(CapParen c) {
+        contarTemporalesExpresion(c.toks, c.origen.getLinea()); // Semántica 1: operaciones del selector
         Val v = evaluar(c.toks);
         String texto = textoDe(c.toks);
         // null y los procedimientos no tienen valor Cadena ni Decimal: no son selector válido.
@@ -2522,6 +2531,7 @@ public class sintaxis {
             return;
         }
         SwitchCtx sw = switches.peek();
+        contarTemporalesExpresion(k.toks, k.origen.getLinea()); // Semántica 1: operaciones del case
         Val v = evaluar(k.toks);
         String lexema = valorSem(k.toks); // Valor Real: el case; el selector ya quedó en su fila 1060
         int tipo = v.tipo;
@@ -2552,6 +2562,9 @@ public class sintaxis {
     // ---------- Regla 7: ! y ~ (1070) ----------
 
     private void finalizarUnarioLogico(CapParen c) {
+        if (c.sentencia) {
+            contarTemporalesExpresion(c.toks, c.origen.getLinea()); // Semántica 1: operaciones internas
+        }
         Val v = evaluar(c.toks);
         boolean esNot = c.clase == CAP_NOT;
         boolean ok;
@@ -4158,6 +4171,11 @@ public class sintaxis {
     private void procesarTokenDeOperacion(Token t) {
         if (llamadaOpProf > 0) {
             procesarTokenDeOperacion0(t);
+            if (llamadaOpProf == 0) {
+                // La llamada f(...) ya es un operando completo: lo que siga ("+ 10") es un
+                // operador binario, no el signo de una constante.
+                prevOpTok = t;
+            }
             return;
         }
         if (signoPend != null) {
@@ -4524,7 +4542,12 @@ public class sintaxis {
                 // asignación posterior puede verificar su compatibilidad (Cadena <- !x es error).
                 int tipoU = tc == -29 ? LeerCSVComparacion.T_BOOLEAN
                         : (esEntero(o.tipo) ? o.tipo : LeerCSVComparacion.T_VARIANT);
+                // ! y ~ no tienen tabla de tipos: su temporal no se cuenta en Semántica 1,
+                // igual que en condiciones y argumentos (EvalExpr solo cuenta operaciones binarias).
+                int[] statsU = estadisticaLineaActual;
+                estadisticaLineaActual = null;
                 String tmp = nuevoTemporal(tipoU);
+                estadisticaLineaActual = statsU;
                 bloque.append(lex).append(",").append(o.texto).append(",").append(tmp).append("\n");
                 Operando ou = new Operando(tmp, tipoU);
                 ou.vis = o.vis != null ? o.vis : o.texto; // el muestreo muestra el operando, no el temporal
