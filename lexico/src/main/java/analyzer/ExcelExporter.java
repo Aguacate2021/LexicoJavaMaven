@@ -36,26 +36,14 @@ import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 /**
- * ExcelExporter — Exporta el análisis léxico a un archivo .xlsx.
- *
- * Hojas generadas:
- *   1. TOKENS      — Estado | Lexema | Línea
- *   2. ERRORES     — Token  | Descripción | Lexema | Tipo | Línea
- *   3. CONTADORES  — Tabla de doble encabezado (categoría + subcategoría)
- *                    alimentada directamente por ContadorTokens.
- *
- * Uso desde AnalyzerIDE:
- *   ContadorTokens ct = new ContadorTokens();
- *   ct.contar(tokens);
- *   ExcelExporter.exportar(frame, tokens, errores, ct);
- *
- *
- * Dependencia: Apache POI (poi-ooxml).
+ * Exporta los resultados de todas las etapas del compilador a un libro .xlsx:
+ * TOKENS, Errores, CONTADORES, Sintaxis, Ámbito, Tabla de Simbolos, Semantica 1,
+ * Semantica 2-Base/Total, SEMANTICA 3 T2, Cont-CI y Cuadruplo (Apache POI).
  */
 public class ExcelExporter {
 
     /** Nombre predeterminado del archivo que propone el diálogo de guardado. */
-    public static final String NOMBRE_ARCHIVO = "Semantica3-AlatorreDavid.xlsx";
+    public static final String NOMBRE_ARCHIVO = "CI-AlatorreDavid-1.xlsx";
 
     // Apache POI usa log4j-api; sin una implementación en el classpath, log4j imprime
     // "ERROR StatusLogger Log4j2 could not find a logging implementation" (solo es un aviso,
@@ -90,57 +78,10 @@ public class ExcelExporter {
     private static final XSSFColor CAT_OP  = rgb(0x5C, 0x1E, 0x1E);
 
     // ═══════════════════════════════════════════════════════════════════════
-    // PUNTOS DE ENTRADA PÚBLICOS
+    // PUNTO DE ENTRADA
     // ═══════════════════════════════════════════════════════════════════════
 
-    /**
-     * Exporta usando un ContadorTokens ya calculado (recomendado).
-     */
-    public static void exportar(java.awt.Component parent,
-                                List<Token>       tokens,
-                                List<ErrorEntry>  errores,
-                                ContadorTokens    contador) {
-        exportar(parent, tokens, errores, contador, null);
-    }
-
-    /**
-     * Igual que el anterior, pero además agrega la hoja "SEMANTICA 1" con las
-     * estadísticas que produjo sintaxis (getEstadisticasSemantica()).
-     */
-    public static void exportar(java.awt.Component parent,
-                                List<Token>       tokens,
-                                List<ErrorEntry>  errores,
-                                ContadorTokens    contador,
-                                Map<Integer, int[]> estadisticasSem) {
-        exportar(parent, tokens, errores, contador, estadisticasSem, null, null);
-    }
-
-    public static void exportar(java.awt.Component parent,
-                                List<Token>       tokens,
-                                List<ErrorEntry>  errores,
-                                ContadorTokens    contador,
-                                Map<Integer, int[]> estadisticasSem,
-                                Map<Integer, List<String>> asignacionesDetalle,
-                                List<String[]> muestreoSem) {
-        exportar(parent, tokens, errores, contador, estadisticasSem, asignacionesDetalle,
-                muestreoSem, null, null);
-    }
-
-    /** Igual que el anterior, más las hojas de Semántica 3 (tabla principal y contadores). */
-    public static void exportar(java.awt.Component parent,
-                                List<Token>       tokens,
-                                List<ErrorEntry>  errores,
-                                ContadorTokens    contador,
-                                Map<Integer, int[]> estadisticasSem,
-                                Map<Integer, List<String>> asignacionesDetalle,
-                                List<String[]> muestreoSem,
-                                List<String[]> filasSem3,
-                                List<String[]> contadoresSem3) {
-        exportar(parent, tokens, errores, contador, estadisticasSem, asignacionesDetalle,
-                muestreoSem, filasSem3, contadoresSem3, null);
-    }
-
-    /** Igual que el anterior, más las hojas CUADRUPLOS y Cont-CI (etapa final). */
+    /** Pide el destino con un diálogo y exporta el libro completo. */
     public static void exportar(java.awt.Component parent,
                                 List<Token>       tokens,
                                 List<ErrorEntry>  errores,
@@ -168,24 +109,7 @@ public class ExcelExporter {
         }
     }
 
-    /**
-     * Genera el libro completo y lo escribe en {@code destino} (sin diálogos).
-     * Los estilos se crean una sola vez por libro (ver {@link #estilo}).
-     */
-    public static void exportarArchivo(File destino,
-                                       List<Token>       tokens,
-                                       List<ErrorEntry>  errores,
-                                       ContadorTokens    contador,
-                                       Map<Integer, int[]> estadisticasSem,
-                                       Map<Integer, List<String>> asignacionesDetalle,
-                                       List<String[]> muestreoSem,
-                                       List<String[]> filasSem3,
-                                       List<String[]> contadoresSem3) throws IOException {
-        exportarArchivo(destino, tokens, errores, contador, estadisticasSem, asignacionesDetalle,
-                muestreoSem, filasSem3, contadoresSem3, null);
-    }
-
-    /** Libro completo, incluyendo CUADRUPLOS y Cont-CI si se da el generador. */
+    /** Genera el libro y lo escribe en {@code destino} (sin diálogos). Los estilos se crean una vez por libro. */
     public static void exportarArchivo(File destino,
                                        List<Token>       tokens,
                                        List<ErrorEntry>  errores,
@@ -221,15 +145,6 @@ public class ExcelExporter {
             liberarEstilos(wb);
             wb.close();
         }
-    }
-
-    
-    public static void exportar(java.awt.Component parent,
-                                List<Token>       tokens,
-                                List<ErrorEntry>  errores) {
-        ContadorTokens ct = new ContadorTokens();
-        ct.contar(tokens);
-        exportar(parent, tokens, errores, ct);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -749,12 +664,6 @@ public class ExcelExporter {
     // Solo contabiliza lo que ya produjo sintaxis (temporales generados y
     // asignaciones por línea) y los ErrorEntry de tipo SEMANTICA.
     // ═══════════════════════════════════════════════════════════════════════
-    private static void poblarSemantica1(XSSFWorkbook wb,
-                                         Map<Integer, int[]> estadisticas,
-                                         List<ErrorEntry> errores) {
-        poblarSemantica1(wb, estadisticas, null, errores);
-    }
-
     public static void poblarSemantica1(XSSFWorkbook wb,
                                          Map<Integer, int[]> estadisticas,
                                          Map<Integer, List<String>> asignacionesDetalle,
@@ -1291,7 +1200,7 @@ public class ExcelExporter {
 
     private static File elegirDestino(java.awt.Component parent) {
         JFileChooser fc = new JFileChooser();
-        fc.setDialogTitle("Guardar análisis léxico como Excel");
+        fc.setDialogTitle("Guardar resultados del compilador como Excel");
         fc.setFileFilter(new FileNameExtensionFilter("Archivo Excel (*.xlsx)", "xlsx"));
         fc.setSelectedFile(new File(NOMBRE_ARCHIVO));
         if (fc.showSaveDialog(parent) != JFileChooser.APPROVE_OPTION) return null;

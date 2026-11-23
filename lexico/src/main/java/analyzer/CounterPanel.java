@@ -32,11 +32,9 @@ public class CounterPanel extends JPanel {
     private static final Color BG_VAL      = new Color(0x22, 0x22, 0x22);
     private static final Color BORDER      = new Color(0x3C, 0x3C, 0x3C);
     private static final Color TEXT_MAIN   = new Color(0xD4, 0xD4, 0xD4);
-    private static final Color TEXT_DIM    = new Color(0x85, 0x85, 0x85);
     private static final Color TEXT_ZERO   = new Color(0x50, 0x50, 0x50);
     private static final Color TEXT_NUMBER = new Color(0xB5, 0xCE, 0xA8);
     private static final Color TEXT_ERR    = new Color(0xF4, 0x47, 0x47);
-    private static final Color TEXT_WARN   = new Color(0xE5, 0xC0, 0x7B);
     private static final Color TEXT_TOTAL  = new Color(0xFF, 0x60, 0x60);
     private static final Color TEXT_SEM2   = new Color(0xFF, 0xA0, 0x40); // errores de Semántica 2: distinto al rojo del resto
     private static final Color TEXT_SEM3   = new Color(0x4F, 0xC1, 0xFF); // errores de Semántica 3: azul celeste

@@ -18,14 +18,14 @@ import analyzer.TablasComparacion.LeerCSVComparacion;
  *
  * Recorre los tokens ya validados por el léxico, el sintáctico y las semánticas
  * siguiendo la MISMA gramática LL del proyecto (Producciones / ExcelPuro2.csv)
- * y traduce cada construcción a renglones E | A | V1 | V2 | R.
+ * y traduce cada construcción a renglones Etiqueta | Acción | Val1 | Val2 | Result.
  *
  * Reglas que implementa:
  *  - Fail-fast: con cualquier error (léxico, sintáctico, ámbito, semántica 1/2/3)
  *    solo se generan los cuádruplos de las líneas ANTERIORES a la del primer error
  *    y ahí se detiene. Las estructuras que quedaron abiertas no se cierran.
  *  - Mnemónicos fijos: =, operadores tal cual (<, +, &&...), JF, JT, JMP, CALL,
- *    return, ARR, Metodo / fin Metodo. Nada de "asig" ni "J false".
+ *    return, ARR, inc/dec, Metodo / FINMET. Nada de "asig" ni "J false".
  *  - Asignación compuesta (+=, -=, *=, /=, %=): primero la operación hacia un
  *    temporal y luego "=" hacia la variable destino.
  *  - Temporales con secuencia única por tipo (TDec1, TDec2, TBoolean1...).
@@ -33,7 +33,7 @@ import analyzer.TablasComparacion.LeerCSVComparacion;
  *    todos sus return y todas las llamadas (CALL). Procedimientos: void.
  *  - Pila exclusiva de estructuras: if, while, do, for, foreach, switch, ternario
  *    y métodos se apilan al abrir y se desapilan al cerrar (LIFO estricto).
- *  - Etiquetas por estructura (if-E, Wil-E, Do-E, For-E, Sw-E, Ter-E), irrepetibles
+ *  - Etiquetas por estructura (if-E, Whi-E, do-E, For-E, Switch-E, Ter-E), irrepetibles
  *    en todo el programa, numeradas sin huecos en el orden en que aparecen.
  */
 public class GeneradorCuadruplos {
@@ -446,7 +446,7 @@ public class GeneradorCuadruplos {
         return destino;
     }
 
-    /** Wil-E1 | cond | JF -> Wil-E2 | cuerpo | JMP Wil-E1 | Wil-E2 */
+    /** Whi-E1 | cond | JF -> Whi-E2 | cuerpo | JMP Whi-E1 | Whi-E2 */
     private void sentenciaWhile() {
         Token t = avanzar();
         Estructura est = abrir("while", "", t.getLinea());
@@ -463,7 +463,7 @@ public class GeneradorCuadruplos {
         cerrar(est);
     }
 
-    /** Do-E1 | cuerpo | cond | JT -> Do-E1   (do S while ( c )) */
+    /** do-E1 | cuerpo | cond | JT -> do-E1   (do S while ( c )) */
     private void sentenciaDo() {
         Token t = avanzar();
         Estructura est = abrir("do while", "", t.getLinea());
@@ -1084,7 +1084,7 @@ public class GeneradorCuadruplos {
 
     /**
      * Pone nombre a las etiquetas en el orden en que aparecen (en E o en R), con un
-     * contador por estructura que nunca se reinicia: if-E1, if-E2..., Wil-E1...
+     * contador por estructura que nunca se reinicia: if-E1, if-E2..., Whi-E1...
      * Así los números van seguidos, sin huecos, y nunca se repiten.
      */
     private void nombrarEtiquetas() {

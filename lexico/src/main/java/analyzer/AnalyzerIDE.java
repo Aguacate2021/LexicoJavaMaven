@@ -51,7 +51,6 @@ public class AnalyzerIDE extends JFrame {
     private static final Color TEXT_NUMBER  = new Color(0xB5, 0xCE, 0xA8);
     private static final Color TEXT_COMMENT = new Color(0x6A, 0x99, 0x55);
     private static final Color TEXT_FUNC    = new Color(0xDC, 0xDC, 0xAA);
-    private static final Color ACCENT_GREEN = new Color(0x21, 0x7A, 0x3C);
     private static final Font MONO_FONT = new Font("Consolas", Font.PLAIN, 14);
     private static final Font LABEL_FONT = new Font("Segoe UI", Font.BOLD, 11);
     private static final Font BTN_FONT   = new Font("Segoe UI", Font.BOLD, 12);
@@ -83,7 +82,6 @@ public class AnalyzerIDE extends JFrame {
         add(buildTitleBar(),  BorderLayout.NORTH);
         add(buildMainSplit(), BorderLayout.CENTER);
         add(buildStatusBar(), BorderLayout.SOUTH);
-        //loadSampleCode();
         setVisible(true);
         ajustarDivisores();
     }
@@ -176,17 +174,9 @@ public class AnalyzerIDE extends JFrame {
         JButton btnAbrir    = makeButton("+ ABRIR",    new Color(0x3C, 0x3C, 0x3C), TEXT_MAIN);
         JButton btnCompilar = makeButton("- COMPILAR", new Color(0x3C, 0x3C, 0x3C), TEXT_MAIN);
         JButton btnExcel = makeButton("+- EXCEL", new Color(0x3C, 0x3C, 0x3C), TEXT_MAIN);
-        //JButton btnAvance1 = makeButton("* AVANCE 2", new Color(0x3C, 0x3C, 0x3C), TEXT_MAIN);
-        //JButton btnExpresiones = makeButton("» Avance 1", new Color(0x3C, 0x3C, 0x3C), TEXT_MAIN);
         btns.add(btnAbrir);
         btns.add(btnCompilar);
         btns.add(btnExcel);
-        //btns.add(btnAvance1);
-        //btns.add(btnExpresiones);
-        //JButton btnOperaciones = makeButton("» Avance 2", new Color(0x3C, 0x3C, 0x3C), TEXT_MAIN);
-        //btns.add(btnOperaciones);
-        JButton btnMuestreo = makeButton("» Sem2 Av.2", new Color(0x3C, 0x3C, 0x3C), TEXT_MAIN);
-        //btns.add(btnMuestreo);
 
         header.add(btns, BorderLayout.EAST);
         panel.add(header, BorderLayout.NORTH);
@@ -194,10 +184,6 @@ public class AnalyzerIDE extends JFrame {
         btnCompilar.addActionListener(e -> compilar());
         btnExcel.addActionListener(e -> exportToExcel());
         btnAbrir.addActionListener(e -> abrirArchivo());
-        //btnAvance1.addActionListener(e -> btnGuardarLogActionPerformed(null));
-        //btnExpresiones.addActionListener(e -> btnGuardarExpresionesActionPerformed(null));
-        //btnOperaciones.addActionListener(e -> btnGuardarOperacionesActionPerformed());
-        btnMuestreo.addActionListener(e -> btnGuardarMuestreoSemantica2ActionPerformed());
         // ── Editor de texto ──────────────────────────────────────────────────
         codeEditor = new JTextPane();
         codeEditor.setBackground(BG_DARK);
@@ -249,7 +235,6 @@ public class AnalyzerIDE extends JFrame {
                 }
             }
         };
-        //lineNumbers.setPreferredSize(new Dimension(42, 0));
         lineNumbers.setBackground(new Color(0x1A, 0x1A, 0x1A));
         codeEditor.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
         private void refresh() {
@@ -371,7 +356,6 @@ public class AnalyzerIDE extends JFrame {
     // =====================================================
 
     cuadruplos.generar(tokens, errores);
-    System.out.println(cuadruplos.comoTexto());
 
     // El aviso de detención se muestra una sola vez en la lista de errores,
     // pero no se suma a los contadores de errores léxicos/sintácticos/semánticos.
@@ -502,240 +486,11 @@ public class AnalyzerIDE extends JFrame {
 
             codeEditor.setText(contenido.toString());
 
-            // Si quieres compilar automáticamente
-            // SwingUtilities.invokeLater(this::compilar);
-
         } catch (Exception e) {
             javax.swing.JOptionPane.showMessageDialog(this, "Error al leer el archivo");
             e.printStackTrace();
         }
     }
-    }
-    // ════════════════════════════════════════════════════════════════════════
-    // Abrir Guardar archivo .txt del avance 1 
-    // ════════════════════════════════════════════════════════════════════════
-    private void btnGuardarLogActionPerformed(java.awt.event.ActionEvent evt) {
-
-    String log = parserLexer.getLogAvance1();
-
-    if (log.isEmpty()) {
-        javax.swing.JOptionPane.showMessageDialog(
-            this,
-            "No hay información de análisis para guardar.",
-            "Sin información",
-            javax.swing.JOptionPane.WARNING_MESSAGE
-        );
-        return;
-    }
-
-    javax.swing.JFileChooser fileChooser =
-            new javax.swing.JFileChooser();
-
-    fileChooser.setDialogTitle("Guardar log del análisis");
-
-    fileChooser.setSelectedFile(
-            new java.io.File("DeteccionDeAmbito_Alatorre_23130243.txt")
-    );
-
-    int resultado = fileChooser.showSaveDialog(this);
-
-    if (resultado == javax.swing.JFileChooser.APPROVE_OPTION) {
-
-        java.io.File archivo = fileChooser.getSelectedFile();
-
-        // Agregar .txt automáticamente si el usuario no lo escribió
-        if (!archivo.getName().toLowerCase().endsWith(".txt")) {
-            archivo = new java.io.File(
-                    archivo.getAbsolutePath() + ".txt"
-            );
-        }
-
-        try (java.io.FileWriter escritor =
-                     new java.io.FileWriter(archivo)) {
-
-            escritor.write(log);
-
-            javax.swing.JOptionPane.showMessageDialog(
-                    this,
-                    "El log se guardó correctamente.\n\n"
-                    + "Archivo:\n"
-                    + archivo.getAbsolutePath(),
-                    "Log guardado",
-                    javax.swing.JOptionPane.INFORMATION_MESSAGE
-            );
-
-        } catch (java.io.IOException ex) {
-
-            javax.swing.JOptionPane.showMessageDialog(
-                    this,
-                    "Error al guardar el log:\n"
-                    + ex.getMessage(),
-                    "Error",
-                    javax.swing.JOptionPane.ERROR_MESSAGE
-            );
-        }
-    }
-}
-    // ════════════════════════════════════════════════════════════════════════
-    // Guardar archivo .txt de las expresiones (infijo -> prefijo)
-    // ════════════════════════════════════════════════════════════════════════
-    private void btnGuardarExpresionesActionPerformed(java.awt.event.ActionEvent evt) {
-
-        // Se reconstruye con el StringBuilder que sintaxis.java va llenando
-        // operación por operación (una línea "Linea N: <prefijo>" por cada
-        // asignación cerrada), en vez de leer el .txt físico de vuelta.
-        StringBuilder contenido = new StringBuilder(parserLexer.getLogExpresiones());
-
-        if (contenido.length() == 0) {
-            javax.swing.JOptionPane.showMessageDialog(
-                this,
-                "No hay expresiones procesadas para guardar.",
-                "Sin información",
-                javax.swing.JOptionPane.WARNING_MESSAGE
-            );
-            return;
-        }
-
-        javax.swing.JFileChooser fileChooser = new javax.swing.JFileChooser();
-
-        fileChooser.setDialogTitle("Guardar expresiones (infijo -> prefijo)");
-
-        fileChooser.setSelectedFile(
-                new java.io.File("Avance1-DavidAlatorre.txt")
-        );
-
-        int resultado = fileChooser.showSaveDialog(this);
-
-        if (resultado == javax.swing.JFileChooser.APPROVE_OPTION) {
-
-            java.io.File archivo = fileChooser.getSelectedFile();
-
-            if (!archivo.getName().toLowerCase().endsWith(".txt")) {
-                archivo = new java.io.File(
-                        archivo.getAbsolutePath() + ".txt"
-                );
-            }
-
-            try (java.io.FileWriter escritor =
-                         new java.io.FileWriter(archivo)) {
-
-                escritor.write(contenido.toString());
-
-                javax.swing.JOptionPane.showMessageDialog(
-                        this,
-                        "Las expresiones se guardaron correctamente.\n\n"
-                        + "Archivo:\n"
-                        + archivo.getAbsolutePath(),
-                        "Archivo guardado",
-                        javax.swing.JOptionPane.INFORMATION_MESSAGE
-                );
-
-            } catch (java.io.IOException ex) {
-
-                javax.swing.JOptionPane.showMessageDialog(
-                        this,
-                        "Error al guardar las expresiones:\n"
-                        + ex.getMessage(),
-                        "Error",
-                        javax.swing.JOptionPane.ERROR_MESSAGE
-                );
-            }
-        }
-    }
-    // ════════════════════════════════════════════════════════════════════════
-    // Guardar archivo .txt del muestreo de Semántica 2 (Avance 2)
-    // ════════════════════════════════════════════════════════════════════════
-    private void btnGuardarMuestreoSemantica2ActionPerformed() {
-
-        String contenido = parserLexer.getLogMuestreoSemantica2();
-
-        // Solo trae el renglón de encabezados cuando aún no se compiló nada
-        // (o el programa no activó ninguna regla).
-        if (contenido.trim().split("\\R").length <= 1) {
-            javax.swing.JOptionPane.showMessageDialog(
-                this,
-                "No hay registros de muestreo. Compila primero un programa que active las reglas 1 a 10.",
-                "Sin información",
-                javax.swing.JOptionPane.WARNING_MESSAGE
-            );
-            return;
-        }
-
-        javax.swing.JFileChooser fileChooser = new javax.swing.JFileChooser();
-        fileChooser.setDialogTitle("Guardar muestreo de Semántica 2 (Avance 2)");
-        fileChooser.setSelectedFile(new java.io.File("Semantica2-Avance2-DavidAlatorre.txt"));
-
-        if (fileChooser.showSaveDialog(this) == javax.swing.JFileChooser.APPROVE_OPTION) {
-
-            java.io.File archivo = fileChooser.getSelectedFile();
-
-            if (!archivo.getName().toLowerCase().endsWith(".txt")) {
-                archivo = new java.io.File(archivo.getAbsolutePath() + ".txt");
-            }
-
-            try {
-                java.nio.file.Files.writeString(
-                        archivo.toPath(), contenido, java.nio.charset.StandardCharsets.UTF_8);
-                javax.swing.JOptionPane.showMessageDialog(
-                        this,
-                        "El muestreo se guardó correctamente.\n\nArchivo:\n"
-                        + archivo.getAbsolutePath(),
-                        "Archivo guardado",
-                        javax.swing.JOptionPane.INFORMATION_MESSAGE);
-            } catch (java.io.IOException ex) {
-                javax.swing.JOptionPane.showMessageDialog(
-                        this,
-                        "Error al guardar el muestreo:\n" + ex.getMessage(),
-                        "Error",
-                        javax.swing.JOptionPane.ERROR_MESSAGE);
-            }
-        }
-    }
-    // ════════════════════════════════════════════════════════════════════════
-    // Guardar archivo .txt de las operaciones con temporales (Avance 2)
-    // ════════════════════════════════════════════════════════════════════════
-    private void btnGuardarOperacionesActionPerformed() {
-
-        String contenido = parserLexer.getLogOperaciones();
-
-        if (contenido.isEmpty()) {
-            javax.swing.JOptionPane.showMessageDialog(
-                this,
-                "No hay operaciones generadas para guardar.",
-                "Sin información",
-                javax.swing.JOptionPane.WARNING_MESSAGE
-            );
-            return;
-        }
-
-        javax.swing.JFileChooser fileChooser = new javax.swing.JFileChooser();
-        fileChooser.setDialogTitle("Guardar operaciones (Avance 2)");
-        fileChooser.setSelectedFile(new java.io.File("Avance2-DavidAlatorre.txt"));
-
-        if (fileChooser.showSaveDialog(this) == javax.swing.JFileChooser.APPROVE_OPTION) {
-
-            java.io.File archivo = fileChooser.getSelectedFile();
-
-            if (!archivo.getName().toLowerCase().endsWith(".txt")) {
-                archivo = new java.io.File(archivo.getAbsolutePath() + ".txt");
-            }
-
-            try (java.io.FileWriter escritor = new java.io.FileWriter(archivo)) {
-                escritor.write(contenido);
-                javax.swing.JOptionPane.showMessageDialog(
-                        this,
-                        "Las operaciones se guardaron correctamente.\n\nArchivo:\n"
-                        + archivo.getAbsolutePath(),
-                        "Archivo guardado",
-                        javax.swing.JOptionPane.INFORMATION_MESSAGE);
-            } catch (java.io.IOException ex) {
-                javax.swing.JOptionPane.showMessageDialog(
-                        this,
-                        "Error al guardar las operaciones:\n" + ex.getMessage(),
-                        "Error",
-                        javax.swing.JOptionPane.ERROR_MESSAGE);
-            }
-        }
     }
     // ════════════════════════════════════════════════════════════════════════
     // SYNTAX HIGHLIGHT
@@ -783,21 +538,6 @@ public class AnalyzerIDE extends JFrame {
         Matcher m = Pattern.compile(regex).matcher(text);
         while (m.find())
             doc.setCharacterAttributes(m.start(), m.end() - m.start(), attr, false);
-    }
-
-    // ════════════════════════════════════════════════════════════════════════
-    // HELPERS
-    // ════════════════════════════════════════════════════════════════════════
-    private void loadSampleCode() {
-        String sample =
-            "import math\n\n" +
-            "def area_circulo(r):\n" +
-            "    return math.pi * r**2\n\n" +
-            "radio = 5\n" +
-            "resultado = area_circulo(radio)\n" +
-            "print(\"El área es:\", resultado)\n";
-        codeEditor.setText(sample);
-        //SwingUtilities.invokeLater(this::compilar);
     }
 
     private JButton makeButton(String text, Color bg, Color fg) {

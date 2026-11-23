@@ -95,20 +95,10 @@ private String[][] cargarTabla(String archivoCsv) {
     }
     return tabla;
 }
-private int obtenerFilasYColumnas(int c){
-     if (mapaColumnasFilas.containsKey(c)) {
-            return mapaColumnasFilas.get(c);
-    }
-    return 8;
-}
 // Números de tipo (los mismos de obtenerNumeroDeString)
 public static final int T_BIN = 1, T_DEC = 2, T_OCT = 3, T_HEX = 4, T_REAL = 5,
         T_EXP = 6, T_CADENA = 7, T_CARACTER = 8, T_BOOLEAN = 9, T_VARIANT = 10;
 
-/** Versión por códigos de token (firma original). */
-public int ObtenerTipoDeTemporal(int fila, int columna, int tipoOperacion) {
-    return ObtenerTipoPorTipos(tipoDeToken(fila), tipoDeToken(columna), tipoOperacion);
-}
 
 /**
  * Versión por TIPOS (1..10). Sirve para operandos que no son tokens (temporales).

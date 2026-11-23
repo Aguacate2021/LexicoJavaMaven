@@ -1,10 +1,7 @@
 package analyzer;
 
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 /**
  * Analizador léxico para código ManuelCode2026.
@@ -17,53 +14,6 @@ import java.util.Set;
  */
 public class Lexer {
     List<ErrorEntry> errores = new ArrayList<>();
-    // ── Palabras clave ───────────────────────────────────────────
-    private static final Set<String> KEYWORDS = new HashSet<>(Arrays.asList(
-       "reg", 
-        "main", 
-        "var", 
-        "def", 
-        "true", 
-        "false",
-        "null", 
-        "CLEAR", 
-        "SQRT", 
-        "POW", 
-        "SQRTV", 
-        "STRLEN", 
-        "concat", 
-        "copy", 
-        "val", 
-        "str", 
-        "sin", 
-        "cos", 
-        "tan", 
-        "chr", 
-        "char", 
-        "clear", 
-        "sqrt", 
-        "pow", 
-        "sqrtv", 
-        "strlen", 
-        "pred", 
-        "succ", 
-        "inc", 
-        "dec", 
-        "sqr", 
-        "Console.read", 
-        "Console.log", 
-        "while", 
-        "do", 
-        "return", 
-        "for", 
-        "switch", 
-        "elseif", 
-        "else", 
-        "case", 
-        "default", 
-        "break", 
-        "if"
-    ));
 
     // ════════════════════════════════════════════════════════════════════════
     // TOKENIZACIÓN
@@ -277,9 +227,6 @@ private void procesarEOF(StringBuilder lexema, int estado,
         errores.add(new ErrorEntry(codigoError, descripcion, linea, "ManuelCode",Lexema));
     }
 
-    public static boolean esKeyword(String palabra) {
-        return KEYWORDS.contains(palabra);
-    }
 
     public List<ErrorEntry> getErrores() {
         return errores;

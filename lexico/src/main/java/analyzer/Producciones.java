@@ -165,7 +165,4 @@ public class Producciones {
         }
     }
 
-    public static boolean existeProduccion(int numProduccion) {
-        return producciones.containsKey(numProduccion);
-    }
 }

@@ -446,44 +446,4 @@ public class TablaSimbolosDAO {
         }
     }
 
-    /**
-     * Método de prueba.
-     */
-    public static void probarInsercion() {
-
-        String sql = """
-            INSERT INTO tabla_simbolos
-            (id, tipo, clase, amb, tarr, dimarr, nopar, tpar)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """;
-
-        try (Connection conexion = ConexionBD.conectar();
-             PreparedStatement ps =
-                     conexion.prepareStatement(sql)) {
-
-            ps.setString(1, "$x");
-            ps.setString(2, "variable");
-            ps.setString(3, "entero");
-            ps.setInt(4, 0);
-            ps.setString(5, null);
-            ps.setString(6, null);
-            ps.setInt(7, 0);
-            ps.setString(8, null);
-
-            ps.executeUpdate();
-
-            System.out.println(
-                "[BD] INSERT de prueba realizado correctamente."
-            );
-
-        } catch (SQLException e) {
-            ConexionBD.verificarFallo(e, "probarInsercion");
-
-            System.err.println(
-                "[BD] Error en INSERT de prueba."
-            );
-
-            e.printStackTrace();
-        }
-    }
 }

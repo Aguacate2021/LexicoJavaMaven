@@ -1,7 +1,6 @@
 package analyzer;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -29,18 +28,11 @@ public class sintaxis {
 
     private final List<ErrorEntry> erroresSintaxis = new ArrayList<>();
 
-    private final List<ErrorEntry> erroresAmbito = new ArrayList<>();
 
     // DAO de la tabla de símbolos
     private final TablaSimbolosDAO tabla = new TablaSimbolosDAO();
 
-    private final StringBuilder logBuilder = new StringBuilder();
 
-    // Espejo en memoria de lo que se va escribiendo en ARCHIVO_POSTFIJAS
-    // (una línea "Linea N: <prefijo>" por operación), para que la IDE
-    // pueda ofrecer un diálogo "Guardar como..." sin depender de leer
-    // el archivo físico de vuelta.
-    private final StringBuilder logExpresiones = new StringBuilder();
 
     // =========================================================
     // ÁREAS
@@ -119,7 +111,6 @@ public class sintaxis {
     private final Map<Integer, Integer> contadorTemporales = new HashMap<>();
 
     // Operaciones generadas ("Linea N:" + cuádruplas) de toda la compilación.
-    private final StringBuilder logOperaciones = new StringBuilder();
 
     // =========================================================
     // AVANCE 1 DE SEMÁNTICA 2: MUESTREO DE LAS REGLAS 1 A 5
@@ -259,25 +250,10 @@ public class sintaxis {
         return erroresSintaxis;
     }
 
-    public List<ErrorEntry> getErroresAmbito() {
-        return erroresAmbito;
-    }
 
-    public String getLogAvance1() {
-        return logBuilder.toString();
-    }
 
-    public String getLogExpresiones() {
-        return logExpresiones.toString();
-    }
 
-    public String getLogOperaciones() {
-        return logOperaciones.toString();
-    }
 
-    public String getLogMuestreoSemantica2() {
-        return muestreo.generarTabla();
-    }
 
     public List<String[]> getFilasMuestreoSemantica2() {
         return muestreo.filas();
@@ -303,9 +279,6 @@ public class sintaxis {
         return semantica3.contadores().filas();
     }
 
-    public String getLogSemantica3() {
-        return semantica3.generarTabla();
-    }
 
     public Map<Integer, int[]> getEstadisticasSemantica() {
         return estadisticasSemantica;
@@ -315,9 +288,6 @@ public class sintaxis {
         return asignacionesDetalle;
     }
 
-    public int getTipoTemporal(String temporal) {
-        return tipoDeTemporal.getOrDefault(temporal, LeerCSVComparacion.T_VARIANT);
-    }
 
     // =========================================================
     // PARSER
@@ -353,14 +323,12 @@ public class sintaxis {
         // LIMPIAR ESTADO DEL ANÁLISIS
         // -----------------------------------------------------
 
-        logBuilder.setLength(0);
 
         reiniciarMuestreoSemantica2();
         semantica3.limpiar();
         secuenciaFilas.set(0);
 
         erroresSintaxis.clear();
-        erroresAmbito.clear();
 
         ContadorCiclos.resetearContadores();
 
@@ -391,7 +359,6 @@ public class sintaxis {
         contTempSem.clear();
         memoTempSem.clear();
         tokTempSem.clear();
-        logOperaciones.setLength(0);
         estadisticasSemantica.clear();
         asignacionesDetalle.clear();
         estadisticaLineaActual = null;
@@ -443,8 +410,6 @@ public class sintaxis {
 
         Token tokenActual = null;
 
-        logBuilder.append(
-                "Línea: 1 ---> ÁMBITO 0 ---> ABIERTO\n");
         // =====================================================
         // CICLO PRINCIPAL
         // =====================================================
@@ -1221,21 +1186,6 @@ public class sintaxis {
                             " error(es) sintáctico(s).");
         }
 
-        if (tokenActual != null
-                &&
-                !AmbitoActual.isEmpty()) {
-
-            logBuilder.append(
-                    "Línea: "
-                            +
-                            tokenActual.getLinea()
-                            +
-                            " ---> ÁMBITO "
-                            +
-                            AmbitoActual.peek()
-                            +
-                            " ---> CERRADO\n");
-        }
     }
 
     // =========================================================
@@ -1918,27 +1868,6 @@ public class sintaxis {
         return null; // identificador, real, etc.: no es constante calculable
     }
 
-    /** Nombre del tipo de un token, solo con lo que el compilador ya sabe de él. */
-    private String tipoDeTokenParaMuestreo(int tc, String tipoId) {
-        if (tipoId != null) {
-            return tipoId; // identificador: tipo de la tabla de símbolos
-        }
-        boolean constante = (tc <= -53 && tc >= -59) || tc == -72 || tc == -73;
-        if (!constante) {
-            return null;
-        }
-        return switch (LeerCSVComparacion.tipoDeToken(tc)) {
-            case LeerCSVComparacion.T_BIN -> "Binario";
-            case LeerCSVComparacion.T_DEC -> "Decimal";
-            case LeerCSVComparacion.T_OCT -> "Octal";
-            case LeerCSVComparacion.T_HEX -> "Hexadecimal";
-            case LeerCSVComparacion.T_REAL -> "Real";
-            case LeerCSVComparacion.T_EXP -> "Exponencial";
-            case LeerCSVComparacion.T_CADENA -> "Cadena";
-            case LeerCSVComparacion.T_BOOLEAN -> "Booleanas";
-            default -> null;
-        };
-    }
 
     /** Punto único por el que pasa cada token consumido, para el muestreo. */
     private void alimentarMuestreo(Token t, String tipoId) {
@@ -3142,25 +3071,6 @@ public class sintaxis {
         return -1;
     }
 
-    /**
-     * Compatibilidad estricta destino<-origen para parámetros y retornos.
-     * suma.csv deja que Cadena absorba cualquier tipo (concatenación), pero un
-     * argumento Decimal NO es válido para un parámetro Cadena (ejemplo del
-     * profesor: fun1(2,5,5) falla en la posición 2). Variant se acepta siempre.
-     */
-    private boolean tiposCompatibles(int dest, int orig) {
-        if (dest == LeerCSVComparacion.T_VARIANT || orig == LeerCSVComparacion.T_VARIANT) {
-            return true;
-        }
-        if (dest == orig) {
-            return true;
-        }
-        if (dest == LeerCSVComparacion.T_CADENA || orig == LeerCSVComparacion.T_CADENA
-                || dest == LeerCSVComparacion.T_BOOLEAN || orig == LeerCSVComparacion.T_BOOLEAN) {
-            return false;
-        }
-        return comparacion.asignacionCompatible(dest, orig); // p. ej. Real <- Decimal
-    }
 
     /**
      * Compatibilidad parámetro <- argumento: la misma que en las asignaciones
@@ -3598,9 +3508,6 @@ public class sintaxis {
         String cuadrupla = f.nombre + "," + args + "," + tmp + "\n";
         if (EstadoDeOperacion) {
             cuadruplasNativas.append(cuadrupla); // se escribe junto con la operación que la contiene
-        } else {
-            logOperaciones.append("Linea ").append(llamada.getLinea()).append(":\n\n")
-                    .append(cuadrupla).append("\n");
         }
     }
 
@@ -4003,12 +3910,6 @@ public class sintaxis {
         AmbitoActual.push(
                 ContadorAmbito++);
 
-        logBuilder.append(
-                "Línea: "
-                        + tokenActual.getLinea()
-                        + " ---> ÁMBITO "
-                        + AmbitoActual.peek()
-                        + " ---> ABIERTO\n");
 
         // Este es el ámbito hijo real de la función que se acaba
         // de declarar: se registra como su TParr, tal cual lo
@@ -4047,12 +3948,6 @@ public class sintaxis {
             cerrarFuncion(funcStack.pop());
         }
 
-        logBuilder.append(
-                "Línea: "
-                        + tokenActual.getLinea()
-                        + " ---> ÁMBITO "
-                        + AmbitoActual.peek()
-                        + " ---> CERRADO\n");
 
         AmbitoActual.pop();
     }
@@ -4405,7 +4300,6 @@ public class sintaxis {
     }
 
     private void reiniciarArchivoPostfijas() {
-        logExpresiones.setLength(0);
         try (FileWriter fw = new FileWriter(ARCHIVO_POSTFIJAS, false)) {
             // Deja el archivo vacío al iniciar un nuevo análisis.
         } catch (IOException e) {
@@ -4417,8 +4311,6 @@ public class sintaxis {
 
     private void escribirOperacionEnArchivo(int linea, String prefijo) {
 
-        logExpresiones.append("Linea ").append(linea).append(": ")
-                .append(prefijo).append("\n\n");
 
         try (FileWriter fw = new FileWriter(ARCHIVO_POSTFIJAS, true);
                 PrintWriter pw = new PrintWriter(fw)) {
@@ -4635,8 +4527,6 @@ public class sintaxis {
             for (int i = 0; i < 10; i++)
                 acumulado[i] += stats[i];
 
-            logOperaciones.append("Linea ").append(linea).append(":\n\n")
-                    .append(bloque).append("\n");
         }
     }
 

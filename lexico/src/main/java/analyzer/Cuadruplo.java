@@ -13,7 +13,7 @@ package analyzer;
 public class Cuadruplo {
 
     /**
-     * Etiqueta de salto (if-E1, Wil-E2, For-E3...). Puede volverse "alias" de otra
+     * Etiqueta de salto (if-E1, Whi-E2, For-E3...). Puede volverse "alias" de otra
      * (el último JF de un if/elseif sin else se une a la etiqueta de salida), así
      * nunca quedan dos etiquetas pegadas que signifiquen lo mismo.
      */
@@ -94,9 +94,6 @@ public class Cuadruplo {
         return etiquetaE != null;
     }
 
-    public boolean esSalto() {
-        return etiquetaR != null;
-    }
 
     Etiqueta getEtiquetaE() {
         return etiquetaE;
