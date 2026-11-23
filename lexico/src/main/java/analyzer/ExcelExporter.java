@@ -210,8 +210,8 @@ public class ExcelExporter {
                 poblarSemantica3(wb, contadoresSem3);           // solo SEMANTICA 3 T2
             }
             if (cuadruplos != null) {
+                poblarContCI(wb, cuadruplos);      // mismo orden que la referencia: Cont-CI y luego Cuadruplo
                 poblarCuadruplos(wb, cuadruplos);
-                poblarContCI(wb, cuadruplos);
             }
 
             try (FileOutputStream fos = new FileOutputStream(destino)) {
@@ -266,7 +266,7 @@ public class ExcelExporter {
     // HOJA 2 — ERRORES
     // ═══════════════════════════════════════════════════════════════════════
     private static void poblarErrores(XSSFWorkbook wb, List<ErrorEntry> errores) {
-        XSSFSheet ws = wb.createSheet("ERRORES");
+        XSSFSheet ws = wb.createSheet("Errores");
         ws.setColumnWidth(0, 20 * 256);
         ws.setColumnWidth(1, 40 * 256);
         ws.setColumnWidth(2, 25 * 256);
@@ -461,7 +461,7 @@ public class ExcelExporter {
     // ═══════════════════════════════════════════════════════════════════════
     private static void poblarAmbitos(XSSFWorkbook wb, List<ErrorEntry> errores) {
 
-        XSSFSheet ws = wb.createSheet("Ambito");
+        XSSFSheet ws = wb.createSheet("Ámbito");
 
         String[] encabezados = {
             "Ambito", "Bin", "Dec", "Oct", "Hex",
@@ -641,7 +641,7 @@ public class ExcelExporter {
     // ═══════════════════════════════════════════════════════════════════════
     private static void poblarTablaSimbolos(XSSFWorkbook wb) {
 
-        XSSFSheet ws = wb.createSheet("Tabla de simbolos");
+        XSSFSheet ws = wb.createSheet("Tabla de Simbolos");
 
         String[] encabezados = {
             "id", "tipo", "clase", "amb",
@@ -760,7 +760,7 @@ public class ExcelExporter {
                                          Map<Integer, List<String>> asignacionesDetalle,
                                          List<ErrorEntry> errores) {
 
-        XSSFSheet ws = wb.createSheet("SEMANTICA 1");
+        XSSFSheet ws = wb.createSheet("Semantica 1");
         String[] encabezados = {
             "Linea", "TBin", "TDec", "TOct", "THex", "TReal", "Texp",
             "TCadena", "TBoolean", "TVariant", "Asignaciones", "Errores"
@@ -1161,7 +1161,7 @@ public class ExcelExporter {
     // CUÁDRUPLOS — exactamente 5 columnas: Etiqueta | Acción | Val1 | Val2 | Result
     // Las filas de etiqueta (solo E) van resaltadas en verde en toda la fila.
     // ═══════════════════════════════════════════════════════════════════════
-    public static final String HOJA_CUADRUPLOS = "CUADRUPLOS";
+    public static final String HOJA_CUADRUPLOS = "Cuadruplo";
     public static final String HOJA_CONT_CI = "Cont-CI";
     private static final XSSFColor COLOR_ETIQUETA = rgb(0x7E, 0xD3, 0x21);
 
@@ -1323,7 +1323,7 @@ public class ExcelExporter {
 // ═══════════════════════════════════════════════════════════════════════
 private static void poblarContadoresSintaxis(XSSFWorkbook wb) {
 
-    XSSFSheet ws = wb.createSheet("CONT_SINTAXIS");
+    XSSFSheet ws = wb.createSheet("Sintaxis");
 
     String[] nombres = {
         "ERRORES",
