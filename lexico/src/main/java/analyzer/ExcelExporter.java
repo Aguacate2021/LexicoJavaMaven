@@ -1158,7 +1158,7 @@ public class ExcelExporter {
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // CUÁDRUPLOS — exactamente 5 columnas: E | A | V1 | V2 | R
+    // CUÁDRUPLOS — exactamente 5 columnas: Etiqueta | Acción | Val1 | Val2 | Result
     // Las filas de etiqueta (solo E) van resaltadas en verde en toda la fila.
     // ═══════════════════════════════════════════════════════════════════════
     public static final String HOJA_CUADRUPLOS = "CUADRUPLOS";
@@ -1167,7 +1167,7 @@ public class ExcelExporter {
 
     public static void poblarCuadruplos(XSSFWorkbook wb, GeneradorCuadruplos gen) {
         XSSFSheet ws = wb.createSheet(HOJA_CUADRUPLOS);
-        String[] encabezados = { "E", "A", "V1", "V2", "R" };
+        String[] encabezados = { "Etiqueta", "Acción", "Val1", "Val2", "Result" };
         int[] anchos = { 14, 14, 18, 18, 18 };
         XSSFRow enc = ws.createRow(0);
         enc.setHeightInPoints(18);

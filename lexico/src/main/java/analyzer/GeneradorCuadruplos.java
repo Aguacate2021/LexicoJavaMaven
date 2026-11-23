@@ -247,7 +247,7 @@ public class GeneradorCuadruplos {
     /** Texto plano de la tabla (para depurar o guardar como .txt). */
     public String comoTexto() {
         StringBuilder sb = new StringBuilder();
-        sb.append(String.format("%-10s| %-12s| %-14s| %-14s| %s%n", "E", "A", "V1", "V2", "R"));
+        sb.append(String.format("%-10s| %-12s| %-14s| %-14s| %s%n", "Etiqueta", "Acción", "Val1", "Val2", "Result"));
         for (Cuadruplo c : cuadruplos) {
             sb.append(c).append(System.lineSeparator());
         }
