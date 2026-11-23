@@ -134,7 +134,7 @@ public class ExcelExporter {
                 poblarSemantica3(wb, contadoresSem3);           // solo SEMANTICA 3 T2
             }
             if (cuadruplos != null) {
-                poblarContCI(wb, cuadruplos);      // mismo orden que la referencia: Cont-CI y luego Cuadruplo
+                poblarContCI(wb, cuadruplos);      // Cont-CI y luego Cuadruplo
                 poblarCuadruplos(wb, cuadruplos);
             }
 
@@ -773,9 +773,8 @@ public class ExcelExporter {
     }
 
     /**
-     * Hoja Semantica 2-Base (como la referencia): las filas de Semántica 2 y las de Semántica 3
-     * (antes hoja SEMANTICA 3 T1) en una sola tabla, intercaladas en el orden en que se
-     * ejecutaron las reglas, con la columna "Función" ("-" en las reglas de Semántica 2).
+     * Hoja Semantica 2-Base: las filas de Semántica 2 y las de Semántica 3 en una sola tabla,
+     * intercaladas en el orden en que se ejecutaron las reglas, con la columna "Función" ("-" en las reglas de Semántica 2).
      * Semantica 2-Total sigue contando solo las reglas de Semántica 2.
      *
      * @param filas    MuestreoSemantico.filas(): {línea, regla, descripción, situación, lexema, ámbito, tope, orden}
@@ -851,8 +850,7 @@ public class ExcelExporter {
 
     // ═══════════════════════════════════════════════════════════════════════
     // HOJA — SEMANTICA 3 T2 (contadores: Función | Entradas | Salida | Aceptados | Errores, sin "Uso")
-    // Las filas de la tabla de Semántica 3 (antes SEMANTICA 3 T1) se exportan dentro de
-    // Semantica 2-Base, como en la referencia.
+    // Las filas de la tabla de Semántica 3 se exportan dentro de Semantica 2-Base.
     // ═══════════════════════════════════════════════════════════════════════
     public static void poblarSemantica3(XSSFWorkbook wb, List<String[]> contadores) {
         CellStyle plano = estiloPlano(wb);
@@ -874,12 +872,8 @@ public class ExcelExporter {
     // ESTILOS
     // ═══════════════════════════════════════════════════════════════════════
 
-    // Causa del error "The maximum number of Cell Styles was exceeded": cada llamada a
-    // estiloDato/estiloDatoNum/... hacía wb.createCellStyle() + wb.createFont(), y se
-    // llamaban por CELDA (3 estilos por token, 5 por error). Con ~21,000 tokens se
-    // superaba el límite de 64,000 estilos de un .xlsx. Ahora cada combinación
-    // (tipo de estilo + fila par/impar + color) se crea UNA sola vez por libro y se
-    // reutiliza: un libro usa unas decenas de estilos sin importar cuántas filas tenga.
+    // Un .xlsx admite como máximo 64,000 estilos: cada combinación (tipo de estilo +
+    // fila par/impar + color) se crea UNA sola vez por libro y se reutiliza en todas las celdas.
 
     /** Estilos ya creados, por libro (débil: se libera junto con el libro). */
     private static final Map<XSSFWorkbook, Map<String, XSSFCellStyle>> CACHE_ESTILOS =

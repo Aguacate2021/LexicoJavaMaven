@@ -69,8 +69,7 @@ public void cargarTablas() {
     ValoresRelacional2 = cargarTabla(ARCHIVO_CSV_RELACIONAL2);
     tablasCargadas = true;
 }
-// CORRECCIÓN: cada CSV tiene su propia matriz (antes todos escribían en "Valores")
-// y la etiqueta de la primera columna se salta en TODAS las filas (antes solo en la primera).
+// Cada CSV se carga en su propia matriz; la primera columna (etiqueta de fila) se salta en todas las filas.
 private String[][] cargarTabla(String archivoCsv) {
     String[][] tabla = new String[12][12];
     String linea;

@@ -20,7 +20,7 @@ import analyzer.SemanticRuleV3.Tipo;
  *  2. registra la salida con su regla (2011-2018) y el tipo que retorna ESTA llamada
  *     (pow(#Dx,2) -> Dec, pred($r) -> Real; el máximo si p1 es inválido) -> fila +
  *     contador Salida. La salida siempre se registra con su tipo aunque un parámetro
- *     haya fallado: el error queda en la fila del parámetro (como la referencia y la prueba);
+ *     haya fallado: el error queda en la fila del parámetro.
  *  3. nunca detiene el análisis: los errores solo se registran.
  *
  * Tabla principal: Regla | Función | Tope Pila | Valor Real | Fila | Edo | Ambito

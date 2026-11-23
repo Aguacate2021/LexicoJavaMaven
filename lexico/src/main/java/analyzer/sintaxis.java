@@ -605,10 +605,9 @@ public class sintaxis {
                         if (produccionActual == 12
                                 || produccionActual == 17) {
 
-                            // Si ya había un arreglo pendiente en la misma lista
-                            // ("var #DA[5], @B[3];") se guarda ahora, antes de
-                            // pisar idArreglo; antes solo se guardaba el último
-                            // al llegar el ';' y los anteriores quedaban como Variable.
+                            // Si ya hay un arreglo pendiente en la misma lista
+                            // ("var #DA[5], @B[3];") se guarda antes de pisar idArreglo,
+                            // para que cada arreglo de la lista quede registrado.
                             if (!idArreglo.isEmpty() && DimensionesArreglo > 0) {
                                 tabla.actualizarArreglo(
                                         idArreglo,
@@ -650,7 +649,7 @@ public class sintaxis {
                         // Encabezado de un FOR: la gramática (marcador 801) abre
                         // un área de declaración para la primera expresión. La
                         // variable de control se declara en el ámbito propio del FOR
-                        // (aunque exista afuera, como en la referencia); solo se
+                        // (aunque exista afuera); solo se
                         // reutiliza si ya está declarada en ese mismo ámbito.
                         boolean encabezadoFor = (AreaDeDeclaraciones
                                 && enEncabezadoFor
@@ -1467,7 +1466,7 @@ public class sintaxis {
         }
         if (!ok && opTabla != 0) {
             // Asignación compuesta (+= -= *= /=): es la regla 1021/1022 de Semántica 2, así
-            // que su error se clasifica en Semántica 2 (como la referencia), no en Semántica 1.
+            // que su error se clasifica en Semántica 2, no en Semántica 1.
             int regla = p != null ? p.regla : 1022;
             ContadorCiclos.ERRORES++;
             String motivo = "Tipos de datos incompatibles en la operación de asignación compuesta ("
@@ -3360,7 +3359,7 @@ public class sintaxis {
 
     /**
      * Cierra el argumento de Console.log: si era una sola llamada nativa, su resultado se
-     * imprime directo y no genera temporal (igual que la referencia); si la nativa formaba
+     * imprime directo y no genera temporal; si la nativa formaba
      * parte de una expresión, su temporal se registra ahora.
      */
     private void finalizarConsole(CapParen c) {
@@ -3380,7 +3379,7 @@ public class sintaxis {
     /**
      * Temporal de Semántica 1 que ya guarda el resultado de la expresión (una nativa o una
      * expresión con operaciones), o null. Semántica 2 lo usa como Valor Real para que la
-     * numeración sea la misma en ambas etapas (como la referencia).
+     * numeración sea la misma en ambas etapas.
      */
     private String temporalSemantica1(List<Token> toks) {
         if (toks == null || toks.isEmpty()) {
@@ -3475,7 +3474,7 @@ public class sintaxis {
         if (tipo == SemanticRuleV3.Tipo.VOID) {
             return;
         }
-        // Inicialización del for (for (#Dk = inc(#Dx); ...)): igual que la referencia, no es
+        // Inicialización del for (for (#Dk = inc(#Dx); ...)): no es
         // una operación de Semántica 1 (tampoco cuenta como asignación).
         if (enInicializacionDelFor()) {
             return;
@@ -4210,8 +4209,7 @@ public class sintaxis {
         // práctica llegan por el bloque "MATCH IDENTIFICADOR" (ver
         // arriba), pero se deja el rango completo por si algún día se
         // representan como terminal directo en la pila del parser.
-        // Avance 2: también -53 (cadena), -72/-73 (true/false) y -74 (null),
-        // que antes se perdían de la salida postfija.
+        // También -53 (cadena), -72/-73 (true/false) y -74 (null).
         return (tc >= -68 && tc <= -54) || tc == -107
                 || tc == -53 || tc == -72 || tc == -73 || tc == -74;
     }
